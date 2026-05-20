@@ -43,6 +43,15 @@ export default function DesvioDetailPage() {
   const [sending, setSending] = useState(false)
   const [loadingFoto, setLoadingFoto] = useState(false)
   const [editandoStatus, setEditandoStatus] = useState<StatusDesvio | null>(null)
+  const [tentouEnviarTratativa, setTentouEnviarTratativa] = useState(false)
+
+  // Conclusão com foto obrigatória
+  const [showConclusaoForm, setShowConclusaoForm] = useState(false)
+  const [conclusaoFotos, setConclusaoFotos] = useState<FotoDesvio[]>([])
+  const [conclusaoNome, setConclusaoNome] = useState('')
+  const [conclusaoComentario, setConclusaoComentario] = useState('')
+  const [loadingConclusaoFoto, setLoadingConclusaoFoto] = useState(false)
+  const fileRefConclusao = useRef<HTMLInputElement>(null)
 
   if (!desvio) {
     return (
@@ -59,13 +68,47 @@ export default function DesvioDetailPage() {
   const transitions = STATUS_TRANSITIONS.filter(t => t.from.includes(desvio.status))
 
   async function handleStatusChange(to: StatusDesvio) {
+    if (to === 'concluido') {
+      setShowConclusaoForm(true)
+      return
+    }
     setEditandoStatus(null)
     desviosDB.updateStatus(id, to, 'Sistema')
     refresh()
   }
 
+  async function handleConfirmarConclusao() {
+    if (conclusaoFotos.length === 0) return
+    setSending(true)
+    desviosDB.addTratativa(id, {
+      comentario: conclusaoComentario.trim() || 'Desvio concluído com registro fotográfico.',
+      autor: conclusaoNome.trim() || 'Sistema',
+      acao_realizada: 'Conclusão registrada',
+      fotos: conclusaoFotos,
+    })
+    desviosDB.updateStatus(id, 'concluido', conclusaoNome.trim() || 'Sistema')
+    refresh()
+    setShowConclusaoForm(false)
+    setConclusaoFotos([])
+    setConclusaoNome('')
+    setConclusaoComentario('')
+    setSending(false)
+  }
+
+  async function handleFotoConclusao(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files?.length) return
+    setLoadingConclusaoFoto(true)
+    for (const file of Array.from(e.target.files).slice(0, 3)) {
+      const data_url = await comprimirImagem(file, 500, 0.5)
+      if (data_url) setConclusaoFotos(prev => [...prev, { id: Date.now().toString(36) + Math.random().toString(36).slice(2), tipo: 'depois', data_url, nome: file.name }])
+    }
+    setLoadingConclusaoFoto(false)
+    e.target.value = ''
+  }
+
   async function handleAddTratativa() {
-    if (!comentario.trim() || !nomeTratativa.trim()) return
+    setTentouEnviarTratativa(true)
+    if (!comentario.trim() || !nomeTratativa.trim() || fotosTratativa.length === 0) return
     setSending(true)
     desviosDB.addTratativa(id, {
       comentario,
@@ -77,6 +120,7 @@ export default function DesvioDetailPage() {
     setComentario('')
     setAcaoRealizada('')
     setFotosTratativa([])
+    setTentouEnviarTratativa(false)
     setSending(false)
   }
 
@@ -136,7 +180,7 @@ export default function DesvioDetailPage() {
       </div>
 
       {/* Action buttons */}
-      {transitions.length > 0 && (
+      {transitions.length > 0 && !showConclusaoForm && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {transitions.map(t => (
             <button key={t.to} onClick={() => handleStatusChange(t.to)}
@@ -146,6 +190,87 @@ export default function DesvioDetailPage() {
             </button>
           ))}
         </div>
+      )}
+
+      {/* ── Formulário de Conclusão com foto obrigatória ── */}
+      {showConclusaoForm && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-green-500/30 bg-green-500/5 p-5 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              <p className="text-sm font-bold text-green-400">Confirmar Conclusão</p>
+            </div>
+            <button onClick={() => setShowConclusaoForm(false)}
+              className="text-zinc-500 hover:text-zinc-300 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Foto — obrigatória */}
+          <div className={cn('rounded-xl border-2 border-dashed p-4 transition-colors',
+            conclusaoFotos.length > 0 ? 'border-green-500/40 bg-green-500/5' : 'border-red-500/40 bg-red-500/5')}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-zinc-400" />
+                <p className="text-xs font-semibold text-zinc-300">Foto do desvio corrigido</p>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-400">OBRIGATÓRIO</span>
+              </div>
+              <button
+                onClick={() => fileRefConclusao.current?.click()}
+                disabled={loadingConclusaoFoto}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
+                style={{ background: '#16a34a' }}
+              >
+                {loadingConclusaoFoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                Adicionar foto
+              </button>
+            </div>
+            <input ref={fileRefConclusao} type="file" accept="image/*" multiple className="sr-only" onChange={handleFotoConclusao} />
+            {conclusaoFotos.length === 0 ? (
+              <p className="text-xs text-red-400">Adicione pelo menos 1 foto comprovando a correção do desvio</p>
+            ) : (
+              <div className="flex gap-2 flex-wrap mt-1">
+                {conclusaoFotos.map(f => (
+                  <div key={f.id} className="relative w-20 h-20 rounded-lg overflow-hidden bg-zinc-800">
+                    <img src={f.data_url} alt="" className="w-full h-full object-cover" />
+                    <button onClick={() => setConclusaoFotos(prev => prev.filter(x => x.id !== f.id))}
+                      className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center">
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Responsável pela conclusão</Label>
+              <Input value={conclusaoNome} onChange={e => setConclusaoNome(e.target.value)} placeholder="Seu nome" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observação (opcional)</Label>
+              <Input value={conclusaoComentario} onChange={e => setConclusaoComentario(e.target.value)}
+                placeholder="Descreva brevemente o que foi feito" />
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end pt-1">
+            <Button variant="outline" size="sm" onClick={() => setShowConclusaoForm(false)}>Cancelar</Button>
+            <button
+              onClick={handleConfirmarConclusao}
+              disabled={conclusaoFotos.length === 0 || sending}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: '#16a34a' }}
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Confirmar Conclusão
+            </button>
+          </div>
+        </motion.div>
       )}
 
       {/* Description card */}
@@ -260,34 +385,53 @@ export default function DesvioDetailPage() {
                 placeholder="Ex: EPI fornecido, treinamento realizado" />
             </div>
 
-            {/* Fotos da tratativa */}
+            {/* Fotos da tratativa — OBRIGATÓRIO */}
             <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFotoTratativa} />
-            {fotosTratativa.length > 0 && (
-              <div className="flex gap-2">
-                {fotosTratativa.map(f => (
-                  <div key={f.id} className="relative w-16 h-16 rounded-lg overflow-hidden bg-zinc-800">
-                    <img src={f.data_url} alt="" className="w-full h-full object-cover" />
-                    <button onClick={() => setFotosTratativa(prev => prev.filter(x => x.id !== f.id))}
-                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center">
-                      <X className="w-2.5 h-2.5 text-white" />
-                    </button>
-                  </div>
-                ))}
+            <div className={cn('rounded-xl border-2 border-dashed p-3 transition-colors',
+              fotosTratativa.length > 0
+                ? 'border-amber-500/40 bg-amber-500/5'
+                : tentouEnviarTratativa
+                  ? 'border-red-500/60 bg-red-500/5'
+                  : 'border-zinc-700 bg-zinc-800/40')}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Camera className={cn('w-4 h-4', fotosTratativa.length > 0 ? 'text-amber-400' : tentouEnviarTratativa ? 'text-red-400' : 'text-zinc-500')} />
+                  <p className="text-xs font-semibold text-zinc-300">Foto do desvio sendo tratado</p>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-400">OBRIGATÓRIO</span>
+                </div>
+                <button onClick={() => fileRef.current?.click()} disabled={loadingFoto}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors disabled:opacity-50">
+                  {loadingFoto ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                  Adicionar
+                </button>
               </div>
-            )}
+              {fotosTratativa.length === 0 ? (
+                <p className={cn('text-xs', tentouEnviarTratativa ? 'text-red-400 font-medium' : 'text-zinc-600')}>
+                  {tentouEnviarTratativa
+                    ? 'Foto obrigatória — adicione pelo menos 1 foto comprovando a tratativa'
+                    : 'Adicione pelo menos 1 foto comprovando a tratativa realizada'}
+                </p>
+              ) : (
+                <div className="flex gap-2 flex-wrap">
+                  {fotosTratativa.map(f => (
+                    <div key={f.id} className="relative w-16 h-16 rounded-lg overflow-hidden bg-zinc-800">
+                      <img src={f.data_url} alt="" className="w-full h-full object-cover" />
+                      <button onClick={() => setFotosTratativa(prev => prev.filter(x => x.id !== f.id))}
+                        className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center">
+                        <X className="w-2.5 h-2.5 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <div className="flex items-center gap-2">
-              <button onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-                <Camera className="w-4 h-4" />Foto da Correção
-              </button>
-              <div className="ml-auto">
-                <Button onClick={handleAddTratativa}
-                  disabled={!comentario.trim() || !nomeTratativa.trim() || sending} size="sm">
-                  {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                  Enviar
-                </Button>
-              </div>
+            <div className="flex items-center justify-end">
+              <Button onClick={handleAddTratativa}
+                disabled={!comentario.trim() || !nomeTratativa.trim() || sending} size="sm">
+                {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
+                Enviar Tratativa
+              </Button>
             </div>
           </div>
         </div>
