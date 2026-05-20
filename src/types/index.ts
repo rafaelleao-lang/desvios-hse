@@ -1,0 +1,139 @@
+export type StatusDesvio =
+  | 'aberto'
+  | 'em_tratativa'
+  | 'pendente'
+  | 'concluido'
+  | 'fechado'
+  | 'reincidente'
+
+export type GravidadeDesvio = 'baixo' | 'medio' | 'alto' | 'critico'
+
+export interface Obra {
+  id: string
+  nome: string
+  codigo: string
+  empresa?: string
+  cidade?: string
+  estado?: string
+  responsavel?: string
+  ativa: boolean
+  criado_em: string
+}
+
+export interface TST {
+  id: string
+  obra_id: string
+  nome: string
+  crea?: string
+  telefone?: string
+  ativo: boolean
+  criado_em: string
+}
+
+export interface Encarregado {
+  id: string
+  obra_id: string
+  nome: string
+  setor?: string
+  telefone?: string
+  ativo: boolean
+  criado_em: string
+}
+
+export interface FotoDesvio {
+  id: string
+  tipo: 'antes' | 'depois'
+  data_url: string
+  nome: string
+}
+
+export interface Tratativa {
+  id: string
+  comentario: string
+  autor: string
+  acao_realizada?: string
+  fotos?: FotoDesvio[]
+  criado_em: string
+}
+
+export interface HistoricoStatus {
+  id: string
+  status_anterior?: StatusDesvio
+  status_novo: StatusDesvio
+  por: string
+  observacao?: string
+  criado_em: string
+}
+
+export interface Desvio {
+  id: string
+  numero: number
+  obra_id: string
+  obra_nome?: string
+  categoria: string
+  categoria_outro?: string
+  setor?: string
+  local_exato: string
+  gravidade: GravidadeDesvio
+  status: StatusDesvio
+  descricao: string
+  aberto_por: string
+  encarregado_id: string
+  encarregado_nome?: string
+  tst_id?: string
+  tst_nome?: string
+  data_ocorrencia: string
+  hora_ocorrencia?: string
+  prazo_correcao?: string
+  acao_corretiva?: string
+  acao_preventiva?: string
+  reincidente: boolean
+  fotos: FotoDesvio[]
+  tratativas: Tratativa[]
+  historico_status: HistoricoStatus[]
+  criado_em: string
+  atualizado_em: string
+}
+
+export interface DesvioComputado extends Desvio {
+  vencido: boolean
+  dias_para_vencer: number | null
+  dias_aberto: number
+  obra_nome_computado: string
+  encarregado_nome_computado: string
+  tst_nome_computado: string
+}
+
+export const CATEGORIAS_PADRAO = [
+  'EPI/EPC',
+  'Trabalho em Altura',
+  'Espaço Confinado',
+  'Eletricidade',
+  'Içamento de Cargas',
+  'Ferramentas',
+  'Ordem e Limpeza',
+  'Incêndio',
+  'Veículos/Equipamentos',
+  'Produtos Químicos',
+  'Comportamental',
+  'Documentação',
+  'Ergonomia',
+  'Outros',
+] as const
+
+export const CATEGORIAS_CORES: Record<string, string> = {
+  'EPI/EPC':              '#EF4444',
+  'Trabalho em Altura':   '#F97316',
+  'Espaço Confinado':     '#8B5CF6',
+  'Eletricidade':         '#EAB308',
+  'Içamento de Cargas':   '#06B6D4',
+  'Ferramentas':          '#84CC16',
+  'Ordem e Limpeza':      '#6366F1',
+  'Incêndio':             '#DC2626',
+  'Veículos/Equipamentos':'#0891B2',
+  'Produtos Químicos':    '#7C3AED',
+  'Comportamental':       '#DB2777',
+  'Documentação':         '#64748B',
+  'Ergonomia':            '#0D9488',
+  'Outros':               '#78716C',
+}
