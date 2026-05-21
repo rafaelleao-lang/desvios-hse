@@ -11,7 +11,7 @@ import {
 } from 'recharts'
 import {
   Filter, Download, X, Search, Building2, Users, AlertTriangle,
-  Clock, TrendingUp, ChevronDown, FileText,
+  TrendingUp, ChevronDown, FileText, CheckCircle2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -28,18 +28,18 @@ import {
 const MSE_RED = '#E8291C'
 
 const STATUS_HEX: Record<string, string> = {
-  aberto:       '#60A5FA',
-  em_tratativa: '#FBBF24',
-  pendente:     '#FB923C',
-  concluido:    '#4ADE80',
-  fechado:      '#A1A1AA',
-  reincidente:  '#F87171',
+  aberto:       '#3B82F6',
+  em_tratativa: '#F59E0B',
+  pendente:     '#F97316',
+  concluido:    '#22C55E',
+  fechado:      '#71717A',
+  reincidente:  '#EF4444',
 }
 const GRAV_HEX: Record<string, string> = {
-  baixo:   '#34D399',
-  medio:   '#FACC15',
-  alto:    '#FB923C',
-  critico: '#F87171',
+  baixo:   '#10B981',
+  medio:   '#EAB308',
+  alto:    '#F97316',
+  critico: '#EF4444',
 }
 
 const PER_PAGE = 15
@@ -115,6 +115,7 @@ function gerarPDF(
   const kpis = {
     total,
     abertos,
+    fechados:       filtered.filter(d => d.status === 'fechado').length,
     vencidos:       filtered.filter(d => d.vencido).length,
     taxa_tratativa: total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0,
   }
@@ -139,11 +140,16 @@ function gerarPDF(
   const catData = Object.entries(catMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total)
 
   const MONTHS_PDF = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-  const evoMonthMap: Record<string, number> = {}
-  filtered.forEach(d => { const m = d.data_ocorrencia.slice(0, 7); evoMonthMap[m] = (evoMonthMap[m]||0)+1 })
-  const evoData = Object.entries(evoMonthMap).sort().slice(-8).map(([m, total]) => ({
-    label: MONTHS_PDF[parseInt(m.split('-')[1])-1] + '/' + m.slice(2, 4), total,
-  }))
+  const evoData = Array.from({ length: 6 }, (_, i) => {
+    const dt = new Date()
+    dt.setMonth(dt.getMonth() - (5 - i))
+    const mes = dt.toISOString().slice(0, 7)
+    return {
+      label:     MONTHS_PDF[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2),
+      abertos:   filtered.filter(d => d.criado_em.startsWith(mes)).length,
+      concluidos:filtered.filter(d => d.atualizado_em.startsWith(mes) && ['concluido','fechado'].includes(d.status)).length,
+    }
+  })
 
   const slaItems = [
     { label: 'Vencidos',   total: filtered.filter(d => d.vencido).length, hex: '#EF4444' },
@@ -184,12 +190,12 @@ function gerarPDF(
   doc.text(filtroLines, ML, y)
   y += filtroLines.length * 3.8 + 5
 
-  // ── KPI Row — igual ao dashboard: Total, Abertos, Vencidos, Taxa Tratativa ──
+  // ── KPI Row — igual ao dashboard: Abertos, Fechados, Vencidos, Taxa Tratativa ──
   const kpiItems: Array<{label:string; value:string; sub:string; c:[number,number,number]; bg:[number,number,number]}> = [
-    { label:'Total',          value:String(kpis.total),                   sub:'Total de desvios',    c:RED_RGB,      bg:[255,241,240] },
-    { label:'Abertos',        value:String(kpis.abertos),                 sub:'Aguardando tratativa',c:[59,130,246], bg:[239,246,255] },
-    { label:'Vencidos',       value:String(kpis.vencidos),                sub:'Prazo ultrapassado',  c:[249,115,22], bg:[255,247,237] },
-    { label:'Taxa Tratativa', value:`${kpis.taxa_tratativa.toFixed(1)}%`, sub:'Desvios respondidos', c:[16,185,129], bg:[236,253,245] },
+    { label:'Abertos',        value:String(kpis.abertos),                 sub:'Aguardando tratativa', c:[59,130,246],  bg:[239,246,255] },
+    { label:'Fechados',       value:String(kpis.fechados),                sub:'Desvios encerrados',   c:[34,197,94],   bg:[240,253,244] },
+    { label:'Vencidos',       value:String(kpis.vencidos),                sub:'Prazo ultrapassado',   c:[249,115,22],  bg:[255,247,237] },
+    { label:'Taxa Tratativa', value:`${kpis.taxa_tratativa.toFixed(1)}%`, sub:'Desvios respondidos',  c:[34,197,94],   bg:[240,253,244] },
   ]
   const kW = (CW - 9) / 4
   const kH = 24
@@ -217,36 +223,65 @@ function gerarPDF(
   y += kH + 8
 
   // ── Evolução Mensal ───────────────────────────────────────
-  if (evoData.length > 0) {
-    ensureY(54)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8.5)
-    doc.setTextColor(50, 50, 50)
-    doc.text('Evolução Mensal de Desvios', ML, y)
-    y += 5
+  ensureY(58)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(50, 50, 50)
+  doc.text('Evolução Mensal', ML, y)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(6.5)
+  doc.setTextColor(120, 120, 120)
+  doc.text('Últimos 6 meses', ML, y + 4)
+  y += 8
 
-    const evoH = 36
+  {
+    const evoH = 34
     const barsN = evoData.length
     const bSlot = CW / barsN
-    const bWidth = Math.max(bSlot * 0.55, 3)
-    const maxEvo = Math.max(1, ...evoData.map(e => e.total))
+    const bWidth = Math.max(bSlot * 0.28, 2)
+    const maxEvo = Math.max(1, ...evoData.map(e => Math.max(e.abertos, e.concluidos)))
 
     evoData.forEach((e, i) => {
-      const bx = ML + i * bSlot + (bSlot - bWidth) / 2
-      const bh = Math.max((e.total / maxEvo) * (evoH - 10), 1)
-      const by = y + evoH - bh - 8
-      doc.setFillColor(232, 41, 28)
-      doc.rect(bx, by, bWidth, bh, 'F')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(6.5)
-      doc.setTextColor(232, 41, 28)
-      doc.text(String(e.total), bx + bWidth / 2, by - 0.5, { align: 'center' })
+      const slotX = ML + i * bSlot
+      const bx1 = slotX + (bSlot - bWidth * 2 - 1) / 2
+      const bx2 = bx1 + bWidth + 1
+
+      const bh1 = (e.abertos / maxEvo) * (evoH - 10)
+      if (e.abertos > 0) {
+        const by1 = y + evoH - bh1 - 8
+        doc.setFillColor(232, 41, 28)
+        doc.rect(bx1, by1, bWidth, Math.max(bh1, 0.5), 'F')
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(5.5)
+        doc.setTextColor(232, 41, 28)
+        doc.text(String(e.abertos), bx1 + bWidth / 2, by1 - 0.5, { align: 'center' })
+      }
+
+      const bh2 = (e.concluidos / maxEvo) * (evoH - 10)
+      if (e.concluidos > 0) {
+        const by2 = y + evoH - bh2 - 8
+        doc.setFillColor(34, 197, 94)
+        doc.rect(bx2, by2, bWidth, Math.max(bh2, 0.5), 'F')
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(5.5)
+        doc.setTextColor(34, 197, 94)
+        doc.text(String(e.concluidos), bx2 + bWidth / 2, by2 - 0.5, { align: 'center' })
+      }
+
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6)
+      doc.setFontSize(5.5)
       doc.setTextColor(120, 120, 120)
-      doc.text(e.label, bx + bWidth / 2, y + evoH, { align: 'center' })
+      doc.text(e.label, slotX + bSlot / 2, y + evoH, { align: 'center' })
     })
-    y += evoH + 8
+
+    y += evoH + 4
+    // Legend
+    doc.setFillColor(232, 41, 28); doc.rect(ML, y, 5, 3, 'F')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 80, 80)
+    doc.text('Abertos', ML + 6.5, y + 2.5)
+    doc.setFillColor(34, 197, 94); doc.rect(ML + 28, y, 5, 3, 'F')
+    doc.text('Concluídos', ML + 34.5, y + 2.5)
+    y += 8
   }
 
   // ── Gravidade + Status side by side ───────────────────────
@@ -687,6 +722,7 @@ export default function RelatoriosPage() {
     return {
       total,
       abertos,
+      fechados:      filtered.filter(d => d.status === 'fechado').length,
       vencidos:      filtered.filter(d => d.vencido).length,
       taxa_tratativa: total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0,
     }
@@ -694,11 +730,16 @@ export default function RelatoriosPage() {
 
   // ── Charts data ──
   const evolucaoData = useMemo(() => {
-    const monthly: Record<string, number> = {}
-    filtered.forEach(d => { const m = d.data_ocorrencia.slice(0, 7); monthly[m] = (monthly[m] || 0) + 1 })
-    return Object.entries(monthly).sort().map(([m, total]) => ({
-      mes: `${MONTHS[parseInt(m.split('-')[1]) - 1]}/${m.slice(2, 4)}`, total,
-    }))
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date()
+      d.setMonth(d.getMonth() - (5 - i))
+      const mes = d.toISOString().slice(0, 7)
+      return {
+        mes: `${MONTHS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
+        abertos:    filtered.filter(x => x.criado_em.startsWith(mes)).length,
+        concluidos: filtered.filter(x => x.atualizado_em.startsWith(mes) && ['concluido','fechado'].includes(x.status)).length,
+      }
+    })
   }, [filtered])
 
   const statusData = useMemo(() => {
@@ -938,10 +979,10 @@ export default function RelatoriosPage() {
         {/* KPI row — igual ao dashboard */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {([
-            { label: 'Total',          value: String(kpis.total),                      icon: TrendingUp,    hex: MSE_RED,   bg: 'rgba(232,41,28,0.08)',   sub: 'Total de desvios'       },
-            { label: 'Abertos',        value: String(kpis.abertos),                    icon: Clock,         hex: '#60A5FA', bg: 'rgba(96,165,250,0.08)',   sub: 'Aguardando tratativa'   },
-            { label: 'Vencidos',       value: String(kpis.vencidos),                   icon: AlertTriangle, hex: '#FB923C', bg: 'rgba(251,146,60,0.08)',   sub: 'Prazo ultrapassado'     },
-            { label: 'Taxa Tratativa', value: `${kpis.taxa_tratativa.toFixed(1)}%`,    icon: TrendingUp,    hex: '#4ADE80', bg: 'rgba(74,222,128,0.08)',   sub: 'Desvios respondidos'    },
+            { label: 'Abertos',        value: String(kpis.abertos),                    icon: AlertTriangle, hex: '#3B82F6', bg: 'rgba(59,130,246,0.08)',   sub: 'Aguardando tratativa'   },
+            { label: 'Fechados',       value: String(kpis.fechados),                   icon: CheckCircle2,  hex: '#22C55E', bg: 'rgba(34,197,94,0.08)',    sub: 'Desvios encerrados'     },
+            { label: 'Vencidos',       value: String(kpis.vencidos),                   icon: AlertTriangle, hex: '#F97316', bg: 'rgba(249,115,22,0.08)',   sub: 'Prazo ultrapassado'     },
+            { label: 'Taxa Tratativa', value: `${kpis.taxa_tratativa.toFixed(1)}%`,    icon: TrendingUp,    hex: '#22C55E', bg: 'rgba(34,197,94,0.08)',    sub: 'Desvios respondidos'    },
           ] as const).map((k, i) => (
             <motion.div key={k.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
               className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
@@ -978,20 +1019,25 @@ export default function RelatoriosPage() {
               <div className="space-y-4">
                 {/* Evolução */}
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-                  <p className="text-sm font-semibold text-zinc-300 mb-4">Evolução Mensal de Desvios</p>
-                  {evolucaoData.length === 0
-                    ? <div className="h-48 flex items-center justify-center text-zinc-600 text-sm">Sem dados de datas</div>
-                    : <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={evolucaoData} margin={{ top: 12, right: 8, left: -28, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#27272A" />
-                          <XAxis dataKey="mes" tick={{ fill: '#71717A', fontSize: 11 }} />
-                          <YAxis tick={{ fill: '#71717A', fontSize: 11 }} allowDecimals={false} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Line type="monotone" dataKey="total" name="Desvios" stroke={MSE_RED} strokeWidth={2.5}
-                            dot={{ fill: MSE_RED, r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                  }
+                  <p className="text-sm font-semibold text-zinc-300 mb-0.5">Evolução Mensal</p>
+                  <p className="text-xs text-zinc-500 mb-4">Últimos 6 meses</p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={evolucaoData} margin={{ top: 20, right: 10, bottom: 10, left: -10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272A" />
+                      <XAxis dataKey="mes" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Legend formatter={v => <span style={{ color: '#A1A1AA', fontSize: 11 }}>{v}</span>} />
+                      <Line type="monotone" dataKey="abertos" name="Abertos" stroke={MSE_RED} strokeWidth={2.5}
+                        dot={{ r: 3, fill: MSE_RED, strokeWidth: 0 }} activeDot={{ r: 5 }}>
+                        <LabelList dataKey="abertos" position="top" style={{ fill: MSE_RED, fontSize: 10, fontWeight: 700 }} />
+                      </Line>
+                      <Line type="monotone" dataKey="concluidos" name="Concluídos" stroke="#22C55E" strokeWidth={2.5}
+                        dot={{ r: 3, fill: '#22C55E', strokeWidth: 0 }} activeDot={{ r: 5 }}>
+                        <LabelList dataKey="concluidos" position="bottom" style={{ fill: '#22C55E', fontSize: 10, fontWeight: 700 }} />
+                      </Line>
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
