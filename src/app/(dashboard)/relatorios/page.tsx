@@ -112,9 +112,9 @@ function gerarPDF(
   const kpis = {
     total:        filtered.length,
     abertos:      filtered.filter(d => d.status === 'aberto').length,
-    em_tratativa: filtered.filter(d => d.status === 'em_tratativa').length,
     criticos:     filtered.filter(d => d.gravidade === 'critico').length,
     vencidos:     filtered.filter(d => d.vencido).length,
+    em_tratativa: filtered.filter(d => d.status === 'em_tratativa').length,
     concluidos:   filtered.filter(d => ['concluido','fechado'].includes(d.status)).length,
     reincidentes: filtered.filter(d => d.reincidente || d.status === 'reincidente').length,
     pendentes:    filtered.filter(d => d.status === 'pendente').length,
@@ -170,13 +170,14 @@ function gerarPDF(
   y += filtroLines.length * 3.8 + 5
 
   // ── KPI Grid 2×4 ──────────────────────────────────────────
+  // Row 1: same as dashboard primary KPIs; Row 2: same as dashboard secondary KPIs
   const kpiItems: Array<{label:string; value:number; c:[number,number,number]; bg:[number,number,number]}> = [
     { label:'Total',        value:kpis.total,        c:RED_RGB,          bg:[255,241,240] },
     { label:'Abertos',      value:kpis.abertos,      c:[59,130,246],     bg:[239,246,255] },
-    { label:'Em Tratativa', value:kpis.em_tratativa, c:[245,158,11],     bg:[255,251,235] },
     { label:'Críticos',     value:kpis.criticos,     c:[239,68,68],      bg:[254,242,242] },
-    { label:'Concluídos',   value:kpis.concluidos,   c:[16,185,129],     bg:[236,253,245] },
     { label:'Vencidos',     value:kpis.vencidos,     c:[249,115,22],     bg:[255,247,237] },
+    { label:'Em Tratativa', value:kpis.em_tratativa, c:[245,158,11],     bg:[255,251,235] },
+    { label:'Concluídos',   value:kpis.concluidos,   c:[16,185,129],     bg:[236,253,245] },
     { label:'Reincidentes', value:kpis.reincidentes, c:[239,68,68],      bg:[254,242,242] },
     { label:'Pendentes',    value:kpis.pendentes,    c:[139,92,246],     bg:[245,243,255] },
   ]
@@ -496,6 +497,7 @@ export default function RelatoriosPage() {
     em_tratativa: filtered.filter(d => d.status === 'em_tratativa').length,
     concluidos:   filtered.filter(d => ['concluido','fechado'].includes(d.status)).length,
     reincidentes: filtered.filter(d => d.reincidente || d.status === 'reincidente').length,
+    pendentes:    filtered.filter(d => d.status === 'pendente').length,
   }), [filtered])
 
   // ── Charts data ──
@@ -863,11 +865,12 @@ export default function RelatoriosPage() {
                 </div>
 
                 {/* Secondary KPIs */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { label: 'Em Tratativa', value: kpis.em_tratativa, color: '#FBBF24' },
                     { label: 'Concluídos',   value: kpis.concluidos,   color: '#4ADE80' },
                     { label: 'Reincidentes', value: kpis.reincidentes, color: '#F87171' },
+                    { label: 'Pendentes',    value: kpis.pendentes,    color: '#A78BFA' },
                   ].map(s => (
                     <div key={s.label} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-center">
                       <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
