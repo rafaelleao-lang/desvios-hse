@@ -109,15 +109,14 @@ function gerarPDF(
   }
 
   // ── Data ──────────────────────────────────────────────────
+  const total    = filtered.length
+  const abertos  = filtered.filter(d => d.status === 'aberto').length
+  const tratados = filtered.filter(d => d.status !== 'aberto').length
   const kpis = {
-    total:        filtered.length,
-    abertos:      filtered.filter(d => d.status === 'aberto').length,
-    criticos:     filtered.filter(d => d.gravidade === 'critico').length,
-    vencidos:     filtered.filter(d => d.vencido).length,
-    em_tratativa: filtered.filter(d => d.status === 'em_tratativa').length,
-    concluidos:   filtered.filter(d => ['concluido','fechado'].includes(d.status)).length,
-    reincidentes: filtered.filter(d => d.reincidente || d.status === 'reincidente').length,
-    pendentes:    filtered.filter(d => d.status === 'pendente').length,
+    total,
+    abertos,
+    vencidos:       filtered.filter(d => d.vencido).length,
+    taxa_tratativa: total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0,
   }
 
   const encMap: Record<string, number> = {}
@@ -169,41 +168,37 @@ function gerarPDF(
   doc.text(filtroLines, ML, y)
   y += filtroLines.length * 3.8 + 5
 
-  // ── KPI Grid 2×4 ──────────────────────────────────────────
-  // Row 1: same as dashboard primary KPIs; Row 2: same as dashboard secondary KPIs
-  const kpiItems: Array<{label:string; value:number; c:[number,number,number]; bg:[number,number,number]}> = [
-    { label:'Total',        value:kpis.total,        c:RED_RGB,          bg:[255,241,240] },
-    { label:'Abertos',      value:kpis.abertos,      c:[59,130,246],     bg:[239,246,255] },
-    { label:'Críticos',     value:kpis.criticos,     c:[239,68,68],      bg:[254,242,242] },
-    { label:'Vencidos',     value:kpis.vencidos,     c:[249,115,22],     bg:[255,247,237] },
-    { label:'Em Tratativa', value:kpis.em_tratativa, c:[245,158,11],     bg:[255,251,235] },
-    { label:'Concluídos',   value:kpis.concluidos,   c:[16,185,129],     bg:[236,253,245] },
-    { label:'Reincidentes', value:kpis.reincidentes, c:[239,68,68],      bg:[254,242,242] },
-    { label:'Pendentes',    value:kpis.pendentes,    c:[139,92,246],     bg:[245,243,255] },
+  // ── KPI Row — igual ao dashboard: Total, Abertos, Vencidos, Taxa Tratativa ──
+  const kpiItems: Array<{label:string; value:string; sub:string; c:[number,number,number]; bg:[number,number,number]}> = [
+    { label:'Total',          value:String(kpis.total),                   sub:'Total de desvios',    c:RED_RGB,      bg:[255,241,240] },
+    { label:'Abertos',        value:String(kpis.abertos),                 sub:'Aguardando tratativa',c:[59,130,246], bg:[239,246,255] },
+    { label:'Vencidos',       value:String(kpis.vencidos),                sub:'Prazo ultrapassado',  c:[249,115,22], bg:[255,247,237] },
+    { label:'Taxa Tratativa', value:`${kpis.taxa_tratativa.toFixed(1)}%`, sub:'Desvios respondidos', c:[16,185,129], bg:[236,253,245] },
   ]
   const kW = (CW - 9) / 4
-  const kH = 20
+  const kH = 24
 
-  for (let row = 0; row < 2; row++) {
-    for (let col = 0; col < 4; col++) {
-      const k = kpiItems[row * 4 + col]
-      const kx = ML + col * (kW + 3)
-      const ky = y + row * (kH + 3)
-      doc.setFillColor(k.bg[0], k.bg[1], k.bg[2])
-      doc.roundedRect(kx, ky, kW, kH, 2, 2, 'F')
-      doc.setFillColor(k.c[0], k.c[1], k.c[2])
-      doc.roundedRect(kx, ky, 3, kH, 1, 1, 'F')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(17)
-      doc.setTextColor(k.c[0], k.c[1], k.c[2])
-      doc.text(String(k.value), kx + kW / 2 + 1.5, ky + 12, { align: 'center' })
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.5)
-      doc.setTextColor(110, 110, 110)
-      doc.text(k.label, kx + kW / 2 + 1.5, ky + 17, { align: 'center' })
-    }
+  for (let col = 0; col < 4; col++) {
+    const k = kpiItems[col]
+    const kx = ML + col * (kW + 3)
+    const ky = y
+    doc.setFillColor(k.bg[0], k.bg[1], k.bg[2])
+    doc.roundedRect(kx, ky, kW, kH, 2, 2, 'F')
+    doc.setFillColor(k.c[0], k.c[1], k.c[2])
+    doc.roundedRect(kx, ky, 3, kH, 1, 1, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(k.value.includes('%') ? 14 : 18)
+    doc.setTextColor(k.c[0], k.c[1], k.c[2])
+    doc.text(k.value, kx + kW / 2 + 1.5, ky + 12, { align: 'center' })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.5)
+    doc.setTextColor(70, 70, 70)
+    doc.text(k.label, kx + kW / 2 + 1.5, ky + 17.5, { align: 'center' })
+    doc.setFontSize(5.5)
+    doc.setTextColor(140, 140, 140)
+    doc.text(k.sub, kx + kW / 2 + 1.5, ky + 21.5, { align: 'center' })
   }
-  y += 2 * kH + 3 + 8
+  y += kH + 8
 
   // ── Gravidade + Status side by side ───────────────────────
   ensureY(55)
@@ -489,16 +484,17 @@ export default function RelatoriosPage() {
   function clearFilters() { setFiltros({}); setPage(1) }
 
   // ── KPIs ──
-  const kpis = useMemo(() => ({
-    total:        filtered.length,
-    abertos:      filtered.filter(d => d.status === 'aberto').length,
-    criticos:     filtered.filter(d => d.gravidade === 'critico').length,
-    vencidos:     filtered.filter(d => d.vencido).length,
-    em_tratativa: filtered.filter(d => d.status === 'em_tratativa').length,
-    concluidos:   filtered.filter(d => ['concluido','fechado'].includes(d.status)).length,
-    reincidentes: filtered.filter(d => d.reincidente || d.status === 'reincidente').length,
-    pendentes:    filtered.filter(d => d.status === 'pendente').length,
-  }), [filtered])
+  const kpis = useMemo(() => {
+    const total   = filtered.length
+    const abertos = filtered.filter(d => d.status === 'aberto').length
+    const tratados = filtered.filter(d => d.status !== 'aberto').length
+    return {
+      total,
+      abertos,
+      vencidos:      filtered.filter(d => d.vencido).length,
+      taxa_tratativa: total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0,
+    }
+  }, [filtered])
 
   // ── Charts data ──
   const evolucaoData = useMemo(() => {
@@ -743,13 +739,13 @@ export default function RelatoriosPage() {
           </AnimatePresence>
         </div>
 
-        {/* KPI row */}
+        {/* KPI row — igual ao dashboard */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {([
-            { label: 'Total',    value: kpis.total,    icon: TrendingUp,    hex: MSE_RED,    bg: 'rgba(232,41,28,0.08)'   },
-            { label: 'Abertos',  value: kpis.abertos,  icon: Clock,         hex: '#60A5FA',  bg: 'rgba(96,165,250,0.08)'  },
-            { label: 'Críticos', value: kpis.criticos, icon: AlertTriangle, hex: '#F87171',  bg: 'rgba(248,113,113,0.08)' },
-            { label: 'Vencidos', value: kpis.vencidos, icon: AlertTriangle, hex: '#FB923C',  bg: 'rgba(251,146,60,0.08)'  },
+            { label: 'Total',          value: String(kpis.total),                      icon: TrendingUp,    hex: MSE_RED,   bg: 'rgba(232,41,28,0.08)',   sub: 'Total de desvios'       },
+            { label: 'Abertos',        value: String(kpis.abertos),                    icon: Clock,         hex: '#60A5FA', bg: 'rgba(96,165,250,0.08)',   sub: 'Aguardando tratativa'   },
+            { label: 'Vencidos',       value: String(kpis.vencidos),                   icon: AlertTriangle, hex: '#FB923C', bg: 'rgba(251,146,60,0.08)',   sub: 'Prazo ultrapassado'     },
+            { label: 'Taxa Tratativa', value: `${kpis.taxa_tratativa.toFixed(1)}%`,    icon: TrendingUp,    hex: '#4ADE80', bg: 'rgba(74,222,128,0.08)',   sub: 'Desvios respondidos'    },
           ] as const).map((k, i) => (
             <motion.div key={k.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
               className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
@@ -758,6 +754,7 @@ export default function RelatoriosPage() {
               </div>
               <p className="text-2xl font-black text-zinc-50">{k.value}</p>
               <p className="text-xs text-zinc-500 mt-0.5">{k.label}</p>
+              <p className="text-[10px] text-zinc-600 mt-0.5">{k.sub}</p>
             </motion.div>
           ))}
         </div>
@@ -864,20 +861,6 @@ export default function RelatoriosPage() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Secondary KPIs */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: 'Em Tratativa', value: kpis.em_tratativa, color: '#FBBF24' },
-                    { label: 'Concluídos',   value: kpis.concluidos,   color: '#4ADE80' },
-                    { label: 'Reincidentes', value: kpis.reincidentes, color: '#F87171' },
-                    { label: 'Pendentes',    value: kpis.pendentes,    color: '#A78BFA' },
-                  ].map(s => (
-                    <div key={s.label} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-center">
-                      <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
 
