@@ -138,6 +138,22 @@ function gerarPDF(
   })
   const catData = Object.entries(catMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total)
 
+  const MONTHS_PDF = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  const evoMonthMap: Record<string, number> = {}
+  filtered.forEach(d => { const m = d.data_ocorrencia.slice(0, 7); evoMonthMap[m] = (evoMonthMap[m]||0)+1 })
+  const evoData = Object.entries(evoMonthMap).sort().slice(-8).map(([m, total]) => ({
+    label: MONTHS_PDF[parseInt(m.split('-')[1])-1] + '/' + m.slice(2, 4), total,
+  }))
+
+  const slaItems = [
+    { label: 'Vencidos',   total: filtered.filter(d => d.vencido).length, hex: '#EF4444' },
+    { label: 'Vence hoje', total: filtered.filter(d => !d.vencido && d.dias_para_vencer === 0).length, hex: '#F97316' },
+    { label: '1-3 dias',   total: filtered.filter(d => !d.vencido && d.dias_para_vencer !== null && d.dias_para_vencer >= 1 && d.dias_para_vencer <= 3).length, hex: '#EAB308' },
+    { label: '4-7 dias',   total: filtered.filter(d => !d.vencido && d.dias_para_vencer !== null && d.dias_para_vencer >= 4 && d.dias_para_vencer <= 7).length, hex: '#22C55E' },
+    { label: '>7 dias',    total: filtered.filter(d => !d.vencido && d.dias_para_vencer !== null && d.dias_para_vencer > 7).length, hex: '#3B82F6' },
+    { label: 'Sem prazo',  total: filtered.filter(d => d.dias_para_vencer === null).length, hex: '#71717A' },
+  ]
+
   const gravData = (['baixo','medio','alto','critico'] as GravidadeDesvio[]).map(g => ({
     label: GRAVIDADE_CONFIG[g].label, total: filtered.filter(d=>d.gravidade===g).length, hex: GRAV_HEX[g],
   }))
@@ -200,6 +216,39 @@ function gerarPDF(
   }
   y += kH + 8
 
+  // ── Evolução Mensal ───────────────────────────────────────
+  if (evoData.length > 0) {
+    ensureY(54)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(50, 50, 50)
+    doc.text('Evolução Mensal de Desvios', ML, y)
+    y += 5
+
+    const evoH = 36
+    const barsN = evoData.length
+    const bSlot = CW / barsN
+    const bWidth = Math.max(bSlot * 0.55, 3)
+    const maxEvo = Math.max(1, ...evoData.map(e => e.total))
+
+    evoData.forEach((e, i) => {
+      const bx = ML + i * bSlot + (bSlot - bWidth) / 2
+      const bh = Math.max((e.total / maxEvo) * (evoH - 10), 1)
+      const by = y + evoH - bh - 8
+      doc.setFillColor(232, 41, 28)
+      doc.rect(bx, by, bWidth, bh, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(6.5)
+      doc.setTextColor(232, 41, 28)
+      doc.text(String(e.total), bx + bWidth / 2, by - 0.5, { align: 'center' })
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6)
+      doc.setTextColor(120, 120, 120)
+      doc.text(e.label, bx + bWidth / 2, y + evoH, { align: 'center' })
+    })
+    y += evoH + 8
+  }
+
   // ── Gravidade + Status side by side ───────────────────────
   ensureY(55)
   const halfW = (CW - 6) / 2
@@ -258,15 +307,69 @@ function gerarPDF(
 
   y = gravYStart + Math.max(gravData.length * 9, statData.length * 9) + 8
 
-  // ── Encarregado table ──────────────────────────────────────
+  // ── SLA Analysis ──────────────────────────────────────────
+  ensureY(slaItems.length * 9 + 16)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(50, 50, 50)
+  doc.text('Análise de SLA (Prazos)', ML, y)
+  y += 5
+
+  const slaLabelW = 24
+  const slaBarW = CW - slaLabelW - 12
+  const maxSla = Math.max(1, ...slaItems.map(s => s.total))
+
+  slaItems.forEach((s, i) => {
+    const sy = y + i * 9
+    const bw = (s.total / maxSla) * slaBarW
+    const rgb = h2r(s.hex)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(60, 60, 60)
+    doc.text(s.label, ML, sy + 4.5)
+    doc.setFillColor(228, 228, 228)
+    doc.rect(ML + slaLabelW, sy, slaBarW, 6, 'F')
+    if (s.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(ML + slaLabelW, sy, Math.max(bw, 0.5), 6, 'F') }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(rgb[0], rgb[1], rgb[2])
+    doc.text(String(s.total), ML + slaLabelW + slaBarW + 3, sy + 4.5)
+  })
+  y += slaItems.length * 9 + 8
+
+  // ── Encarregado visual bars + table ──────────────────────
   if (encData.length > 0) {
-    ensureY(20)
+    ensureY(encData.length * 9 + 25)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8.5)
     doc.setTextColor(50, 50, 50)
     doc.text('Desvios por Encarregado', ML, y)
-    y += 3
+    y += 5
 
+    const encLabelW = 46
+    const encBarMaxW = CW - encLabelW - 12
+    const maxEnc = Math.max(1, ...encData.map(e => e.total))
+    const encYStart = y
+
+    encData.forEach((e, i) => {
+      const ey = encYStart + i * 9
+      const bw = (e.total / maxEnc) * encBarMaxW
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(60, 60, 60)
+      const lbl = e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name
+      doc.text(lbl, ML, ey + 4.5)
+      doc.setFillColor(228, 228, 228)
+      doc.rect(ML + encLabelW, ey, encBarMaxW, 6, 'F')
+      if (e.total > 0) { doc.setFillColor(232, 41, 28); doc.rect(ML + encLabelW, ey, Math.max(bw, 0.5), 6, 'F') }
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7)
+      doc.setTextColor(232, 41, 28)
+      doc.text(String(e.total), ML + encLabelW + encBarMaxW + 3, ey + 4.5)
+    })
+    y += encData.length * 9 + 5
+
+    ensureY(20)
     autoTable(doc, {
       startY: y,
       head: [['#', 'Encarregado', 'Desvios', '% do Total']],
@@ -287,7 +390,73 @@ function gerarPDF(
     y = (doc as any).lastAutoTable.finalY + 8
   }
 
-  // ── Obra + TST side by side ────────────────────────────────
+  // ── Obra visual bars ──────────────────────────────────────
+  if (obraData.length > 0) {
+    ensureY(obraData.length * 9 + 25)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(50, 50, 50)
+    doc.text('Desvios por Obra', ML, y)
+    y += 5
+
+    const obraLabelW = 50
+    const obraBarMaxW = CW - obraLabelW - 12
+    const maxObra = Math.max(1, ...obraData.map(e => e.total))
+    const obraYStart = y
+
+    obraData.forEach((e, i) => {
+      const oy = obraYStart + i * 9
+      const bw = (e.total / maxObra) * obraBarMaxW
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(60, 60, 60)
+      const lbl = e.name.length > 26 ? e.name.slice(0, 25) + '…' : e.name
+      doc.text(lbl, ML, oy + 4.5)
+      doc.setFillColor(228, 228, 228)
+      doc.rect(ML + obraLabelW, oy, obraBarMaxW, 6, 'F')
+      if (e.total > 0) { doc.setFillColor(245, 158, 11); doc.rect(ML + obraLabelW, oy, Math.max(bw, 0.5), 6, 'F') }
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7)
+      doc.setTextColor(245, 158, 11)
+      doc.text(String(e.total), ML + obraLabelW + obraBarMaxW + 3, oy + 4.5)
+    })
+    y += obraData.length * 9 + 5
+  }
+
+  // ── TST visual bars ────────────────────────────────────────
+  if (tstData.length > 0) {
+    ensureY(tstData.length * 9 + 25)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(50, 50, 50)
+    doc.text('Desvios por TST', ML, y)
+    y += 5
+
+    const tstLabelW = 46
+    const tstBarMaxW = CW - tstLabelW - 12
+    const maxTst = Math.max(1, ...tstData.map(e => e.total))
+    const tstYStart = y
+
+    tstData.forEach((e, i) => {
+      const ty = tstYStart + i * 9
+      const bw = (e.total / maxTst) * tstBarMaxW
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(60, 60, 60)
+      const lbl = e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name
+      doc.text(lbl, ML, ty + 4.5)
+      doc.setFillColor(228, 228, 228)
+      doc.rect(ML + tstLabelW, ty, tstBarMaxW, 6, 'F')
+      if (e.total > 0) { doc.setFillColor(6, 182, 212); doc.rect(ML + tstLabelW, ty, Math.max(bw, 0.5), 6, 'F') }
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7)
+      doc.setTextColor(6, 182, 212)
+      doc.text(String(e.total), ML + tstLabelW + tstBarMaxW + 3, ty + 4.5)
+    })
+    y += tstData.length * 9 + 5
+  }
+
+  // ── Obra + TST side by side tables ────────────────────────
   if (obraData.length > 0 || tstData.length > 0) {
     ensureY(20)
     const tw = (CW - 6) / 2
@@ -333,15 +502,42 @@ function gerarPDF(
     y = Math.max(yLeft, yRight) + 8
   }
 
-  // ── Categoria table ────────────────────────────────────────
+  // ── Categoria visual bars + table ────────────────────────
   if (catData.length > 0) {
-    ensureY(20)
+    ensureY(catData.length * 9 + 25)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8.5)
     doc.setTextColor(50, 50, 50)
     doc.text('Por Categoria', ML, y)
-    y += 3
+    y += 5
 
+    const catLabelW = 46
+    const catBarMaxW = CW - catLabelW - 12
+    const maxCat = Math.max(1, ...catData.map(e => e.total))
+    const catYStart = y
+
+    catData.forEach((e, i) => {
+      const cy = catYStart + i * 9
+      const bw = (e.total / maxCat) * catBarMaxW
+      const catKey = e.name.startsWith('Outros') ? 'Outros' : e.name
+      const catHex = CATEGORIAS_CORES[catKey] || '#78716C'
+      const rgb = h2r(catHex)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(60, 60, 60)
+      const lbl = e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name
+      doc.text(lbl, ML, cy + 4.5)
+      doc.setFillColor(228, 228, 228)
+      doc.rect(ML + catLabelW, cy, catBarMaxW, 6, 'F')
+      if (e.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(ML + catLabelW, cy, Math.max(bw, 0.5), 6, 'F') }
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7)
+      doc.setTextColor(rgb[0], rgb[1], rgb[2])
+      doc.text(String(e.total), ML + catLabelW + catBarMaxW + 3, cy + 4.5)
+    })
+    y += catData.length * 9 + 5
+
+    ensureY(20)
     autoTable(doc, {
       startY: y,
       head: [['Categoria', 'Total', '% do Total']],
@@ -860,6 +1056,79 @@ export default function RelatoriosPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+
+                {/* Por Encarregado */}
+                {encData.length > 0 && (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                    <p className="text-sm font-semibold text-zinc-300 mb-4">Por Encarregado</p>
+                    <ResponsiveContainer width="100%" height={Math.max(160, encData.length * 40)}>
+                      <BarChart data={encData} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: '#71717A', fontSize: 11 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} width={110} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="total" name="Total" fill={MSE_RED} radius={[0, 6, 6, 0]}>
+                          <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Por Obra */}
+                {obraData.length > 0 && (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                    <p className="text-sm font-semibold text-zinc-300 mb-4">Por Obra</p>
+                    <ResponsiveContainer width="100%" height={Math.max(160, obraData.length * 40)}>
+                      <BarChart data={obraData} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: '#71717A', fontSize: 11 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} width={110} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="total" name="Desvios" fill="#F59E0B" radius={[0, 6, 6, 0]}>
+                          <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Por Categoria */}
+                {categoriaData.length > 0 && (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                    <p className="text-sm font-semibold text-zinc-300 mb-4">Por Categoria</p>
+                    <ResponsiveContainer width="100%" height={Math.max(160, categoriaData.length * 38)}>
+                      <BarChart data={categoriaData} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: '#71717A', fontSize: 11 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} width={120} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="total" name="Desvios" radius={[0, 4, 4, 0]}>
+                          {categoriaData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                          <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Por TST */}
+                {tstChartData.length > 0 && (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                    <p className="text-sm font-semibold text-zinc-300 mb-4">Por TST</p>
+                    <ResponsiveContainer width="100%" height={Math.max(160, tstChartData.length * 40)}>
+                      <BarChart data={tstChartData} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: '#71717A', fontSize: 11 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} width={110} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="total" name="Desvios" fill="#06B6D4" radius={[0, 6, 6, 0]}>
+                          <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
 
               </div>
             )}
