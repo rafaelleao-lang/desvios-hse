@@ -1,123 +1,167 @@
+import { createClient } from '@supabase/supabase-js'
 import type { Obra, TST, Encarregado, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa } from '@/types'
 
-// ── Keys ────────────────────────────────────────────────────────────────────
-const K = {
-  obras:        'hse_obras',
-  tsts:         'hse_tsts',
-  encarregados: 'hse_encarregados',
-  desvios:      'hse_desvios',
-  counter:      'hse_counter',
-} as const
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function read<T>(key: string): T[] {
-  if (typeof window === 'undefined') return []
-  try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
-}
-
-function write<T>(key: string, data: T[]): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(key, JSON.stringify(data))
-  } catch (e: unknown) {
-    if (e instanceof Error && e.name === 'QuotaExceededError') {
-      alert('Armazenamento cheio! Exporte seus dados e libere espaço.')
-    }
-  }
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
-}
-
-function nextNum(): number {
-  const n = parseInt(localStorage.getItem(K.counter) || '0') + 1
-  localStorage.setItem(K.counter, String(n))
-  return n
 }
 
 function now(): string {
   return new Date().toISOString()
 }
 
-// ── Obras ────────────────────────────────────────────────────────────────────
+async function nextNum(): Promise<number> {
+  const { data } = await supabase
+    .from('desvios')
+    .select('numero')
+    .order('numero', { ascending: false })
+    .limit(1)
+  return ((data?.[0]?.numero as number) ?? 0) + 1
+}
+
+// ── Obras ─────────────────────────────────────────────────────────────────────
 export const obrasDB = {
-  list: (): Obra[] => read<Obra>(K.obras),
-  find: (id: string): Obra | undefined => read<Obra>(K.obras).find(o => o.id === id),
-  create: (data: Omit<Obra, 'id' | 'criado_em'>): Obra => {
+  list: async (): Promise<Obra[]> => {
+    const { data, error } = await supabase
+      .from('obras').select('*').order('criado_em', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as Obra[]
+  },
+
+  find: async (id: string): Promise<Obra | undefined> => {
+    const { data } = await supabase.from('obras').select('*').eq('id', id).maybeSingle()
+    return data as Obra | undefined
+  },
+
+  create: async (data: Omit<Obra, 'id' | 'criado_em'>): Promise<Obra> => {
     const obra: Obra = { ...data, id: uid(), criado_em: now() }
-    write(K.obras, [...read<Obra>(K.obras), obra])
+    const { error } = await supabase.from('obras').insert(obra)
+    if (error) throw error
     return obra
   },
-  update: (id: string, data: Partial<Obra>): Obra | undefined => {
-    const list = read<Obra>(K.obras).map(o => o.id === id ? { ...o, ...data } : o)
-    write(K.obras, list)
-    return list.find(o => o.id === id)
+
+  update: async (id: string, data: Partial<Obra>): Promise<Obra | undefined> => {
+    const { data: updated, error } = await supabase
+      .from('obras').update(data).eq('id', id).select().maybeSingle()
+    if (error) throw error
+    return updated as Obra | undefined
   },
-  delete: (id: string): void => {
-    write(K.obras, read<Obra>(K.obras).filter(o => o.id !== id))
-    // cascade delete TSTs, encarregados, desvios
-    write(K.tsts, read<TST>(K.tsts).filter(t => t.obra_id !== id))
-    write(K.encarregados, read<Encarregado>(K.encarregados).filter(e => e.obra_id !== id))
+
+  delete: async (id: string): Promise<void> => {
+    const { error } = await supabase.from('obras').delete().eq('id', id)
+    if (error) throw error
+    // tsts and encarregados are cascade-deleted via FK constraint
   },
 }
 
-// ── TSTs ─────────────────────────────────────────────────────────────────────
+// ── TSTs ──────────────────────────────────────────────────────────────────────
 export const tstsDB = {
-  list: (): TST[] => read<TST>(K.tsts),
-  byObra: (obraId: string): TST[] => read<TST>(K.tsts).filter(t => t.obra_id === obraId),
-  activeByObra: (obraId: string): TST[] => read<TST>(K.tsts).filter(t => t.obra_id === obraId && t.ativo),
-  find: (id: string): TST | undefined => read<TST>(K.tsts).find(t => t.id === id),
-  create: (data: Omit<TST, 'id' | 'criado_em'>): TST => {
+  list: async (): Promise<TST[]> => {
+    const { data, error } = await supabase
+      .from('tsts').select('*').order('criado_em', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as TST[]
+  },
+
+  byObra: async (obraId: string): Promise<TST[]> => {
+    const { data } = await supabase.from('tsts').select('*').eq('obra_id', obraId)
+    return (data ?? []) as TST[]
+  },
+
+  activeByObra: async (obraId: string): Promise<TST[]> => {
+    const { data } = await supabase.from('tsts').select('*').eq('obra_id', obraId).eq('ativo', true)
+    return (data ?? []) as TST[]
+  },
+
+  find: async (id: string): Promise<TST | undefined> => {
+    const { data } = await supabase.from('tsts').select('*').eq('id', id).maybeSingle()
+    return data as TST | undefined
+  },
+
+  create: async (data: Omit<TST, 'id' | 'criado_em'>): Promise<TST> => {
     const tst: TST = { ...data, id: uid(), criado_em: now() }
-    write(K.tsts, [...read<TST>(K.tsts), tst])
+    const { error } = await supabase.from('tsts').insert(tst)
+    if (error) throw error
     return tst
   },
-  update: (id: string, data: Partial<TST>): TST | undefined => {
-    const list = read<TST>(K.tsts).map(t => t.id === id ? { ...t, ...data } : t)
-    write(K.tsts, list)
-    return list.find(t => t.id === id)
+
+  toggleAtivo: async (id: string): Promise<void> => {
+    const { data: current } = await supabase.from('tsts').select('ativo').eq('id', id).maybeSingle()
+    const { error } = await supabase.from('tsts').update({ ativo: !current?.ativo }).eq('id', id)
+    if (error) throw error
   },
-  toggleAtivo: (id: string): void => {
-    const list = read<TST>(K.tsts).map(t => t.id === id ? { ...t, ativo: !t.ativo } : t)
-    write(K.tsts, list)
-  },
-  delete: (id: string): void => {
-    write(K.tsts, read<TST>(K.tsts).filter(t => t.id !== id))
+
+  delete: async (id: string): Promise<void> => {
+    const { error } = await supabase.from('tsts').delete().eq('id', id)
+    if (error) throw error
   },
 }
 
-// ── Encarregados ─────────────────────────────────────────────────────────────
+// ── Encarregados ──────────────────────────────────────────────────────────────
 export const encarregadosDB = {
-  list: (): Encarregado[] => read<Encarregado>(K.encarregados),
-  byObra: (obraId: string): Encarregado[] => read<Encarregado>(K.encarregados).filter(e => e.obra_id === obraId),
-  activeByObra: (obraId: string): Encarregado[] => read<Encarregado>(K.encarregados).filter(e => e.obra_id === obraId && e.ativo),
-  find: (id: string): Encarregado | undefined => read<Encarregado>(K.encarregados).find(e => e.id === id),
-  create: (data: Omit<Encarregado, 'id' | 'criado_em'>): Encarregado => {
+  list: async (): Promise<Encarregado[]> => {
+    const { data, error } = await supabase
+      .from('encarregados').select('*').order('criado_em', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as Encarregado[]
+  },
+
+  byObra: async (obraId: string): Promise<Encarregado[]> => {
+    const { data } = await supabase.from('encarregados').select('*').eq('obra_id', obraId)
+    return (data ?? []) as Encarregado[]
+  },
+
+  activeByObra: async (obraId: string): Promise<Encarregado[]> => {
+    const { data } = await supabase.from('encarregados').select('*').eq('obra_id', obraId).eq('ativo', true)
+    return (data ?? []) as Encarregado[]
+  },
+
+  find: async (id: string): Promise<Encarregado | undefined> => {
+    const { data } = await supabase.from('encarregados').select('*').eq('id', id).maybeSingle()
+    return data as Encarregado | undefined
+  },
+
+  create: async (data: Omit<Encarregado, 'id' | 'criado_em'>): Promise<Encarregado> => {
     const enc: Encarregado = { ...data, id: uid(), criado_em: now() }
-    write(K.encarregados, [...read<Encarregado>(K.encarregados), enc])
+    const { error } = await supabase.from('encarregados').insert(enc)
+    if (error) throw error
     return enc
   },
-  update: (id: string, data: Partial<Encarregado>): Encarregado | undefined => {
-    const list = read<Encarregado>(K.encarregados).map(e => e.id === id ? { ...e, ...data } : e)
-    write(K.encarregados, list)
-    return list.find(e => e.id === id)
+
+  toggleAtivo: async (id: string): Promise<void> => {
+    const { data: current } = await supabase.from('encarregados').select('ativo').eq('id', id).maybeSingle()
+    const { error } = await supabase.from('encarregados').update({ ativo: !current?.ativo }).eq('id', id)
+    if (error) throw error
   },
-  toggleAtivo: (id: string): void => {
-    const list = read<Encarregado>(K.encarregados).map(e => e.id === id ? { ...e, ativo: !e.ativo } : e)
-    write(K.encarregados, list)
-  },
-  delete: (id: string): void => {
-    write(K.encarregados, read<Encarregado>(K.encarregados).filter(e => e.id !== id))
+
+  delete: async (id: string): Promise<void> => {
+    const { error } = await supabase.from('encarregados').delete().eq('id', id)
+    if (error) throw error
   },
 }
 
 // ── Desvios ───────────────────────────────────────────────────────────────────
 export const desviosDB = {
-  list: (): Desvio[] => read<Desvio>(K.desvios),
-  find: (id: string): Desvio | undefined => read<Desvio>(K.desvios).find(d => d.id === id),
-  create: (data: Omit<Desvio, 'id' | 'numero' | 'criado_em' | 'atualizado_em' | 'historico_status'>): Desvio => {
-    const num = nextNum()
+  list: async (): Promise<Desvio[]> => {
+    const { data, error } = await supabase
+      .from('desvios').select('*').order('numero', { ascending: false })
+    if (error) throw error
+    return (data ?? []) as Desvio[]
+  },
+
+  find: async (id: string): Promise<Desvio | undefined> => {
+    const { data } = await supabase.from('desvios').select('*').eq('id', id).maybeSingle()
+    return data as Desvio | undefined
+  },
+
+  create: async (
+    data: Omit<Desvio, 'id' | 'numero' | 'criado_em' | 'atualizado_em' | 'historico_status'>
+  ): Promise<Desvio> => {
+    const num = await nextNum()
     const d: Desvio = {
       ...data,
       id: uid(),
@@ -126,40 +170,56 @@ export const desviosDB = {
       criado_em: now(),
       atualizado_em: now(),
     }
-    write(K.desvios, [...read<Desvio>(K.desvios), d])
+    const { error } = await supabase.from('desvios').insert(d)
+    if (error) throw error
     return d
   },
-  update: (id: string, data: Partial<Desvio>): Desvio | undefined => {
-    const list = read<Desvio>(K.desvios).map(d => d.id === id ? { ...d, ...data, atualizado_em: now() } : d)
-    write(K.desvios, list)
-    return list.find(d => d.id === id)
+
+  update: async (id: string, data: Partial<Desvio>): Promise<Desvio | undefined> => {
+    const { data: updated, error } = await supabase
+      .from('desvios').update({ ...data, atualizado_em: now() }).eq('id', id).select().maybeSingle()
+    if (error) throw error
+    return updated as Desvio | undefined
   },
-  updateStatus: (id: string, status: StatusDesvio, por: string, observacao?: string): Desvio | undefined => {
-    const list = read<Desvio>(K.desvios).map(d => {
-      if (d.id !== id) return d
-      const hist: Desvio['historico_status'][0] = {
-        id: uid(), status_anterior: d.status, status_novo: status,
-        por, observacao, criado_em: now(),
-      }
-      return {
-        ...d, status, atualizado_em: now(),
-        historico_status: [...d.historico_status, hist],
-      }
-    })
-    write(K.desvios, list)
-    return list.find(d => d.id === id)
+
+  updateStatus: async (
+    id: string, status: StatusDesvio, por: string, observacao?: string
+  ): Promise<Desvio | undefined> => {
+    const { data: current } = await supabase.from('desvios').select('*').eq('id', id).maybeSingle()
+    if (!current) return undefined
+    const hist = {
+      id: uid(),
+      status_anterior: current.status,
+      status_novo: status,
+      por,
+      observacao,
+      criado_em: now(),
+    }
+    const { data: updated, error } = await supabase
+      .from('desvios')
+      .update({ status, atualizado_em: now(), historico_status: [...(current.historico_status ?? []), hist] })
+      .eq('id', id).select().maybeSingle()
+    if (error) throw error
+    return updated as Desvio | undefined
   },
-  addTratativa: (id: string, tratativa: Omit<Tratativa, 'id' | 'criado_em'>): Desvio | undefined => {
-    const list = read<Desvio>(K.desvios).map(d => {
-      if (d.id !== id) return d
-      const t: Tratativa = { ...tratativa, id: uid(), criado_em: now() }
-      return { ...d, tratativas: [...d.tratativas, t], atualizado_em: now() }
-    })
-    write(K.desvios, list)
-    return list.find(d => d.id === id)
+
+  addTratativa: async (
+    id: string, tratativa: Omit<Tratativa, 'id' | 'criado_em'>
+  ): Promise<Desvio | undefined> => {
+    const { data: current } = await supabase.from('desvios').select('*').eq('id', id).maybeSingle()
+    if (!current) return undefined
+    const t: Tratativa = { ...tratativa, id: uid(), criado_em: now() }
+    const { data: updated, error } = await supabase
+      .from('desvios')
+      .update({ tratativas: [...(current.tratativas ?? []), t], atualizado_em: now() })
+      .eq('id', id).select().maybeSingle()
+    if (error) throw error
+    return updated as Desvio | undefined
   },
-  delete: (id: string): void => {
-    write(K.desvios, read<Desvio>(K.desvios).filter(d => d.id !== id))
+
+  delete: async (id: string): Promise<void> => {
+    const { error } = await supabase.from('desvios').delete().eq('id', id)
+    if (error) throw error
   },
 }
 
@@ -173,8 +233,11 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   let dias_para_vencer: number | null = null
 
   if (d.prazo_correcao) {
-    const prazo = new Date(d.prazo_correcao + 'T23:59:59')
-    const diff = Math.ceil((prazo.getTime() - hoje.getTime()) / 86400000)
+    const prazo = new Date(d.prazo_correcao)
+    prazo.setHours(0, 0, 0, 0)
+    const hojeOnly = new Date(hoje)
+    hojeOnly.setHours(0, 0, 0, 0)
+    const diff = Math.round((prazo.getTime() - hojeOnly.getTime()) / 86400000)
     dias_para_vencer = diff
     vencido = diff < 0 && !['concluido', 'fechado'].includes(d.status)
   }

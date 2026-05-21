@@ -19,9 +19,7 @@ import { Label } from '@/components/ui/label'
 import type { StatusDesvio, FotoDesvio } from '@/types'
 
 const STATUS_TRANSITIONS: { from: StatusDesvio[]; to: StatusDesvio; label: string; cls: string }[] = [
-  { from: ['aberto'], to: 'em_tratativa', label: 'Iniciar Tratativa', cls: 'bg-amber-500 text-zinc-950' },
-  { from: ['aberto', 'em_tratativa', 'pendente'], to: 'concluido', label: 'Marcar Concluído', cls: 'bg-green-600 text-white' },
-  { from: ['aberto', 'em_tratativa'], to: 'pendente', label: 'Marcar Pendente', cls: 'bg-orange-600 text-white' },
+  { from: ['aberto'], to: 'concluido', label: 'Marcar Concluído', cls: 'bg-green-600 text-white' },
   { from: ['concluido'], to: 'fechado', label: 'Fechar Desvio', cls: 'bg-zinc-600 text-white' },
   { from: ['concluido', 'fechado'], to: 'reincidente', label: 'Marcar Reincidente', cls: 'bg-red-600 text-white' },
 ]
@@ -37,7 +35,6 @@ export default function DesvioDetailPage() {
   const desvio = desviosComputados.find(d => d.id === id)
   const [tab, setTab] = useState<Tab>('info')
   const [comentario, setComentario] = useState('')
-  const [acaoRealizada, setAcaoRealizada] = useState('')
   const [nomeTratativa, setNomeTratativa] = useState('')
   const [fotosTratativa, setFotosTratativa] = useState<FotoDesvio[]>([])
   const [sending, setSending] = useState(false)
@@ -73,26 +70,29 @@ export default function DesvioDetailPage() {
       return
     }
     setEditandoStatus(null)
-    desviosDB.updateStatus(id, to, 'Sistema')
-    refresh()
+    await desviosDB.updateStatus(id, to, 'Sistema')
+    await refresh()
   }
 
   async function handleConfirmarConclusao() {
     if (conclusaoFotos.length === 0) return
     setSending(true)
-    desviosDB.addTratativa(id, {
-      comentario: conclusaoComentario.trim() || 'Desvio concluído com registro fotográfico.',
-      autor: conclusaoNome.trim() || 'Sistema',
-      acao_realizada: 'Conclusão registrada',
-      fotos: conclusaoFotos,
-    })
-    desviosDB.updateStatus(id, 'concluido', conclusaoNome.trim() || 'Sistema')
-    refresh()
-    setShowConclusaoForm(false)
-    setConclusaoFotos([])
-    setConclusaoNome('')
-    setConclusaoComentario('')
-    setSending(false)
+    try {
+      await desviosDB.addTratativa(id, {
+        comentario: conclusaoComentario.trim() || 'Desvio concluído com registro fotográfico.',
+        autor: conclusaoNome.trim() || 'Sistema',
+        acao_realizada: 'Conclusão registrada',
+        fotos: conclusaoFotos,
+      })
+      await desviosDB.updateStatus(id, 'concluido', conclusaoNome.trim() || 'Sistema')
+      await refresh()
+      setShowConclusaoForm(false)
+      setConclusaoFotos([])
+      setConclusaoNome('')
+      setConclusaoComentario('')
+    } finally {
+      setSending(false)
+    }
   }
 
   async function handleFotoConclusao(e: React.ChangeEvent<HTMLInputElement>) {
@@ -110,18 +110,20 @@ export default function DesvioDetailPage() {
     setTentouEnviarTratativa(true)
     if (!comentario.trim() || !nomeTratativa.trim() || fotosTratativa.length === 0) return
     setSending(true)
-    desviosDB.addTratativa(id, {
-      comentario,
-      autor: nomeTratativa,
-      acao_realizada: acaoRealizada || undefined,
-      fotos: fotosTratativa,
-    })
-    refresh()
-    setComentario('')
-    setAcaoRealizada('')
-    setFotosTratativa([])
-    setTentouEnviarTratativa(false)
-    setSending(false)
+    try {
+      await desviosDB.addTratativa(id, {
+        comentario,
+        autor: nomeTratativa,
+        fotos: fotosTratativa,
+      })
+      await desviosDB.updateStatus(id, 'concluido', nomeTratativa)
+      await refresh()
+      setComentario('')
+      setFotosTratativa([])
+      setTentouEnviarTratativa(false)
+    } finally {
+      setSending(false)
+    }
   }
 
   async function handleFotoTratativa(e: React.ChangeEvent<HTMLInputElement>) {
@@ -138,17 +140,17 @@ export default function DesvioDetailPage() {
     e.target.value = ''
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!confirm('Excluir este desvio permanentemente?')) return
-    desviosDB.delete(id)
-    refresh()
+    await desviosDB.delete(id)
+    await refresh()
     router.push('/desvios')
   }
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: 'info', label: 'Informações' },
     { id: 'tratativas', label: `Tratativas (${desvio.tratativas.length})` },
-    { id: 'fotos', label: `Fotos (${desvio.fotos.length})` },
+    { id: 'fotos', label: `Fotos (${desvio.fotos.length + desvio.tratativas.reduce((a, t) => a + (t.fotos?.length || 0), 0)})` },
     { id: 'historico', label: 'Histórico' },
   ]
 
@@ -319,18 +321,39 @@ export default function DesvioDetailPage() {
       {/* ── INFO ── */}
       {tab === 'info' && (
         <div className="space-y-3">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Ação Corretiva</p>
-            {desvio.acao_corretiva
-              ? <p className="text-sm text-zinc-300">{desvio.acao_corretiva}</p>
-              : <p className="text-sm text-zinc-600 italic">Nenhuma ação corretiva registrada</p>}
+          {/* Dados principais */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-2">Dados do Desvio</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {[
+                { label: 'Obra',         value: desvio.obra_nome_computado },
+                { label: 'Data',         value: formatDate(desvio.data_ocorrencia) },
+                { label: 'Hora',         value: desvio.hora_ocorrencia || '—' },
+                { label: 'Aberto por',   value: desvio.aberto_por },
+                { label: 'Encarregado',  value: desvio.encarregado_nome_computado },
+                { label: 'TST',          value: desvio.tst_nome_computado || '—' },
+                { label: 'Local Exato',  value: desvio.local_exato },
+                { label: 'Setor',        value: desvio.setor || '—' },
+                { label: 'Prazo',        value: desvio.prazo_correcao ? formatDate(desvio.prazo_correcao) : '—' },
+              ].map(row => (
+                <div key={row.label} className="min-w-0">
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-0.5">{row.label}</p>
+                  <p className="text-sm text-zinc-300 font-medium truncate">{row.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="pt-2 border-t border-zinc-800">
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Categoria</p>
+              <p className="text-sm text-zinc-300 font-medium">
+                {desvio.categoria === 'Outros' && desvio.categoria_outro ? `Outros: ${desvio.categoria_outro}` : desvio.categoria}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-zinc-800">
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Descrição Completa</p>
+              <p className="text-sm text-zinc-300 leading-relaxed">{desvio.descricao}</p>
+            </div>
           </div>
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Ação Preventiva</p>
-            {desvio.acao_preventiva
-              ? <p className="text-sm text-zinc-300">{desvio.acao_preventiva}</p>
-              : <p className="text-sm text-zinc-600 italic">Nenhuma ação preventiva registrada</p>}
-          </div>
+
         </div>
       )}
 
@@ -379,12 +402,6 @@ export default function DesvioDetailPage() {
               <Textarea value={comentario} onChange={e => setComentario(e.target.value)} rows={3}
                 placeholder="Descreva a tratativa realizada..." />
             </div>
-            <div className="space-y-1.5">
-              <Label>Ação Realizada (opcional)</Label>
-              <Input value={acaoRealizada} onChange={e => setAcaoRealizada(e.target.value)}
-                placeholder="Ex: EPI fornecido, treinamento realizado" />
-            </div>
-
             {/* Fotos da tratativa — OBRIGATÓRIO */}
             <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFotoTratativa} />
             <div className={cn('rounded-xl border-2 border-dashed p-3 transition-colors',
@@ -427,35 +444,84 @@ export default function DesvioDetailPage() {
             </div>
 
             <div className="flex items-center justify-end">
-              <Button onClick={handleAddTratativa}
-                disabled={!comentario.trim() || !nomeTratativa.trim() || sending} size="sm">
-                {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                Enviar Tratativa
-              </Button>
+              <button
+                onClick={handleAddTratativa}
+                disabled={!comentario.trim() || !nomeTratativa.trim() || fotosTratativa.length === 0 || sending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: '#16a34a' }}
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Concluir Desvio
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* ── FOTOS ── */}
-      {tab === 'fotos' && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-          {desvio.fotos.length === 0 ? (
-            <div className="text-center py-10 text-zinc-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Nenhuma foto registrada</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {desvio.fotos.map(foto => (
-                <div key={foto.id} className="aspect-video rounded-xl overflow-hidden bg-zinc-800">
-                  <img src={foto.data_url} alt={foto.nome} className="w-full h-full object-cover" />
+      {tab === 'fotos' && (() => {
+        const fotosAbertura = desvio.fotos
+        const fotosTratativasAll = desvio.tratativas.flatMap(t => (t.fotos || []).map(f => ({ ...f, autor: t.autor, data: t.criado_em })))
+        const totalFotos = fotosAbertura.length + fotosTratativasAll.length
+        return (
+          <div className="space-y-4">
+            {totalFotos === 0 && (
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-zinc-600">
+                <ImageIcon className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm font-medium">Nenhuma foto registrada</p>
+              </div>
+            )}
+
+            {/* Fotos de Abertura */}
+            <div>
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <div className="w-2 h-2 rounded-full bg-amber-400" />
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fotos de Abertura ({fotosAbertura.length})</p>
+              </div>
+              {fotosAbertura.length === 0 ? (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 py-6 text-center">
+                  <p className="text-sm text-zinc-600">Nenhuma foto na abertura</p>
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {fotosAbertura.map(foto => (
+                    <div key={foto.id} className="rounded-2xl overflow-hidden bg-zinc-800 border border-zinc-700" style={{ aspectRatio: '4/3' }}>
+                      <img src={foto.data_url} alt={foto.nome} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Fotos de Tratativas/Conclusão */}
+            <div>
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <div className="w-2 h-2 rounded-full bg-green-400" />
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fotos de Tratativa / Conclusão ({fotosTratativasAll.length})</p>
+              </div>
+              {fotosTratativasAll.length === 0 ? (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 py-6 text-center">
+                  <p className="text-sm text-zinc-600">Nenhuma foto de tratativa ainda</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {fotosTratativasAll.map((foto, i) => (
+                    <div key={`${foto.id}-${i}`} className="rounded-2xl overflow-hidden bg-zinc-800 border border-green-500/20">
+                      <div style={{ aspectRatio: '4/3' }}>
+                        <img src={foto.data_url} alt={foto.nome} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="px-3 py-2 bg-zinc-900 border-t border-zinc-800">
+                        <p className="text-xs text-green-400 font-semibold">{foto.autor}</p>
+                        <p className="text-[10px] text-zinc-500">{formatDateTime(foto.data)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── HISTÓRICO ── */}
       {tab === 'historico' && (

@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  AlertTriangle, CheckCircle2, Clock, Flame,
-  ShieldAlert, Activity, Timer, Building2, Plus, RefreshCw,
+  AlertTriangle, CheckCircle2,
+  ShieldAlert, Activity, Building2, Plus, RefreshCw,
 } from 'lucide-react'
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
@@ -140,6 +140,11 @@ export default function DashboardPage() {
       .slice(0, 8)
   , [tsts, desviosFiltrados, obraFiltro])
 
+  const fechados = useMemo(
+    () => desviosFiltrados.filter(d => d.status === 'fechado').length,
+    [desviosFiltrados],
+  )
+
   // ── Loading ──
   if (!loaded) {
     return (
@@ -183,14 +188,10 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    { title: 'Total de Desvios', value: stats.total,           icon: Activity,     variant: 'default',  sub: 'Todos os registros' },
-    { title: 'Abertos',          value: stats.abertos,         icon: AlertTriangle,variant: 'info',     sub: 'Aguardando tratativa' },
-    { title: 'Em Tratativa',     value: stats.em_tratativa,    icon: Clock,        variant: 'warning',  sub: 'Em andamento' },
-    { title: 'Críticos',         value: stats.criticos,        icon: Flame,        variant: 'critical', sub: 'Atenção imediata' },
-    { title: 'Concluídos',       value: stats.concluidos,      icon: CheckCircle2, variant: 'success',  sub: 'Tratados' },
-    { title: 'Vencidos',         value: stats.vencidos,        icon: ShieldAlert,  variant: stats.vencidos > 0 ? 'critical' : 'default', sub: 'Prazo ultrapassado' },
-    { title: 'Taxa Tratativa',   value: formatPercent(stats.taxa_tratativa), icon: Activity, variant: stats.taxa_tratativa >= 70 ? 'success' : 'warning', sub: 'Desvios respondidos' },
-    { title: 'Tempo Médio',      value: `${stats.tempo_medio_fechamento}d`, icon: Timer, variant: 'default', sub: 'Para fechamento' },
+    { title: 'Abertos',        value: stats.abertos,                           icon: AlertTriangle, variant: 'info',     sub: 'Aguardando tratativa' },
+    { title: 'Fechados',       value: fechados,                                icon: CheckCircle2,  variant: 'success',  sub: 'Desvios encerrados' },
+    { title: 'Vencidos',       value: stats.vencidos,                          icon: ShieldAlert,   variant: stats.vencidos > 0 ? 'critical' : 'default', sub: 'Prazo ultrapassado' },
+    { title: 'Taxa Tratativa', value: formatPercent(stats.taxa_tratativa),     icon: Activity,      variant: stats.taxa_tratativa >= 70 ? 'success' : 'warning', sub: 'Desvios respondidos' },
   ] as const
 
   const variantMap = {
@@ -299,8 +300,8 @@ export default function DashboardPage() {
             className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
             <p className="text-sm font-semibold text-zinc-200 mb-0.5">Por Gravidade</p>
             <p className="text-xs text-zinc-500 mb-4">Classificação dos desvios</p>
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={gravidadeData} barSize={36}>
+            <ResponsiveContainer width="100%" height={170}>
+              <BarChart data={gravidadeData} barSize={36} margin={{ top: 22, right: 20, bottom: 0, left: -28 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272A" vertical={false} />
                 <XAxis dataKey="name" tick={{ fill: '#71717A', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis hide />
@@ -318,17 +319,21 @@ export default function DashboardPage() {
             className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 lg:col-span-2 xl:col-span-1">
             <p className="text-sm font-semibold text-zinc-200 mb-0.5">Evolução Mensal</p>
             <p className="text-xs text-zinc-500 mb-4">Últimos 6 meses</p>
-            <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={evolucaoData} margin={{ top: 12, right: 10, bottom: 5, left: -10 }}>
+            <ResponsiveContainer width="100%" height={185}>
+              <LineChart data={evolucaoData} margin={{ top: 20, right: 10, bottom: 10, left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272A" />
                 <XAxis dataKey="mes" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend formatter={v => <span style={{ color: '#A1A1AA', fontSize: 11 }}>{v}</span>} />
                 <Line type="monotone" dataKey="abertos" name="Abertos" stroke={MSE_RED} strokeWidth={2.5}
-                  dot={{ r: 3, fill: MSE_RED, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                  dot={{ r: 3, fill: MSE_RED, strokeWidth: 0 }} activeDot={{ r: 5 }}>
+                  <LabelList dataKey="abertos" position="top" style={{ fill: MSE_RED, fontSize: 10, fontWeight: 700 }} />
+                </Line>
                 <Line type="monotone" dataKey="concluidos" name="Concluídos" stroke="#22C55E" strokeWidth={2.5}
-                  dot={{ r: 3, fill: '#22C55E', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                  dot={{ r: 3, fill: '#22C55E', strokeWidth: 0 }} activeDot={{ r: 5 }}>
+                  <LabelList dataKey="concluidos" position="bottom" style={{ fill: '#22C55E', fontSize: 10, fontWeight: 700 }} />
+                </Line>
               </LineChart>
             </ResponsiveContainer>
           </motion.div>
@@ -337,11 +342,7 @@ export default function DashboardPage() {
           {encarregadoData.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.50 }}
               className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 lg:col-span-2">
-              <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-sm font-semibold text-zinc-200">Por Encarregado</p>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                  style={{ background: '#E8291C' }}>PRINCIPAL</span>
-              </div>
+              <p className="text-sm font-semibold text-zinc-200 mb-0.5">Por Encarregado</p>
               <p className="text-xs text-zinc-500 mb-4">Desvios por responsável de área</p>
               <ResponsiveContainer width="100%" height={Math.max(160, encarregadoData.length * 38)}>
                 <BarChart data={encarregadoData} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 0 }}>
@@ -384,25 +385,6 @@ export default function DashboardPage() {
             </motion.div>
           )}
 
-          {/* Por Categoria */}
-          {categoriaData.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.60 }}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-              <p className="text-sm font-semibold text-zinc-200 mb-0.5">Por Categoria</p>
-              <p className="text-xs text-zinc-500 mb-4">Tipos de desvio mais frequentes</p>
-              <ResponsiveContainer width="100%" height={Math.max(160, categoriaData.length * 34)}>
-                <BarChart data={categoriaData} layout="vertical" margin={{ top: 4, right: 40, left: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 10 }} axisLine={false} tickLine={false} width={100} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                  <Bar dataKey="total" name="Desvios" fill="#8B5CF6" radius={[0, 4, 4, 0]}>
-                    <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 11, fontWeight: 700 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </motion.div>
-          )}
 
           {/* Por TST */}
           {tstData.length > 0 && (

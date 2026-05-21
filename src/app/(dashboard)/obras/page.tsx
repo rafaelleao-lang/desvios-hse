@@ -24,10 +24,10 @@ export default function ObrasPage() {
     (o.empresa || '').toLowerCase().includes(busca.toLowerCase())
   )
 
-  function handleDelete(id: string, nome: string) {
+  async function handleDelete(id: string, nome: string) {
     if (!confirm(`Excluir a obra "${nome}"? Isso também removerá os TSTs e encarregados associados.`)) return
-    obrasDB.delete(id)
-    refresh()
+    await obrasDB.delete(id)
+    await refresh()
     setMenuAberto(null)
   }
 

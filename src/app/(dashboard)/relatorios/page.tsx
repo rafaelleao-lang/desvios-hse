@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, RadialBarChart, RadialBar, Legend,
+  LineChart, Line, PieChart, Pie, Cell, Legend,
   LabelList,
 } from 'recharts'
 import {
   Filter, Download, X, Search, Building2, Users, AlertTriangle,
-  Clock, TrendingUp, ChevronDown, FileText, Printer, CheckCircle2,
+  Clock, TrendingUp, ChevronDown, FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -20,7 +22,7 @@ import { CATEGORIAS_PADRAO, CATEGORIAS_CORES } from '@/types'
 import type { GravidadeDesvio, StatusDesvio } from '@/types'
 import {
   cn, STATUS_CONFIG, GRAVIDADE_CONFIG,
-  formatDate, formatDateTime, generateDesvioId, getSlaColor, getSlaLabel,
+  formatDate, generateDesvioId, getSlaColor, getSlaLabel,
 } from '@/lib/utils'
 
 const MSE_RED = '#E8291C'
@@ -58,18 +60,383 @@ function ChartTooltip({ active, payload, label }: any) {
   )
 }
 
-// Print tooltip (light theme)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function PrintTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-xl text-xs">
-      {label && <p className="text-gray-500 mb-1">{label}</p>}
-      {payload.map((p: any, i: number) => (
-        <p key={i} className="font-bold text-gray-900">{p.value}</p>
-      ))}
-    </div>
-  )
+// ── PDF Generator ───────────────────────────────────────────────────────────
+function gerarPDF(
+  filtered: ReturnType<typeof filtrarDesvios>,
+  filtros: FiltrosRelatorio,
+  obrasList: { id: string; nome: string }[]
+) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const hoje = new Date()
+  const PW = 210
+  const ML = 14
+  const MR = 14
+  const MB = 12
+  const CW = PW - ML - MR
+  const RED_RGB: [number, number, number] = [232, 41, 28]
+
+  let y = 0
+
+  function h2r(hex: string): [number, number, number] {
+    return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)]
+  }
+
+  function drawHeader() {
+    doc.setFillColor(232, 41, 28)
+    doc.rect(0, 0, PW, 18, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.setTextColor(255, 255, 255)
+    doc.text('mse', ML, 12.5)
+    doc.setLineWidth(0.3)
+    doc.setDrawColor(255, 255, 255)
+    doc.line(ML + 15, 4, ML + 15, 14)
+    doc.setFontSize(8.5)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Relatório de Desvios HSE  ·  MSE Engenharia', ML + 19, 12.5)
+    const ds = hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    doc.setFontSize(7)
+    doc.setTextColor(255, 200, 200)
+    doc.text(ds, PW - MR, 12.5, { align: 'right' })
+  }
+
+  function ensureY(need: number) {
+    if (y + need > 297 - MB) {
+      doc.addPage()
+      drawHeader()
+      y = 26
+    }
+  }
+
+  // ── Data ──────────────────────────────────────────────────
+  const kpis = {
+    total:        filtered.length,
+    abertos:      filtered.filter(d => d.status === 'aberto').length,
+    em_tratativa: filtered.filter(d => d.status === 'em_tratativa').length,
+    criticos:     filtered.filter(d => d.gravidade === 'critico').length,
+    vencidos:     filtered.filter(d => d.vencido).length,
+    concluidos:   filtered.filter(d => ['concluido','fechado'].includes(d.status)).length,
+    reincidentes: filtered.filter(d => d.reincidente || d.status === 'reincidente').length,
+    pendentes:    filtered.filter(d => d.status === 'pendente').length,
+  }
+
+  const encMap: Record<string, number> = {}
+  filtered.forEach(d => { const n = d.encarregado_nome_computado; if (n !== '—') encMap[n] = (encMap[n]||0)+1 })
+  const encData = Object.entries(encMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total).slice(0,10)
+
+  const obraMap: Record<string, number> = {}
+  filtered.forEach(d => { obraMap[d.obra_nome_computado] = (obraMap[d.obra_nome_computado]||0)+1 })
+  const obraData = Object.entries(obraMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total).slice(0,8)
+
+  const tstMap: Record<string, number> = {}
+  filtered.forEach(d => { const n = d.tst_nome_computado; if (n !== '—') tstMap[n] = (tstMap[n]||0)+1 })
+  const tstData = Object.entries(tstMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total).slice(0,8)
+
+  const catMap: Record<string, number> = {}
+  filtered.forEach(d => {
+    const cat = d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria
+    catMap[cat] = (catMap[cat]||0)+1
+  })
+  const catData = Object.entries(catMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total)
+
+  const gravData = (['baixo','medio','alto','critico'] as GravidadeDesvio[]).map(g => ({
+    label: GRAVIDADE_CONFIG[g].label, total: filtered.filter(d=>d.gravidade===g).length, hex: GRAV_HEX[g],
+  }))
+
+  const statMap: Record<string, number> = {}
+  filtered.forEach(d => { statMap[d.status] = (statMap[d.status]||0)+1 })
+  const statData = Object.entries(statMap).map(([s,n]) => ({
+    label: STATUS_CONFIG[s as StatusDesvio]?.label || s, total: n, hex: STATUS_HEX[s] || '#71717A',
+  }))
+
+  const filtroDesc = [
+    filtros.obra_id && obrasList.find(o=>o.id===filtros.obra_id)?.nome && `Obra: ${obrasList.find(o=>o.id===filtros.obra_id)!.nome}`,
+    filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label||filtros.status}`,
+    filtros.gravidade && `Gravidade: ${GRAVIDADE_CONFIG[filtros.gravidade as GravidadeDesvio]?.label||filtros.gravidade}`,
+    filtros.categoria && `Categoria: ${filtros.categoria}`,
+    (filtros.data_inicio||filtros.data_fim) && `Período: ${filtros.data_inicio||'...'} a ${filtros.data_fim||'...'}`,
+    filtros.busca && `Busca: "${filtros.busca}"`,
+  ].filter(Boolean).join(' · ') || 'Todos os desvios'
+
+  // ── Page 1 ────────────────────────────────────────────────
+  drawHeader()
+  y = 24
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(110, 110, 110)
+  const filtroLines = doc.splitTextToSize(`Filtros: ${filtroDesc}`, CW)
+  doc.text(filtroLines, ML, y)
+  y += filtroLines.length * 3.8 + 5
+
+  // ── KPI Grid 2×4 ──────────────────────────────────────────
+  const kpiItems: Array<{label:string; value:number; c:[number,number,number]; bg:[number,number,number]}> = [
+    { label:'Total',        value:kpis.total,        c:RED_RGB,          bg:[255,241,240] },
+    { label:'Abertos',      value:kpis.abertos,      c:[59,130,246],     bg:[239,246,255] },
+    { label:'Em Tratativa', value:kpis.em_tratativa, c:[245,158,11],     bg:[255,251,235] },
+    { label:'Críticos',     value:kpis.criticos,     c:[239,68,68],      bg:[254,242,242] },
+    { label:'Concluídos',   value:kpis.concluidos,   c:[16,185,129],     bg:[236,253,245] },
+    { label:'Vencidos',     value:kpis.vencidos,     c:[249,115,22],     bg:[255,247,237] },
+    { label:'Reincidentes', value:kpis.reincidentes, c:[239,68,68],      bg:[254,242,242] },
+    { label:'Pendentes',    value:kpis.pendentes,    c:[139,92,246],     bg:[245,243,255] },
+  ]
+  const kW = (CW - 9) / 4
+  const kH = 20
+
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 4; col++) {
+      const k = kpiItems[row * 4 + col]
+      const kx = ML + col * (kW + 3)
+      const ky = y + row * (kH + 3)
+      doc.setFillColor(k.bg[0], k.bg[1], k.bg[2])
+      doc.roundedRect(kx, ky, kW, kH, 2, 2, 'F')
+      doc.setFillColor(k.c[0], k.c[1], k.c[2])
+      doc.roundedRect(kx, ky, 3, kH, 1, 1, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(17)
+      doc.setTextColor(k.c[0], k.c[1], k.c[2])
+      doc.text(String(k.value), kx + kW / 2 + 1.5, ky + 12, { align: 'center' })
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(110, 110, 110)
+      doc.text(k.label, kx + kW / 2 + 1.5, ky + 17, { align: 'center' })
+    }
+  }
+  y += 2 * kH + 3 + 8
+
+  // ── Gravidade + Status side by side ───────────────────────
+  ensureY(55)
+  const halfW = (CW - 6) / 2
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(50, 50, 50)
+  doc.text('Por Gravidade', ML, y)
+  doc.text('Por Status', ML + halfW + 6, y)
+  y += 5
+
+  const gravYStart = y
+  const gravLabelW = 22
+  const gravBarW = halfW - gravLabelW - 8
+  const maxGrav = Math.max(...gravData.map(g => g.total), 1)
+
+  gravData.forEach((g, i) => {
+    const gy = gravYStart + i * 9
+    const bw = (g.total / maxGrav) * gravBarW
+    const rgb = h2r(g.hex)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(60, 60, 60)
+    doc.text(g.label, ML, gy + 4.5)
+    doc.setFillColor(228, 228, 228)
+    doc.rect(ML + gravLabelW, gy, gravBarW, 6, 'F')
+    if (g.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(ML + gravLabelW, gy, Math.max(bw, 0.5), 6, 'F') }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(rgb[0], rgb[1], rgb[2])
+    doc.text(String(g.total), ML + gravLabelW + gravBarW + 3, gy + 4.5)
+  })
+
+  const statLabelW = 28
+  const statBarW = halfW - statLabelW - 8
+  const statX = ML + halfW + 6
+  const maxStat = Math.max(...statData.map(s => s.total), 1)
+
+  statData.forEach((s, i) => {
+    const sy = gravYStart + i * 9
+    const bw = (s.total / maxStat) * statBarW
+    const rgb = h2r(s.hex)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(60, 60, 60)
+    const lbl = s.label.length > 15 ? s.label.slice(0,14)+'…' : s.label
+    doc.text(lbl, statX, sy + 4.5)
+    doc.setFillColor(228, 228, 228)
+    doc.rect(statX + statLabelW, sy, statBarW, 5.5, 'F')
+    if (s.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(statX + statLabelW, sy, Math.max(bw, 0.5), 5.5, 'F') }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(rgb[0], rgb[1], rgb[2])
+    doc.text(String(s.total), statX + statLabelW + statBarW + 3, sy + 4.5)
+  })
+
+  y = gravYStart + Math.max(gravData.length * 9, statData.length * 9) + 8
+
+  // ── Encarregado table ──────────────────────────────────────
+  if (encData.length > 0) {
+    ensureY(20)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(50, 50, 50)
+    doc.text('Desvios por Encarregado', ML, y)
+    y += 3
+
+    autoTable(doc, {
+      startY: y,
+      head: [['#', 'Encarregado', 'Desvios', '% do Total']],
+      body: encData.map((e,i) => [`${i+1}`, e.name, `${e.total}`, kpis.total > 0 ? `${((e.total/kpis.total)*100).toFixed(1)}%` : '0%']),
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: RED_RGB, textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'center', textColor: [160,160,160] as [number,number,number] },
+        2: { halign: 'right', fontStyle: 'bold', textColor: RED_RGB, cellWidth: 20 },
+        3: { halign: 'right', textColor: [120,120,120] as [number,number,number], cellWidth: 25 },
+      },
+      margin: { top: 22, left: ML, right: MR },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      didDrawPage: (data: any) => { if (data.pageNumber > 1) { drawHeader() } },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    y = (doc as any).lastAutoTable.finalY + 8
+  }
+
+  // ── Obra + TST side by side ────────────────────────────────
+  if (obraData.length > 0 || tstData.length > 0) {
+    ensureY(20)
+    const tw = (CW - 6) / 2
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(50, 50, 50)
+    if (obraData.length > 0) doc.text('Por Obra', ML, y)
+    if (tstData.length > 0) doc.text('Por TST', ML + tw + 6, y)
+    y += 3
+
+    const sideY = y
+
+    if (obraData.length > 0) {
+      autoTable(doc, {
+        startY: sideY,
+        head: [['Obra', 'Total']],
+        body: obraData.map(o => [o.name.length > 30 ? o.name.slice(0,29)+'…' : o.name, `${o.total}`]),
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        headStyles: { fillColor: [245,158,11] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellWidth: 16 } },
+        margin: { top: 22, left: ML, right: MR + tw + 6 },
+      })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const yLeft = obraData.length > 0 ? (doc as any).lastAutoTable.finalY : sideY
+
+    if (tstData.length > 0) {
+      autoTable(doc, {
+        startY: sideY,
+        head: [['TST', 'Total']],
+        body: tstData.map(t => [t.name.length > 28 ? t.name.slice(0,27)+'…' : t.name, `${t.total}`]),
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        headStyles: { fillColor: [6,182,212] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellWidth: 16 } },
+        margin: { top: 22, left: ML + tw + 6, right: MR },
+      })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const yRight = tstData.length > 0 ? (doc as any).lastAutoTable.finalY : sideY
+    y = Math.max(yLeft, yRight) + 8
+  }
+
+  // ── Categoria table ────────────────────────────────────────
+  if (catData.length > 0) {
+    ensureY(20)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(50, 50, 50)
+    doc.text('Por Categoria', ML, y)
+    y += 3
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Categoria', 'Total', '% do Total']],
+      body: catData.map(c => [c.name, `${c.total}`, kpis.total > 0 ? `${((c.total/kpis.total)*100).toFixed(1)}%` : '0%']),
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: [139,92,246] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
+      columnStyles: {
+        1: { halign: 'right', fontStyle: 'bold', cellWidth: 20 },
+        2: { halign: 'right', textColor: [120,120,120] as [number,number,number], cellWidth: 25 },
+      },
+      margin: { top: 22, left: ML, right: MR },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      didDrawPage: (data: any) => { if (data.pageNumber > 1) { drawHeader() } },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    y = (doc as any).lastAutoTable.finalY + 8
+  }
+
+  // ── Full desvios list (new page) ───────────────────────────
+  doc.addPage()
+  drawHeader()
+  y = 24
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(50, 50, 50)
+  doc.text(`Lista Completa de Desvios (${filtered.length} registros)`, ML, y)
+  y += 3
+
+  autoTable(doc, {
+    startY: y,
+    head: [['ID', 'Data', 'Obra', 'Categoria', 'Gravidade', 'Status', 'Encarregado', 'SLA']],
+    body: filtered.map(d => [
+      generateDesvioId(d.numero),
+      formatDate(d.data_ocorrencia),
+      d.obra_nome_computado.length > 18 ? d.obra_nome_computado.slice(0,17)+'…' : d.obra_nome_computado,
+      d.categoria.length > 14 ? d.categoria.slice(0,13)+'…' : d.categoria,
+      GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
+      STATUS_CONFIG[d.status]?.label || d.status,
+      d.encarregado_nome_computado.length > 14 ? d.encarregado_nome_computado.slice(0,13)+'…' : d.encarregado_nome_computado,
+      getSlaLabel(d.dias_para_vencer, d.vencido),
+    ]),
+    styles: { fontSize: 7, cellPadding: 2 },
+    headStyles: { fillColor: RED_RGB, textColor: [255,255,255] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
+    columnStyles: {
+      0: { cellWidth: 16, fontStyle: 'bold', textColor: RED_RGB },
+      1: { cellWidth: 18 },
+      4: { cellWidth: 16 },
+      5: { cellWidth: 20 },
+      7: { cellWidth: 18 },
+    },
+    margin: { top: 22, left: ML, right: MR },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    didDrawPage: (data: any) => { if (data.pageNumber > 1) { drawHeader() } },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    didParseCell: (data: any) => {
+      if (data.section === 'body') {
+        const d = filtered[data.row.index]
+        if (!d) return
+        if (data.column.index === 4) {
+          data.cell.styles.textColor = h2r(GRAV_HEX[d.gravidade] || '#71717A')
+          data.cell.styles.fontStyle = 'bold'
+        }
+        if (data.column.index === 5) {
+          data.cell.styles.textColor = h2r(STATUS_HEX[d.status] || '#71717A')
+        }
+      }
+    },
+  })
+
+  // ── Footer on all pages ────────────────────────────────────
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFillColor(248, 248, 248)
+    doc.rect(0, 297 - 10, PW, 10, 'F')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(160, 160, 160)
+    doc.text('MSE Engenharia · Sistema de Gestão HSE', ML, 297 - 3.5)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(232, 41, 28)
+    doc.text(`Página ${i} / ${totalPages}`, PW - MR, 297 - 3.5, { align: 'right' })
+  }
+
+  const dd = String(hoje.getDate()).padStart(2,'0')
+  const mm = String(hoje.getMonth()+1).padStart(2,'0')
+  const yy = hoje.getFullYear()
+  doc.save(`Relatorio-HSE-${yy}-${mm}-${dd}.pdf`)
 }
 
 const TABS = [
@@ -85,422 +452,6 @@ type TabId = typeof TABS[number]['id']
 const inputCls =
   'w-full h-10 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-mse-500/30'
 
-// ── PDF Print Report ────────────────────────────────────────────────────────
-interface PrintReportProps {
-  filtered: ReturnType<typeof filtrarDesvios>
-  filtros: FiltrosRelatorio
-  obras: ReturnType<typeof useApp>['obras']
-  onClose: () => void
-}
-
-function PrintReport({ filtered, filtros, obras, onClose }: PrintReportProps) {
-  const hoje = new Date()
-
-  // Aggregates
-  const kpis = {
-    total:        filtered.length,
-    abertos:      filtered.filter(d => d.status === 'aberto').length,
-    em_tratativa: filtered.filter(d => d.status === 'em_tratativa').length,
-    criticos:     filtered.filter(d => d.gravidade === 'critico').length,
-    vencidos:     filtered.filter(d => d.vencido).length,
-    concluidos:   filtered.filter(d => ['concluido','fechado'].includes(d.status)).length,
-    reincidentes: filtered.filter(d => d.reincidente || d.status === 'reincidente').length,
-    pendentes:    filtered.filter(d => d.status === 'pendente').length,
-  }
-
-  const evolucaoData = useMemo(() => {
-    const monthly: Record<string, { abertos: number; concluidos: number }> = {}
-    filtered.forEach(d => {
-      const m = d.data_ocorrencia.slice(0, 7)
-      if (!monthly[m]) monthly[m] = { abertos: 0, concluidos: 0 }
-      monthly[m].abertos++
-      if (['concluido','fechado'].includes(d.status)) monthly[m].concluidos++
-    })
-    return Object.entries(monthly).sort().map(([m, v]) => ({
-      mes: `${MONTHS[parseInt(m.split('-')[1]) - 1]}/${m.slice(2, 4)}`, ...v,
-    }))
-  }, [filtered])
-
-  const statusData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filtered.forEach(d => { counts[d.status] = (counts[d.status] || 0) + 1 })
-    return Object.entries(counts).map(([s, n]) => ({
-      name: STATUS_CONFIG[s as StatusDesvio]?.label || s, value: n, fill: STATUS_HEX[s] || '#666',
-    }))
-  }, [filtered])
-
-  const gravidadeData = useMemo(() =>
-    (['baixo','medio','alto','critico'] as GravidadeDesvio[]).map(g => ({
-      name: GRAVIDADE_CONFIG[g].label,
-      total: filtered.filter(d => d.gravidade === g).length,
-      fill: GRAV_HEX[g],
-    })), [filtered])
-
-  const encData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filtered.forEach(d => { const n = d.encarregado_nome_computado; if (n !== '—') counts[n] = (counts[n] || 0) + 1 })
-    return Object.entries(counts).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, 12)
-  }, [filtered])
-
-  const obraData = useMemo(() => {
-    const counts: Record<string, { total: number; abertos: number; criticos: number; fullName: string }> = {}
-    filtered.forEach(d => {
-      const n = d.obra_nome_computado
-      counts[n] = counts[n] || { total: 0, abertos: 0, criticos: 0, fullName: n }
-      counts[n].total++
-      if (d.status === 'aberto') counts[n].abertos++
-      if (d.gravidade === 'critico') counts[n].criticos++
-    })
-    return Object.values(counts).sort((a, b) => b.total - a.total).slice(0, 10)
-      .map(o => ({ ...o, name: o.fullName.length > 22 ? o.fullName.slice(0, 22) + '…' : o.fullName }))
-  }, [filtered])
-
-  const categoriaData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filtered.forEach(d => {
-      const cat = d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria
-      counts[cat] = (counts[cat] || 0) + 1
-    })
-    return Object.entries(counts).map(([fullName, total]) => ({
-      fullName, name: fullName.length > 22 ? fullName.slice(0, 22) + '…' : fullName, total,
-      fill: CATEGORIAS_CORES[fullName.startsWith('Outros') ? 'Outros' : fullName] || '#78716C',
-    })).sort((a, b) => b.total - a.total)
-  }, [filtered])
-
-  const tstData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filtered.forEach(d => { const n = d.tst_nome_computado; if (n !== '—') counts[n] = (counts[n] || 0) + 1 })
-    return Object.entries(counts).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, 10)
-  }, [filtered])
-
-  const filtroDesc = [
-    filtros.obra_id && obras.find(o => o.id === filtros.obra_id)?.nome && `Obra: ${obras.find(o => o.id === filtros.obra_id)!.nome}`,
-    filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label || filtros.status}`,
-    filtros.gravidade && `Gravidade: ${GRAVIDADE_CONFIG[filtros.gravidade as GravidadeDesvio]?.label || filtros.gravidade}`,
-    filtros.categoria && `Categoria: ${filtros.categoria}`,
-    (filtros.data_inicio || filtros.data_fim) && `Período: ${filtros.data_inicio || '...'} a ${filtros.data_fim || '...'}`,
-    filtros.busca && `Busca: "${filtros.busca}"`,
-  ].filter(Boolean).join(' · ') || 'Todos os desvios'
-
-  return (
-    <div className="fixed inset-0 bg-white z-[100] overflow-y-auto" id="mse-print-report">
-      {/* Actions bar — hidden when printing */}
-      <div className="no-print sticky top-0 bg-zinc-900 border-b border-zinc-700 px-6 py-3 flex items-center gap-3 z-10">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl font-black" style={{ color: MSE_RED }}>mse</span>
-          <span className="text-sm font-semibold text-zinc-300">Relatório HSE</span>
-        </div>
-        <div className="flex-1" />
-        <p className="text-xs text-zinc-500">{filtered.length} desvios · {filtroDesc}</p>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-          style={{ background: MSE_RED }}
-        >
-          <Printer className="w-4 h-4" />
-          Imprimir / Salvar PDF
-        </button>
-        <button onClick={onClose} className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Report content */}
-      <div className="max-w-[900px] mx-auto px-8 py-8 text-gray-900">
-
-        {/* Report header */}
-        <div className="flex items-start justify-between mb-8 pb-6 border-b-2 border-gray-100">
-          <div className="flex items-center gap-4">
-            <div>
-              <span className="text-4xl font-black leading-none" style={{ color: MSE_RED }}>mse</span>
-              <p className="text-xs text-gray-400 mt-1">Empresa de Engenharia Industrial</p>
-            </div>
-            <div className="w-px h-12 bg-gray-200" />
-            <div>
-              <h1 className="text-xl font-black text-gray-900">Relatório de Desvios HSE</h1>
-              <p className="text-sm text-gray-500">Sistema de Gestão de Segurança do Trabalho</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500">Gerado em</p>
-            <p className="text-sm font-bold text-gray-800">{formatDate(hoje.toISOString())}</p>
-            <p className="text-xs text-gray-400">{hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-          </div>
-        </div>
-
-        {/* Filtros aplicados */}
-        <div className="mb-6 p-3 rounded-xl bg-gray-50 border border-gray-200">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1">Filtros aplicados</p>
-          <p className="text-sm text-gray-700 font-medium">{filtroDesc}</p>
-        </div>
-
-        {/* KPI grid */}
-        <div className="grid grid-cols-4 gap-3 mb-8 print-avoid-break">
-          {[
-            { label: 'Total',        value: kpis.total,        color: '#E8291C', bg: '#fff1f0' },
-            { label: 'Abertos',      value: kpis.abertos,      color: '#3B82F6', bg: '#EFF6FF' },
-            { label: 'Em Tratativa', value: kpis.em_tratativa, color: '#F59E0B', bg: '#FFFBEB' },
-            { label: 'Críticos',     value: kpis.criticos,     color: '#EF4444', bg: '#FEF2F2' },
-            { label: 'Concluídos',   value: kpis.concluidos,   color: '#10B981', bg: '#ECFDF5' },
-            { label: 'Vencidos',     value: kpis.vencidos,     color: '#F97316', bg: '#FFF7ED' },
-            { label: 'Reincidentes', value: kpis.reincidentes, color: '#EF4444', bg: '#FEF2F2' },
-            { label: 'Pendentes',    value: kpis.pendentes,    color: '#8B5CF6', bg: '#F5F3FF' },
-          ].map(k => (
-            <div key={k.label} className="rounded-xl p-3 text-center border" style={{ background: k.bg, borderColor: k.color + '33' }}>
-              <p className="text-2xl font-black" style={{ color: k.color }}>{k.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5 font-medium">{k.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Charts — 2 per row */}
-
-        {/* Row 1: Evolução + Status */}
-        <div className="grid grid-cols-2 gap-6 mb-6 print-avoid-break">
-          <div>
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block" style={{ background: MSE_RED }} />
-              Evolução Mensal
-            </h3>
-            {evolucaoData.length === 0 ? (
-              <p className="text-xs text-gray-400 py-8 text-center">Sem dados de evolução</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={evolucaoData} margin={{ top: 8, right: 8, left: -28, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="mes" tick={{ fill: '#9CA3AF', fontSize: 10 }} />
-                  <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} allowDecimals={false} />
-                  <Tooltip content={<PrintTooltip />} />
-                  <Line type="monotone" dataKey="abertos" name="Abertos" stroke={MSE_RED} strokeWidth={2}
-                    dot={{ fill: MSE_RED, r: 3, strokeWidth: 0 }} />
-                  <Line type="monotone" dataKey="concluidos" name="Concluídos" stroke="#10B981" strokeWidth={2}
-                    dot={{ fill: '#10B981', r: 3, strokeWidth: 0 }} />
-                  <Legend formatter={v => <span style={{ color: '#6B7280', fontSize: 10 }}>{v}</span>} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block bg-blue-400" />
-              Por Status
-            </h3>
-            {statusData.length === 0 ? (
-              <p className="text-xs text-gray-400 py-8 text-center">Sem dados</p>
-            ) : (
-              <div className="flex items-center gap-4">
-                <PieChart width={140} height={140}>
-                  <Pie data={statusData} dataKey="value" cx={70} cy={70} innerRadius={38} outerRadius={58} paddingAngle={2}>
-                    {statusData.map((e, i) => <Cell key={i} fill={e.fill} />)}
-                  </Pie>
-                  <Tooltip content={<PrintTooltip />} />
-                </PieChart>
-                <div className="space-y-1.5 flex-1">
-                  {statusData.map((s, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.fill }} />
-                      <span className="text-xs text-gray-600 flex-1">{s.name}</span>
-                      <span className="text-xs font-bold text-gray-800">{s.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Row 2: Gravidade */}
-        <div className="mb-6 print-avoid-break">
-          <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full inline-block bg-orange-400" />
-            Por Gravidade
-          </h3>
-          <ResponsiveContainer width="100%" height={130}>
-            <BarChart data={gravidadeData} barSize={48}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-              <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 11 }} />
-              <YAxis hide />
-              <Tooltip content={<PrintTooltip />} />
-              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                {gravidadeData.map((e, i) => <Cell key={i} fill={e.fill} />)}
-                <LabelList dataKey="total" position="top" style={{ fill: '#374151', fontSize: 13, fontWeight: 700 }} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Row 3: Desvios por Encarregado — PRINCIPAL */}
-        <div className="mb-6 print-avoid-break">
-          <h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: MSE_RED }}>
-            <span className="w-3 h-3 rounded-full inline-block" style={{ background: MSE_RED }} />
-            Desvios por Encarregado
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: MSE_RED }}>PRINCIPAL</span>
-          </h3>
-          {encData.length === 0 ? (
-            <p className="text-xs text-gray-400 py-8 text-center">Sem encarregados associados</p>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={Math.max(140, encData.length * 32)}>
-                <BarChart data={encData} layout="vertical" margin={{ top: 4, right: 48, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 10 }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 11 }} width={130} />
-                  <Tooltip content={<PrintTooltip />} />
-                  <Bar dataKey="total" fill={MSE_RED} radius={[0, 4, 4, 0]}>
-                    <LabelList dataKey="total" position="right" style={{ fill: '#374151', fontSize: 12, fontWeight: 700 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              {/* Ranking table */}
-              <div className="mt-3 rounded-xl overflow-hidden border border-gray-100">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr style={{ background: MSE_RED }}>
-                      <th className="text-left px-3 py-2 text-white font-semibold">#</th>
-                      <th className="text-left px-3 py-2 text-white font-semibold">Encarregado</th>
-                      <th className="text-right px-3 py-2 text-white font-semibold">Desvios</th>
-                      <th className="text-right px-3 py-2 text-white font-semibold">% do Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {encData.map((e, i) => (
-                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-3 py-1.5 text-gray-400 font-bold">{i + 1}</td>
-                        <td className="px-3 py-1.5 text-gray-800 font-medium">{e.name}</td>
-                        <td className="px-3 py-1.5 text-right font-black" style={{ color: MSE_RED }}>{e.total}</td>
-                        <td className="px-3 py-1.5 text-right text-gray-500">{kpis.total > 0 ? ((e.total / kpis.total) * 100).toFixed(1) : 0}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Row 4: Por Obra + Por TST */}
-        <div className="grid grid-cols-2 gap-6 mb-6 print-avoid-break">
-          <div>
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block bg-amber-400" />
-              Por Obra
-            </h3>
-            {obraData.length === 0 ? <p className="text-xs text-gray-400 py-8 text-center">Sem dados</p> : (
-              <ResponsiveContainer width="100%" height={Math.max(120, obraData.length * 30)}>
-                <BarChart data={obraData} layout="vertical" margin={{ top: 4, right: 44, left: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 9 }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 10 }} width={110} />
-                  <Tooltip content={<PrintTooltip />} />
-                  <Bar dataKey="total" fill="#F59E0B" radius={[0, 4, 4, 0]}>
-                    <LabelList dataKey="total" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 700 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block bg-cyan-400" />
-              Por TST
-            </h3>
-            {tstData.length === 0 ? <p className="text-xs text-gray-400 py-8 text-center">Sem TSTs associados</p> : (
-              <ResponsiveContainer width="100%" height={Math.max(120, tstData.length * 30)}>
-                <BarChart data={tstData} layout="vertical" margin={{ top: 4, right: 44, left: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 9 }} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 10 }} width={100} />
-                  <Tooltip content={<PrintTooltip />} />
-                  <Bar dataKey="total" fill="#06B6D4" radius={[0, 4, 4, 0]}>
-                    <LabelList dataKey="total" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 700 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
-
-        {/* Row 5: Por Categoria */}
-        <div className="mb-8 print-avoid-break">
-          <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full inline-block bg-purple-400" />
-            Por Categoria
-          </h3>
-          {categoriaData.length === 0 ? <p className="text-xs text-gray-400 py-4 text-center">Sem dados</p> : (
-            <ResponsiveContainer width="100%" height={Math.max(120, categoriaData.length * 28)}>
-              <BarChart data={categoriaData} layout="vertical" margin={{ top: 4, right: 44, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-                <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 9 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: '#374151', fontSize: 10 }} width={130} />
-                <Tooltip content={<PrintTooltip />} />
-                <Bar dataKey="total" radius={[0, 4, 4, 0]}>
-                  {categoriaData.map((e, i) => <Cell key={i} fill={e.fill} />)}
-                  <LabelList dataKey="total" position="right" style={{ fill: '#374151', fontSize: 11, fontWeight: 700 }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Data table */}
-        <div className="print-page-break print-avoid-break">
-          <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full inline-block bg-gray-400" />
-            Lista Completa de Desvios
-            <span className="text-xs text-gray-400 font-normal">({filtered.length} registros)</span>
-          </h3>
-          <div className="rounded-xl overflow-hidden border border-gray-200">
-            <table className="w-full text-xs">
-              <thead>
-                <tr style={{ background: MSE_RED }}>
-                  {['#','Data','Obra','Categoria','Gravidade','Status','Encarregado','SLA'].map(h => (
-                    <th key={h} className="text-left px-2.5 py-2 text-white font-semibold whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((d, i) => (
-                  <tr key={d.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-2.5 py-1.5 font-mono font-bold text-[10px]" style={{ color: MSE_RED }}>
-                      {generateDesvioId(d.numero)}
-                    </td>
-                    <td className="px-2.5 py-1.5 text-gray-600 whitespace-nowrap">{formatDate(d.data_ocorrencia)}</td>
-                    <td className="px-2.5 py-1.5 text-gray-800 max-w-[120px] truncate">{d.obra_nome_computado}</td>
-                    <td className="px-2.5 py-1.5 text-gray-600 max-w-[90px] truncate">{d.categoria}</td>
-                    <td className="px-2.5 py-1.5">
-                      <span className="font-bold" style={{ color: GRAV_HEX[d.gravidade] || '#666' }}>
-                        {GRAVIDADE_CONFIG[d.gravidade]?.label}
-                      </span>
-                    </td>
-                    <td className="px-2.5 py-1.5">
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{
-                        background: (STATUS_HEX[d.status] || '#666') + '22',
-                        color: STATUS_HEX[d.status] || '#666',
-                      }}>
-                        {STATUS_CONFIG[d.status]?.label}
-                      </span>
-                    </td>
-                    <td className="px-2.5 py-1.5 text-gray-600 max-w-[100px] truncate">{d.encarregado_nome_computado}</td>
-                    <td className={cn('px-2.5 py-1.5 font-semibold whitespace-nowrap text-[10px]', getSlaColor(d.dias_para_vencer, d.vencido))}>
-                      {getSlaLabel(d.dias_para_vencer, d.vencido)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-          <span className="font-black text-lg" style={{ color: MSE_RED }}>mse</span>
-          <span>Relatório gerado em {formatDateTime(hoje.toISOString())} · Sistema de Gestão HSE</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function RelatoriosPage() {
   const { obras, tsts, encarregados, desviosComputados, loaded } = useApp()
@@ -509,7 +460,6 @@ export default function RelatoriosPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('resumo')
   const [page, setPage] = useState(1)
-  const [showPrint, setShowPrint] = useState(false)
 
   const tstOptions = useMemo(() =>
     filtros.obra_id ? tsts.filter(t => t.obra_id === filtros.obra_id) : tsts
@@ -659,20 +609,7 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <>
-      {/* Print modal */}
-      <AnimatePresence>
-        {showPrint && (
-          <PrintReport
-            filtered={filtered}
-            filtros={filtros}
-            obras={obras}
-            onClose={() => setShowPrint(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <div className="space-y-5">
+    <div className="space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
@@ -687,13 +624,13 @@ export default function RelatoriosPage() {
               <Download className="w-4 h-4 mr-1.5" />CSV
             </Button>
             <button
-              onClick={() => setShowPrint(true)}
+              onClick={() => gerarPDF(filtered, filtros, obras)}
               disabled={filtered.length === 0}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
               style={{ background: MSE_RED }}
             >
               <FileText className="w-4 h-4" />
-              Gerar PDF
+              Baixar PDF
             </button>
           </div>
         </div>
@@ -1215,7 +1152,6 @@ export default function RelatoriosPage() {
             )}
           </motion.div>
         </AnimatePresence>
-      </div>
-    </>
+    </div>
   )
 }

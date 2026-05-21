@@ -56,47 +56,47 @@ export default function ObraDetailPage() {
     setObraForm({ nome: obra!.nome, codigo: obra!.codigo, empresa: obra!.empresa, cidade: obra!.cidade, estado: obra!.estado, responsavel: obra!.responsavel, ativa: obra!.ativa })
     setEditingObra(true)
   }
-  function saveObra() {
+  async function saveObra() {
     if (!obraForm || !obraForm.nome?.trim() || !obraForm.codigo?.trim()) return
-    obrasDB.update(id, obraForm as Parameters<typeof obrasDB.update>[1])
-    refresh()
+    await obrasDB.update(id, obraForm as Parameters<typeof obrasDB.update>[1])
+    await refresh()
     setEditingObra(false)
   }
 
   // ── TST ──
-  function addTST() {
+  async function addTST() {
     if (!tstForm.nome.trim()) return
-    tstsDB.create({ obra_id: id, nome: tstForm.nome.trim(), crea: tstForm.crea, telefone: tstForm.telefone, ativo: true })
-    refresh()
+    await tstsDB.create({ obra_id: id, nome: tstForm.nome.trim(), crea: tstForm.crea, telefone: tstForm.telefone, ativo: true })
+    await refresh()
     setTSTForm({ nome: '', crea: '', telefone: '' })
     setAddingTST(false)
   }
-  function toggleTST(tstId: string) {
-    tstsDB.toggleAtivo(tstId)
-    refresh()
+  async function toggleTST(tstId: string) {
+    await tstsDB.toggleAtivo(tstId)
+    await refresh()
   }
-  function deleteTST(tstId: string, nome: string) {
+  async function deleteTST(tstId: string, nome: string) {
     if (!confirm(`Remover o TST "${nome}" desta obra?`)) return
-    tstsDB.delete(tstId)
-    refresh()
+    await tstsDB.delete(tstId)
+    await refresh()
   }
 
   // ── Encarregado ──
-  function addEnc() {
+  async function addEnc() {
     if (!encForm.nome.trim()) return
-    encarregadosDB.create({ obra_id: id, nome: encForm.nome.trim(), setor: encForm.setor, telefone: encForm.telefone, ativo: true })
-    refresh()
+    await encarregadosDB.create({ obra_id: id, nome: encForm.nome.trim(), setor: encForm.setor, telefone: encForm.telefone, ativo: true })
+    await refresh()
     setEncForm({ nome: '', setor: '', telefone: '' })
     setAddingEnc(false)
   }
-  function toggleEnc(encId: string) {
-    encarregadosDB.toggleAtivo(encId)
-    refresh()
+  async function toggleEnc(encId: string) {
+    await encarregadosDB.toggleAtivo(encId)
+    await refresh()
   }
-  function deleteEnc(encId: string, nome: string) {
+  async function deleteEnc(encId: string, nome: string) {
     if (!confirm(`Remover o encarregado "${nome}" desta obra?`)) return
-    encarregadosDB.delete(encId)
-    refresh()
+    await encarregadosDB.delete(encId)
+    await refresh()
   }
 
   const TABS: { id: Tab; label: string; count?: number }[] = [

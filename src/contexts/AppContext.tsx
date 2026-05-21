@@ -11,7 +11,7 @@ interface AppState {
   desvios: Desvio[]
   desviosComputados: DesvioComputado[]
   loaded: boolean
-  refresh: () => void
+  refresh: () => Promise<void>
 }
 
 const AppContext = createContext<AppState | null>(null)
@@ -23,11 +23,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [desvios, setDesvios] = useState<Desvio[]>([])
   const [loaded, setLoaded] = useState(false)
 
-  const refresh = useCallback(() => {
-    const o = obrasDB.list()
-    const t = tstsDB.list()
-    const e = encarregadosDB.list()
-    const d = desviosDB.list()
+  const refresh = useCallback(async () => {
+    const [o, t, e, d] = await Promise.all([
+      obrasDB.list(),
+      tstsDB.list(),
+      encarregadosDB.list(),
+      desviosDB.list(),
+    ])
     setObras(o)
     setTsts(t)
     setEncarregados(e)

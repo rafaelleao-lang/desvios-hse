@@ -9,7 +9,7 @@ import {
   ChevronRight, Info,
 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
-import { desviosDB, comprimirImagem, tstsDB, encarregadosDB } from '@/lib/db'
+import { desviosDB, comprimirImagem } from '@/lib/db'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -29,7 +29,7 @@ const STEP_LABELS = ['Obra & Pessoas', 'Desvio', 'Fotos']
 
 export default function NovoDesvioPage() {
   const router = useRouter()
-  const { obras, refresh } = useApp()
+  const { obras, tsts, encarregados, refresh } = useApp()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep] = useState(0)
@@ -51,12 +51,12 @@ export default function NovoDesvioPage() {
   const [prazoCorrecao, setPrazoCorrecao] = useState('')
   const [fotos, setFotos] = useState<FotoDesvio[]>([])
   const [loadingFoto, setLoadingFoto] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({})
 
-  // Derived data from selected obra
+  // Derived data from selected obra (filtered from context, no extra DB calls)
   const obraAtiva = obras.find(o => o.id === obraId)
-  const tstsDaObra = obraId ? tstsDB.activeByObra(obraId) : []
-  const encsDaObra = obraId ? encarregadosDB.activeByObra(obraId) : []
+  const tstsDaObra = obraId ? tsts.filter(t => t.obra_id === obraId && t.ativo) : []
+  const encsDaObra = obraId ? encarregados.filter(e => e.obra_id === obraId && e.ativo) : []
 
   function validateStep(s: number): boolean {
     const e: Record<string, string> = {}
@@ -95,6 +95,7 @@ export default function NovoDesvioPage() {
         }])
       }
     }
+    setErrors(prev => ({ ...prev, fotos: undefined }))
     setLoadingFoto(false)
     e.target.value = ''
   }
@@ -104,13 +105,17 @@ export default function NovoDesvioPage() {
   }
 
   async function handleSave() {
+    if (fotos.length === 0) {
+      setErrors({ fotos: 'Adicione ao menos 1 foto do desvio — obrigatório' })
+      return
+    }
     setSaving(true)
     try {
       const obraObj = obras.find(o => o.id === obraId)
       const encObj = encsDaObra.find(e => e.id === encarregadoId)
       const tstObj = tstsDaObra.find(t => t.id === tstId)
 
-      desviosDB.create({
+      await desviosDB.create({
         obra_id: obraId,
         obra_nome: obraObj?.nome,
         categoria,
@@ -132,7 +137,7 @@ export default function NovoDesvioPage() {
         fotos,
         tratativas: [],
       })
-      refresh()
+      await refresh()
       router.push('/desvios')
     } finally {
       setSaving(false)
@@ -355,11 +360,18 @@ export default function NovoDesvioPage() {
         {step === 2 && (
           <motion.div key="step2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
             className="space-y-4">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+            <div className={cn(
+              'rounded-2xl border bg-zinc-900 p-5 space-y-4 transition-colors',
+              errors.fotos ? 'border-red-500/50' : 'border-zinc-800'
+            )}>
               <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-amber-400" />
+                  <Camera className={cn('w-4 h-4', errors.fotos ? 'text-red-400' : 'text-amber-400')} />
                   <p className="text-sm font-semibold text-zinc-200">Fotos do Desvio</p>
+                  <span className={cn(
+                    'px-1.5 py-0.5 rounded text-[10px] font-bold',
+                    errors.fotos ? 'bg-red-500/20 text-red-400' : 'bg-red-500/10 text-red-400'
+                  )}>OBRIGATÓRIO</span>
                 </div>
                 <span className="text-xs text-zinc-600">{fotos.length}/4</span>
               </div>
@@ -394,9 +406,14 @@ export default function NovoDesvioPage() {
                       }
                     }}
                     disabled={loadingFoto}
-                    className="flex-1 flex flex-col items-center gap-2 py-5 rounded-xl border-2 border-dashed border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors active:scale-95">
-                    <Camera className="w-6 h-6 text-amber-400" />
-                    <span className="text-xs font-medium text-amber-400">Tirar Foto</span>
+                    className={cn(
+                      'flex-1 flex flex-col items-center gap-2 py-5 rounded-xl border-2 border-dashed transition-colors active:scale-95',
+                      errors.fotos
+                        ? 'border-red-500/40 bg-red-500/5 hover:bg-red-500/10'
+                        : 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10'
+                    )}>
+                    <Camera className={cn('w-6 h-6', errors.fotos ? 'text-red-400' : 'text-amber-400')} />
+                    <span className={cn('text-xs font-medium', errors.fotos ? 'text-red-400' : 'text-amber-400')}>Tirar Foto</span>
                   </button>
                   <button
                     type="button"
@@ -419,6 +436,10 @@ export default function NovoDesvioPage() {
                   <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
                   <span className="text-xs text-zinc-400">Processando foto...</span>
                 </div>
+              )}
+
+              {errors.fotos && (
+                <p className="text-xs text-red-400 font-medium text-center">{errors.fotos}</p>
               )}
 
               <p className="text-xs text-zinc-600 text-center">Fotos são comprimidas automaticamente. Máx. 4 fotos.</p>

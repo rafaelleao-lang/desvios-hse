@@ -42,11 +42,13 @@ export default function NovaObraPage() {
   async function handleSave() {
     if (!validate()) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 300))
-    obrasDB.create({ ...form, nome: form.nome.trim(), codigo: form.codigo.trim().toUpperCase() })
-    refresh()
-    setSaving(false)
-    router.push('/obras')
+    try {
+      await obrasDB.create({ ...form, nome: form.nome.trim(), codigo: form.codigo.trim().toUpperCase() })
+      await refresh()
+      router.push('/obras')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
