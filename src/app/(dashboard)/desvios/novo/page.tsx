@@ -37,7 +37,6 @@ export default function NovoDesvioPage() {
 
   // Form fields
   const [obraId, setObraId] = useState('')
-  const [abertoPor, setAbertoPor] = useState('')
   const [tstId, setTstId] = useState('')
   const [encarregadoId, setEncarregadoId] = useState('')
   const [setor, setSetor] = useState('')
@@ -62,7 +61,7 @@ export default function NovoDesvioPage() {
     const e: Record<string, string> = {}
     if (s === 0) {
       if (!obraId) e.obraId = 'Selecione a obra'
-      if (!abertoPor.trim()) e.abertoPor = 'Informe seu nome'
+      if (!tstId) e.tstId = 'Selecione o TST responsável (quem está abrindo)'
       if (!encarregadoId) e.encarregadoId = 'Selecione o encarregado responsável'
     }
     if (s === 1) {
@@ -125,7 +124,7 @@ export default function NovoDesvioPage() {
         gravidade,
         status: 'aberto',
         descricao,
-        aberto_por: abertoPor,
+        aberto_por: tstObj?.nome || '',
         encarregado_id: encarregadoId,
         encarregado_nome: encObj?.nome,
         tst_id: tstId || undefined,
@@ -197,25 +196,18 @@ export default function NovoDesvioPage() {
                 )}
               </div>
 
-              {/* Aberto por */}
+              {/* TST (obrigatório — quem está abrindo) */}
               <div className="space-y-1.5">
-                <Label>Seu Nome (quem está abrindo) <span className="text-red-400">*</span></Label>
-                <Input value={abertoPor} onChange={e => setAbertoPor(e.target.value)}
-                  placeholder="Ex: João da Silva" />
-                {errors.abertoPor && <p className="text-xs text-red-400">{errors.abertoPor}</p>}
-              </div>
-
-              {/* TST (optional) */}
-              <div className="space-y-1.5">
-                <Label>TST Responsável</Label>
+                <Label>TST Responsável (quem está abrindo o desvio) <span className="text-red-400">*</span></Label>
                 <select value={tstId} onChange={e => setTstId(e.target.value)}
                   disabled={!obraId}
                   className="w-full h-11 px-4 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 disabled:opacity-50">
-                  <option value="">Selecionar TST (opcional)</option>
+                  <option value="">Selecione seu nome...</option>
                   {tstsDaObra.map(t => (
                     <option key={t.id} value={t.id}>{t.nome}</option>
                   ))}
                 </select>
+                {errors.tstId && <p className="text-xs text-red-400">{errors.tstId}</p>}
                 {obraId && tstsDaObra.length === 0 && (
                   <p className="text-xs text-zinc-500">Nenhum TST ativo nesta obra. <a href={`/obras/${obraId}`} className="text-amber-400 underline">Adicionar TST</a></p>
                 )}
@@ -450,7 +442,7 @@ export default function NovoDesvioPage() {
               <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Resumo do Desvio</p>
               {[
                 { label: 'Obra', value: obras.find(o => o.id === obraId)?.nome },
-                { label: 'Aberto por', value: abertoPor },
+                { label: 'TST (quem abre)', value: tstsDaObra.find(t => t.id === tstId)?.nome },
                 { label: 'Encarregado', value: encsDaObra.find(e => e.id === encarregadoId)?.nome },
                 { label: 'Categoria', value: categoria === 'Outros' ? `Outros: ${categoriaOutro}` : categoria },
                 { label: 'Local', value: localExato },

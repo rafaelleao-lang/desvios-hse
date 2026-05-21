@@ -31,6 +31,7 @@ export default function DesvioDetailPage() {
   const router = useRouter()
   const { desviosComputados, obras, tsts, encarregados, refresh } = useApp()
   const fileRef = useRef<HTMLInputElement>(null)
+  const fileRefCamera = useRef<HTMLInputElement>(null)
 
   const desvio = desviosComputados.find(d => d.id === id)
   const [tab, setTab] = useState<Tab>('info')
@@ -404,6 +405,7 @@ export default function DesvioDetailPage() {
             </div>
             {/* Fotos da tratativa — OBRIGATÓRIO */}
             <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFotoTratativa} />
+            <input ref={fileRefCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleFotoTratativa} />
             <div className={cn('rounded-xl border-2 border-dashed p-3 transition-colors',
               fotosTratativa.length > 0
                 ? 'border-amber-500/40 bg-amber-500/5'
@@ -416,11 +418,18 @@ export default function DesvioDetailPage() {
                   <p className="text-xs font-semibold text-zinc-300">Foto do desvio sendo tratado</p>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-400">OBRIGATÓRIO</span>
                 </div>
-                <button onClick={() => fileRef.current?.click()} disabled={loadingFoto}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors disabled:opacity-50">
-                  {loadingFoto ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
-                  Adicionar
-                </button>
+                <div className="flex gap-1.5">
+                  <button onClick={() => fileRefCamera.current?.click()} disabled={loadingFoto}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors disabled:opacity-50">
+                    {loadingFoto ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                    Câmera
+                  </button>
+                  <button onClick={() => fileRef.current?.click()} disabled={loadingFoto}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors disabled:opacity-50">
+                    <ImageIcon className="w-3 h-3" />
+                    Galeria
+                  </button>
+                </div>
               </div>
               {fotosTratativa.length === 0 ? (
                 <p className={cn('text-xs', tentouEnviarTratativa ? 'text-red-400 font-medium' : 'text-zinc-600')}>

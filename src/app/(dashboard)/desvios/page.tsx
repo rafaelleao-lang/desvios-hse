@@ -21,10 +21,7 @@ const PER_PAGE = 15
 const STATUS_TABS: { value: StatusDesvio | 'todos'; label: string }[] = [
   { value: 'todos', label: 'Todos' },
   { value: 'aberto', label: 'Abertos' },
-  { value: 'em_tratativa', label: 'Em Tratativa' },
-  { value: 'pendente', label: 'Pendente' },
   { value: 'concluido', label: 'Concluídos' },
-  { value: 'reincidente', label: 'Reincidentes' },
 ]
 
 export default function DesviosPage() {
@@ -42,11 +39,17 @@ export default function DesviosPage() {
   }
 
   const filtered = useMemo(() => {
-    const base = filtrarDesvios(desviosComputados, {
-      ...filtros,
-      busca,
-      status: activeTab === 'todos' ? undefined : activeTab,
-    })
+    let base
+    if (activeTab === 'concluido') {
+      base = filtrarDesvios(desviosComputados, { ...filtros, busca })
+        .filter(d => d.status === 'concluido' || d.status === 'fechado')
+    } else {
+      base = filtrarDesvios(desviosComputados, {
+        ...filtros,
+        busca,
+        status: activeTab === 'todos' ? undefined : activeTab,
+      })
+    }
     return base.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
   }, [desviosComputados, filtros, busca, activeTab])
 
@@ -56,6 +59,7 @@ export default function DesviosPage() {
   const counts = useMemo(() => {
     const c: Record<string, number> = { todos: desviosComputados.length }
     desviosComputados.forEach(d => { c[d.status] = (c[d.status] || 0) + 1 })
+    c['concluido'] = (c['concluido'] || 0) + (c['fechado'] || 0)
     return c
   }, [desviosComputados])
 

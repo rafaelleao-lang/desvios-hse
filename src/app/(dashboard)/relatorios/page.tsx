@@ -153,12 +153,14 @@ function gerarPDF(
       })
     })
 
-    const ly = cy + h - 3.5
-    doc.setFillColor(232, 41, 28); doc.rect(cx + pL, ly, 4, 2.5, 'F')
+    // Legend — top-right, above the grid
+    const ly = cy + 2
+    const lx = cx + pL + pw - 50
+    doc.setFillColor(232, 41, 28); doc.rect(lx, ly, 4, 2.5, 'F')
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(90, 90, 90)
-    doc.text('Abertos', cx + pL + 5.5, ly + 2)
-    doc.setFillColor(34, 197, 94); doc.rect(cx + pL + 27, ly, 4, 2.5, 'F')
-    doc.text('Concluídos', cx + pL + 32.5, ly + 2)
+    doc.text('Abertos', lx + 5.5, ly + 2)
+    doc.setFillColor(34, 197, 94); doc.rect(lx + 25, ly, 4, 2.5, 'F')
+    doc.text('Concluídos', lx + 30.5, ly + 2)
   }
 
   function drawVertBars(cx: number, chartY: number, w: number, h: number, data: Array<{label: string; total: number; hex: string}>) {
