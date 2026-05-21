@@ -108,6 +108,84 @@ function gerarPDF(
     }
   }
 
+  function drawArc(cx: number, cy: number, r: number, startA: number, endA: number, rgb: [number,number,number], lw: number) {
+    const steps = Math.max(40, Math.ceil(Math.abs(endA - startA) / (2 * Math.PI) * 120))
+    doc.setDrawColor(rgb[0], rgb[1], rgb[2])
+    doc.setLineWidth(lw)
+    for (let i = 0; i < steps; i++) {
+      const a1 = startA + (endA - startA) * i / steps
+      const a2 = startA + (endA - startA) * (i + 1) / steps
+      doc.line(cx + r * Math.cos(a1), cy + r * Math.sin(a1), cx + r * Math.cos(a2), cy + r * Math.sin(a2))
+    }
+    doc.setLineWidth(0.1)
+  }
+
+  function drawLineChart(cx: number, cy: number, w: number, h: number, data: Array<{label: string; abertos: number; concluidos: number}>) {
+    const maxV = Math.max(1, ...data.map(d => Math.max(d.abertos, d.concluidos)))
+    const n = data.length
+    const pL = 10, pR = 4, pT = 16, pB = 16
+    const pw = w - pL - pR, ph = h - pT - pB
+    const gx = (i: number) => cx + pL + (n <= 1 ? pw / 2 : pw * i / (n - 1))
+    const gy = (v: number) => cy + pT + ph * (1 - v / maxV)
+
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.1)
+    for (let r = 0; r <= 4; r++) doc.line(cx + pL, cy + pT + ph * r / 4, cx + pL + pw, cy + pT + ph * r / 4)
+
+    data.forEach((d, i) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(130, 130, 130)
+      doc.text(d.label, gx(i), cy + pT + ph + pB - 2, { align: 'center' })
+    })
+
+    const series: Array<{ key: 'abertos' | 'concluidos'; rgb: [number,number,number]; yOff: number }> = [
+      { key: 'abertos',    rgb: [232, 41,  28], yOff: -1.8 },
+      { key: 'concluidos', rgb: [34,  197, 94], yOff:  3.5 },
+    ]
+    series.forEach(({ key, rgb, yOff }) => {
+      for (let i = 0; i < n - 1; i++) {
+        doc.setDrawColor(rgb[0], rgb[1], rgb[2]); doc.setLineWidth(0.65)
+        doc.line(gx(i), gy(data[i][key]), gx(i + 1), gy(data[i + 1][key]))
+      }
+      data.forEach((d, i) => {
+        doc.setFillColor(rgb[0], rgb[1], rgb[2])
+        doc.circle(gx(i), gy(d[key]), 0.7, 'F')
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(rgb[0], rgb[1], rgb[2])
+        doc.text(String(d[key]), gx(i), gy(d[key]) + yOff, { align: 'center' })
+      })
+    })
+
+    const ly = cy + h - 3.5
+    doc.setFillColor(232, 41, 28); doc.rect(cx + pL, ly, 4, 2.5, 'F')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(90, 90, 90)
+    doc.text('Abertos', cx + pL + 5.5, ly + 2)
+    doc.setFillColor(34, 197, 94); doc.rect(cx + pL + 27, ly, 4, 2.5, 'F')
+    doc.text('Concluídos', cx + pL + 32.5, ly + 2)
+  }
+
+  function drawVertBars(cx: number, chartY: number, w: number, h: number, data: Array<{label: string; total: number; hex: string}>) {
+    const maxV = Math.max(1, ...data.map(d => d.total))
+    const n = data.length
+    const pL = 0, pR = 2, pT = 14, pB = 12
+    const pw = w - pL - pR, ph = h - pT - pB
+    const bSlot = pw / n
+    const bW = Math.min(bSlot * 0.6, 14)
+
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.1)
+    for (let r = 0; r <= 3; r++) doc.line(cx, chartY + pT + ph * r / 3, cx + pw, chartY + pT + ph * r / 3)
+
+    data.forEach((d, i) => {
+      const bx = cx + pL + i * bSlot + (bSlot - bW) / 2
+      const bh = Math.max(ph * d.total / maxV, d.total > 0 ? 0.5 : 0)
+      const by = chartY + pT + ph - bh
+      const rgb = h2r(d.hex)
+      if (d.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(bx, by, bW, bh, 'F') }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(rgb[0], rgb[1], rgb[2])
+      doc.text(String(d.total), bx + bW / 2, by - 1, { align: 'center' })
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(130, 130, 130)
+      const lbl = d.label.length > 9 ? d.label.slice(0, 8) + '…' : d.label
+      doc.text(lbl, bx + bW / 2, chartY + pT + ph + pB - 1, { align: 'center' })
+    })
+  }
+
   // ── Data ──────────────────────────────────────────────────
   const total    = filtered.length
   const abertos  = filtered.filter(d => d.status === 'aberto').length
@@ -222,8 +300,8 @@ function gerarPDF(
   }
   y += kH + 8
 
-  // ── Evolução Mensal ───────────────────────────────────────
-  ensureY(58)
+  // ── Evolução Mensal (line chart) ──────────────────────────
+  ensureY(62)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(50, 50, 50)
@@ -232,145 +310,81 @@ function gerarPDF(
   doc.setFontSize(6.5)
   doc.setTextColor(120, 120, 120)
   doc.text('Últimos 6 meses', ML, y + 4)
-  y += 8
+  y += 7
+  drawLineChart(ML, y, CW, 50, evoData)
+  y += 50 + 8
 
-  {
-    const evoH = 34
-    const barsN = evoData.length
-    const bSlot = CW / barsN
-    const bWidth = Math.max(bSlot * 0.28, 2)
-    const maxEvo = Math.max(1, ...evoData.map(e => Math.max(e.abertos, e.concluidos)))
-
-    evoData.forEach((e, i) => {
-      const slotX = ML + i * bSlot
-      const bx1 = slotX + (bSlot - bWidth * 2 - 1) / 2
-      const bx2 = bx1 + bWidth + 1
-
-      const bh1 = (e.abertos / maxEvo) * (evoH - 10)
-      if (e.abertos > 0) {
-        const by1 = y + evoH - bh1 - 8
-        doc.setFillColor(232, 41, 28)
-        doc.rect(bx1, by1, bWidth, Math.max(bh1, 0.5), 'F')
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(5.5)
-        doc.setTextColor(232, 41, 28)
-        doc.text(String(e.abertos), bx1 + bWidth / 2, by1 - 0.5, { align: 'center' })
-      }
-
-      const bh2 = (e.concluidos / maxEvo) * (evoH - 10)
-      if (e.concluidos > 0) {
-        const by2 = y + evoH - bh2 - 8
-        doc.setFillColor(34, 197, 94)
-        doc.rect(bx2, by2, bWidth, Math.max(bh2, 0.5), 'F')
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(5.5)
-        doc.setTextColor(34, 197, 94)
-        doc.text(String(e.concluidos), bx2 + bWidth / 2, by2 - 0.5, { align: 'center' })
-      }
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(5.5)
-      doc.setTextColor(120, 120, 120)
-      doc.text(e.label, slotX + bSlot / 2, y + evoH, { align: 'center' })
-    })
-
-    y += evoH + 4
-    // Legend
-    doc.setFillColor(232, 41, 28); doc.rect(ML, y, 5, 3, 'F')
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 80, 80)
-    doc.text('Abertos', ML + 6.5, y + 2.5)
-    doc.setFillColor(34, 197, 94); doc.rect(ML + 28, y, 5, 3, 'F')
-    doc.text('Concluídos', ML + 34.5, y + 2.5)
-    y += 8
-  }
-
-  // ── Gravidade + Status side by side ───────────────────────
-  ensureY(55)
+  // ── Por Status (donut) + Por Gravidade (vertical bars) side by side ──
+  ensureY(65)
   const halfW = (CW - 6) / 2
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(50, 50, 50)
-  doc.text('Por Gravidade', ML, y)
-  doc.text('Por Status', ML + halfW + 6, y)
+  doc.text('Por Status', ML, y)
+  doc.text('Por Gravidade', ML + halfW + 6, y)
   y += 5
 
-  const gravYStart = y
-  const gravLabelW = 22
-  const gravBarW = halfW - gravLabelW - 8
-  const maxGrav = Math.max(...gravData.map(g => g.total), 1)
+  const sectionY = y
+  const sectionH = 55
 
-  gravData.forEach((g, i) => {
-    const gy = gravYStart + i * 9
-    const bw = (g.total / maxGrav) * gravBarW
-    const rgb = h2r(g.hex)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(60, 60, 60)
-    doc.text(g.label, ML, gy + 4.5)
-    doc.setFillColor(228, 228, 228)
-    doc.rect(ML + gravLabelW, gy, gravBarW, 6, 'F')
-    if (g.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(ML + gravLabelW, gy, Math.max(bw, 0.5), 6, 'F') }
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(rgb[0], rgb[1], rgb[2])
-    doc.text(String(g.total), ML + gravLabelW + gravBarW + 3, gy + 4.5)
-  })
+  // Status donut — left half
+  const donutCX = ML + 20
+  const donutCY = sectionY + sectionH / 2 - 2
+  const donutR = 14
+  const donutLW = 6
+  const statTotal = statData.reduce((a, b) => a + b.total, 0)
+  if (statTotal > 0) {
+    let angle = -Math.PI / 2
+    statData.forEach(s => {
+      const sweep = (s.total / statTotal) * 2 * Math.PI
+      drawArc(donutCX, donutCY, donutR, angle, angle + sweep, h2r(s.hex), donutLW)
+      angle += sweep
+    })
+  } else {
+    drawArc(donutCX, donutCY, donutR, 0, 2 * Math.PI, [200, 200, 200], donutLW)
+  }
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(50, 50, 50)
+  doc.text(String(statTotal), donutCX, donutCY + 2.5, { align: 'center' })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(5)
+  doc.setTextColor(130, 130, 130)
+  doc.text('total', donutCX, donutCY + 6, { align: 'center' })
 
-  const statLabelW = 28
-  const statBarW = halfW - statLabelW - 8
-  const statX = ML + halfW + 6
-  const maxStat = Math.max(...statData.map(s => s.total), 1)
-
+  // Status legend — right side of donut
+  const legendX = ML + 38
   statData.forEach((s, i) => {
-    const sy = gravYStart + i * 9
-    const bw = (s.total / maxStat) * statBarW
+    const lY = sectionY + i * 8 + 3
     const rgb = h2r(s.hex)
+    doc.setFillColor(rgb[0], rgb[1], rgb[2])
+    doc.circle(legendX, lY + 1.2, 1.5, 'F')
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(60, 60, 60)
-    const lbl = s.label.length > 15 ? s.label.slice(0,14)+'…' : s.label
-    doc.text(lbl, statX, sy + 4.5)
-    doc.setFillColor(228, 228, 228)
-    doc.rect(statX + statLabelW, sy, statBarW, 5.5, 'F')
-    if (s.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(statX + statLabelW, sy, Math.max(bw, 0.5), 5.5, 'F') }
+    doc.setFontSize(6.5)
+    doc.setTextColor(70, 70, 70)
+    const lbl = s.label.length > 12 ? s.label.slice(0, 11) + '…' : s.label
+    doc.text(lbl, legendX + 4, lY + 2.2)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
+    doc.setFontSize(6.5)
     doc.setTextColor(rgb[0], rgb[1], rgb[2])
-    doc.text(String(s.total), statX + statLabelW + statBarW + 3, sy + 4.5)
+    doc.text(String(s.total), ML + halfW - 2, lY + 2.2, { align: 'right' })
   })
 
-  y = gravYStart + Math.max(gravData.length * 9, statData.length * 9) + 8
+  // Gravidade vertical bars — right half
+  drawVertBars(ML + halfW + 6, sectionY, halfW, sectionH, gravData)
 
-  // ── SLA Analysis ──────────────────────────────────────────
-  ensureY(slaItems.length * 9 + 16)
+  y = sectionY + sectionH + 8
+
+  // ── Análise de SLA (vertical bars) ───────────────────────
+  ensureY(58)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(50, 50, 50)
   doc.text('Análise de SLA (Prazos)', ML, y)
   y += 5
-
-  const slaLabelW = 24
-  const slaBarW = CW - slaLabelW - 12
-  const maxSla = Math.max(1, ...slaItems.map(s => s.total))
-
-  slaItems.forEach((s, i) => {
-    const sy = y + i * 9
-    const bw = (s.total / maxSla) * slaBarW
-    const rgb = h2r(s.hex)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(60, 60, 60)
-    doc.text(s.label, ML, sy + 4.5)
-    doc.setFillColor(228, 228, 228)
-    doc.rect(ML + slaLabelW, sy, slaBarW, 6, 'F')
-    if (s.total > 0) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(ML + slaLabelW, sy, Math.max(bw, 0.5), 6, 'F') }
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(rgb[0], rgb[1], rgb[2])
-    doc.text(String(s.total), ML + slaLabelW + slaBarW + 3, sy + 4.5)
-  })
-  y += slaItems.length * 9 + 8
+  drawVertBars(ML, y, CW, 46, slaItems)
+  y += 46 + 8
 
   // ── Encarregado visual bars + table ──────────────────────
   if (encData.length > 0) {
@@ -402,27 +416,7 @@ function gerarPDF(
       doc.setTextColor(232, 41, 28)
       doc.text(String(e.total), ML + encLabelW + encBarMaxW + 3, ey + 4.5)
     })
-    y += encData.length * 9 + 5
-
-    ensureY(20)
-    autoTable(doc, {
-      startY: y,
-      head: [['#', 'Encarregado', 'Desvios', '% do Total']],
-      body: encData.map((e,i) => [`${i+1}`, e.name, `${e.total}`, kpis.total > 0 ? `${((e.total/kpis.total)*100).toFixed(1)}%` : '0%']),
-      styles: { fontSize: 8, cellPadding: 2.5 },
-      headStyles: { fillColor: RED_RGB, textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
-      columnStyles: {
-        0: { cellWidth: 10, halign: 'center', textColor: [160,160,160] as [number,number,number] },
-        2: { halign: 'right', fontStyle: 'bold', textColor: RED_RGB, cellWidth: 20 },
-        3: { halign: 'right', textColor: [120,120,120] as [number,number,number], cellWidth: 25 },
-      },
-      margin: { top: 22, left: ML, right: MR },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      didDrawPage: (data: any) => { if (data.pageNumber > 1) { drawHeader() } },
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    y = (doc as any).lastAutoTable.finalY + 8
+    y += encData.length * 9 + 8
   }
 
   // ── Obra visual bars ──────────────────────────────────────
@@ -491,51 +485,6 @@ function gerarPDF(
     y += tstData.length * 9 + 5
   }
 
-  // ── Obra + TST side by side tables ────────────────────────
-  if (obraData.length > 0 || tstData.length > 0) {
-    ensureY(20)
-    const tw = (CW - 6) / 2
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8.5)
-    doc.setTextColor(50, 50, 50)
-    if (obraData.length > 0) doc.text('Por Obra', ML, y)
-    if (tstData.length > 0) doc.text('Por TST', ML + tw + 6, y)
-    y += 3
-
-    const sideY = y
-
-    if (obraData.length > 0) {
-      autoTable(doc, {
-        startY: sideY,
-        head: [['Obra', 'Total']],
-        body: obraData.map(o => [o.name.length > 30 ? o.name.slice(0,29)+'…' : o.name, `${o.total}`]),
-        styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: [245,158,11] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellWidth: 16 } },
-        margin: { top: 22, left: ML, right: MR + tw + 6 },
-      })
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const yLeft = obraData.length > 0 ? (doc as any).lastAutoTable.finalY : sideY
-
-    if (tstData.length > 0) {
-      autoTable(doc, {
-        startY: sideY,
-        head: [['TST', 'Total']],
-        body: tstData.map(t => [t.name.length > 28 ? t.name.slice(0,27)+'…' : t.name, `${t.total}`]),
-        styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: [6,182,212] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellWidth: 16 } },
-        margin: { top: 22, left: ML + tw + 6, right: MR },
-      })
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const yRight = tstData.length > 0 ? (doc as any).lastAutoTable.finalY : sideY
-    y = Math.max(yLeft, yRight) + 8
-  }
 
   // ── Categoria visual bars + table ────────────────────────
   if (catData.length > 0) {
@@ -570,26 +519,7 @@ function gerarPDF(
       doc.setTextColor(rgb[0], rgb[1], rgb[2])
       doc.text(String(e.total), ML + catLabelW + catBarMaxW + 3, cy + 4.5)
     })
-    y += catData.length * 9 + 5
-
-    ensureY(20)
-    autoTable(doc, {
-      startY: y,
-      head: [['Categoria', 'Total', '% do Total']],
-      body: catData.map(c => [c.name, `${c.total}`, kpis.total > 0 ? `${((c.total/kpis.total)*100).toFixed(1)}%` : '0%']),
-      styles: { fontSize: 8, cellPadding: 2.5 },
-      headStyles: { fillColor: [139,92,246] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
-      columnStyles: {
-        1: { halign: 'right', fontStyle: 'bold', cellWidth: 20 },
-        2: { halign: 'right', textColor: [120,120,120] as [number,number,number], cellWidth: 25 },
-      },
-      margin: { top: 22, left: ML, right: MR },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      didDrawPage: (data: any) => { if (data.pageNumber > 1) { drawHeader() } },
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    y = (doc as any).lastAutoTable.finalY + 8
+    y += catData.length * 9 + 8
   }
 
   // ── Full desvios list (new page) ───────────────────────────
