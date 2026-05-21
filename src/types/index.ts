@@ -78,6 +78,7 @@ export interface Desvio {
   status: StatusDesvio
   descricao: string
   aberto_por: string
+  colaborador_nome?: string
   encarregado_id: string
   encarregado_nome?: string
   tst_id?: string

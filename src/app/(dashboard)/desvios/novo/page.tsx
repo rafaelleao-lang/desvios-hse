@@ -39,6 +39,7 @@ export default function NovoDesvioPage() {
   const [obraId, setObraId] = useState('')
   const [tstId, setTstId] = useState('')
   const [encarregadoId, setEncarregadoId] = useState('')
+  const [colaboradorNome, setColaboradorNome] = useState('')
   const [setor, setSetor] = useState('')
   const [localExato, setLocalExato] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -62,6 +63,7 @@ export default function NovoDesvioPage() {
     if (s === 0) {
       if (!obraId) e.obraId = 'Selecione a obra'
       if (!tstId) e.tstId = 'Selecione o TST responsável (quem está abrindo)'
+      if (!colaboradorNome.trim()) e.colaboradorNome = 'Informe o nome do colaborador'
       if (!encarregadoId) e.encarregadoId = 'Selecione o encarregado responsável'
     }
     if (s === 1) {
@@ -125,6 +127,7 @@ export default function NovoDesvioPage() {
         status: 'aberto',
         descricao,
         aberto_por: tstObj?.nome || '',
+        colaborador_nome: colaboradorNome,
         encarregado_id: encarregadoId,
         encarregado_nome: encObj?.nome,
         tst_id: tstId || undefined,
@@ -211,6 +214,14 @@ export default function NovoDesvioPage() {
                 {obraId && tstsDaObra.length === 0 && (
                   <p className="text-xs text-zinc-500">Nenhum TST ativo nesta obra. <a href={`/obras/${obraId}`} className="text-amber-400 underline">Adicionar TST</a></p>
                 )}
+              </div>
+
+              {/* Colaborador */}
+              <div className="space-y-1.5">
+                <Label>Nome do Colaborador <span className="text-red-400">*</span></Label>
+                <Input value={colaboradorNome} onChange={e => setColaboradorNome(e.target.value)}
+                  placeholder="Ex: José da Silva" />
+                {errors.colaboradorNome && <p className="text-xs text-red-400">{errors.colaboradorNome}</p>}
               </div>
 
               {/* Encarregado */}
@@ -443,6 +454,7 @@ export default function NovoDesvioPage() {
               {[
                 { label: 'Obra', value: obras.find(o => o.id === obraId)?.nome },
                 { label: 'TST (quem abre)', value: tstsDaObra.find(t => t.id === tstId)?.nome },
+                { label: 'Colaborador', value: colaboradorNome },
                 { label: 'Encarregado', value: encsDaObra.find(e => e.id === encarregadoId)?.nome },
                 { label: 'Categoria', value: categoria === 'Outros' ? `Outros: ${categoriaOutro}` : categoria },
                 { label: 'Local', value: localExato },

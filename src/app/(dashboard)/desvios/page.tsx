@@ -42,7 +42,7 @@ export default function DesviosPage() {
     let base
     if (activeTab === 'concluido') {
       base = filtrarDesvios(desviosComputados, { ...filtros, busca })
-        .filter(d => d.status === 'concluido' || d.status === 'fechado')
+        .filter(d => d.status === 'concluido' || d.status === 'fechado' || d.status === 'reincidente')
     } else {
       base = filtrarDesvios(desviosComputados, {
         ...filtros,
@@ -59,7 +59,7 @@ export default function DesviosPage() {
   const counts = useMemo(() => {
     const c: Record<string, number> = { todos: desviosComputados.length }
     desviosComputados.forEach(d => { c[d.status] = (c[d.status] || 0) + 1 })
-    c['concluido'] = (c['concluido'] || 0) + (c['fechado'] || 0)
+    c['concluido'] = (c['concluido'] || 0) + (c['fechado'] || 0) + (c['reincidente'] || 0)
     return c
   }, [desviosComputados])
 

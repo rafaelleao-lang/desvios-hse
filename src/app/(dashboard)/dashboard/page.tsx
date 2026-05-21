@@ -64,14 +64,24 @@ export default function DashboardPage() {
   const obraAtual = obras.find(o => o.id === obraFiltro)
 
   // ── Charts ──
-  const statusData = useMemo(() =>
-    Object.entries(STATUS_CONFIG).map(([key, cfg]) => ({
-      name: cfg.label,
-      value: desviosFiltrados.filter(d => d.status === key).length,
-      color: key === 'aberto' ? '#3B82F6' : key === 'em_tratativa' ? '#F59E0B' : key === 'pendente' ? '#F97316' : key === 'concluido' ? '#22C55E' : key === 'fechado' ? '#71717A' : '#EF4444',
-    })).filter(d => d.value > 0),
-    [desviosFiltrados]
-  )
+  const statusData = useMemo(() => {
+    const colorMap: Record<string, string> = {
+      aberto: '#3B82F6', em_tratativa: '#F59E0B', pendente: '#F97316',
+      concluido: '#22C55E', fechado: '#71717A',
+    }
+    const counts: Record<string, number> = {}
+    desviosFiltrados.forEach(d => {
+      const key = d.status === 'reincidente' ? 'fechado' : d.status
+      counts[key] = (counts[key] || 0) + 1
+    })
+    return Object.entries(counts)
+      .filter(([, v]) => v > 0)
+      .map(([key, value]) => ({
+        name: STATUS_CONFIG[key as keyof typeof STATUS_CONFIG]?.label || key,
+        value,
+        color: colorMap[key] || '#71717A',
+      }))
+  }, [desviosFiltrados])
 
   const gravidadeData = useMemo(() =>
     [
@@ -114,7 +124,7 @@ export default function DashboardPage() {
       return {
         mes: MONTHS[d.getMonth()] + '/' + String(d.getFullYear()).slice(2),
         abertos:    desviosFiltrados.filter(x => x.criado_em.startsWith(mes)).length,
-        concluidos: desviosFiltrados.filter(x => x.atualizado_em.startsWith(mes) && ['concluido','fechado'].includes(x.status)).length,
+        concluidos: desviosFiltrados.filter(x => x.atualizado_em.startsWith(mes) && ['concluido','fechado','reincidente'].includes(x.status)).length,
       }
     })
   }, [desviosFiltrados])
@@ -141,7 +151,7 @@ export default function DashboardPage() {
   , [tsts, desviosFiltrados, obraFiltro])
 
   const fechados = useMemo(
-    () => desviosFiltrados.filter(d => d.status === 'fechado').length,
+    () => desviosFiltrados.filter(d => d.status === 'fechado' || d.status === 'reincidente').length,
     [desviosFiltrados],
   )
 

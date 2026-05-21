@@ -195,7 +195,7 @@ function gerarPDF(
   const kpis = {
     total,
     abertos,
-    fechados:       filtered.filter(d => d.status === 'fechado').length,
+    fechados:       filtered.filter(d => d.status === 'fechado' || d.status === 'reincidente').length,
     vencidos:       filtered.filter(d => d.vencido).length,
     taxa_tratativa: total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0,
   }
@@ -227,7 +227,7 @@ function gerarPDF(
     return {
       label:     MONTHS_PDF[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2),
       abertos:   filtered.filter(d => d.criado_em.startsWith(mes)).length,
-      concluidos:filtered.filter(d => d.atualizado_em.startsWith(mes) && ['concluido','fechado'].includes(d.status)).length,
+      concluidos:filtered.filter(d => d.atualizado_em.startsWith(mes) && ['concluido','fechado','reincidente'].includes(d.status)).length,
     }
   })
 
@@ -245,8 +245,11 @@ function gerarPDF(
   }))
 
   const statMap: Record<string, number> = {}
-  filtered.forEach(d => { statMap[d.status] = (statMap[d.status]||0)+1 })
-  const statData = Object.entries(statMap).map(([s,n]) => ({
+  filtered.forEach(d => {
+    const key = d.status === 'reincidente' ? 'fechado' : d.status
+    statMap[key] = (statMap[key]||0)+1
+  })
+  const statData = Object.entries(statMap).filter(([,n]) => n > 0).map(([s,n]) => ({
     label: STATUS_CONFIG[s as StatusDesvio]?.label || s, total: n, hex: STATUS_HEX[s] || '#71717A',
   }))
 
@@ -654,7 +657,7 @@ export default function RelatoriosPage() {
     return {
       total,
       abertos,
-      fechados:      filtered.filter(d => d.status === 'fechado').length,
+      fechados:      filtered.filter(d => d.status === 'fechado' || d.status === 'reincidente').length,
       vencidos:      filtered.filter(d => d.vencido).length,
       taxa_tratativa: total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0,
     }
@@ -669,16 +672,19 @@ export default function RelatoriosPage() {
       return {
         mes: `${MONTHS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
         abertos:    filtered.filter(x => x.criado_em.startsWith(mes)).length,
-        concluidos: filtered.filter(x => x.atualizado_em.startsWith(mes) && ['concluido','fechado'].includes(x.status)).length,
+        concluidos: filtered.filter(x => x.atualizado_em.startsWith(mes) && ['concluido','fechado','reincidente'].includes(x.status)).length,
       }
     })
   }, [filtered])
 
   const statusData = useMemo(() => {
-    const counts: Partial<Record<string, number>> = {}
-    filtered.forEach(d => { counts[d.status] = (counts[d.status] || 0) + 1 })
-    return Object.entries(counts).map(([s, n]) => ({
-      name: STATUS_CONFIG[s as StatusDesvio]?.label || s, value: n as number, fill: STATUS_HEX[s] || '#666',
+    const counts: Record<string, number> = {}
+    filtered.forEach(d => {
+      const key = d.status === 'reincidente' ? 'fechado' : d.status
+      counts[key] = (counts[key] || 0) + 1
+    })
+    return Object.entries(counts).filter(([, v]) => v > 0).map(([s, n]) => ({
+      name: STATUS_CONFIG[s as StatusDesvio]?.label || s, value: n, fill: STATUS_HEX[s] || '#666',
     }))
   }, [filtered])
 
@@ -696,7 +702,7 @@ export default function RelatoriosPage() {
       counts[n].total++
       if (d.status === 'aberto') counts[n].abertos++
       if (d.gravidade === 'critico') counts[n].criticos++
-      if (['concluido','fechado'].includes(d.status)) counts[n].concluidos++
+      if (['concluido','fechado','reincidente'].includes(d.status)) counts[n].concluidos++
     })
     return Object.entries(counts)
       .map(([name, v]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, ...v }))
