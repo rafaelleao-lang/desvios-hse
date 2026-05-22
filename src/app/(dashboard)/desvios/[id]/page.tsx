@@ -331,6 +331,7 @@ export default function DesvioDetailPage() {
                 { label: 'Data',         value: formatDate(desvio.data_ocorrencia) },
                 { label: 'Hora',         value: desvio.hora_ocorrencia || '—' },
                 { label: 'Aberto por',   value: desvio.aberto_por },
+                { label: 'Colaborador',  value: desvio.colaborador_nome || '—' },
                 { label: 'Encarregado',  value: desvio.encarregado_nome_computado },
                 { label: 'TST',          value: desvio.tst_nome_computado || '—' },
                 { label: 'Local Exato',  value: desvio.local_exato },
