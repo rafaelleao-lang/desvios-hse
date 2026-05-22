@@ -233,8 +233,9 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   let dias_para_vencer: number | null = null
 
   if (d.prazo_correcao) {
-    const prazo = new Date(d.prazo_correcao)
-    prazo.setHours(0, 0, 0, 0)
+    // Parse as local date to avoid UTC offset shifting the day (e.g. BRT = UTC-3)
+    const [py, pm, pd] = d.prazo_correcao.split('T')[0].split('-').map(Number)
+    const prazo = new Date(py, pm - 1, pd)
     const hojeOnly = new Date(hoje)
     hojeOnly.setHours(0, 0, 0, 0)
     const diff = Math.round((prazo.getTime() - hojeOnly.getTime()) / 86400000)
