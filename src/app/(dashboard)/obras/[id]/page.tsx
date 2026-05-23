@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowLeft, Building2, Edit, Check, X, Plus,
+  ArrowLeft, Edit, Check, X, Plus,
   UserCheck, UserX, Trash2, HardHat, Users, Save,
-  Phone, Hash, MapPin,
+  Phone, Hash, MapPin, Pencil,
 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import { obrasDB, tstsDB, encarregadosDB } from '@/lib/db'
@@ -35,10 +35,14 @@ export default function ObraDetailPage() {
   // TST form
   const [addingTST, setAddingTST] = useState(false)
   const [tstForm, setTSTForm] = useState({ nome: '', crea: '', telefone: '' })
+  const [editingTSTId, setEditingTSTId] = useState<string | null>(null)
+  const [tstEditForm, setTSTEditForm] = useState({ nome: '', crea: '', telefone: '' })
 
   // Encarregado form
   const [addingEnc, setAddingEnc] = useState(false)
   const [encForm, setEncForm] = useState({ nome: '', setor: '', telefone: '' })
+  const [editingEncId, setEditingEncId] = useState<string | null>(null)
+  const [encEditForm, setEncEditForm] = useState({ nome: '', setor: '', telefone: '' })
 
   if (!obra) {
     return (
@@ -71,6 +75,16 @@ export default function ObraDetailPage() {
     setTSTForm({ nome: '', crea: '', telefone: '' })
     setAddingTST(false)
   }
+  function startEditTST(tst: TST) {
+    setEditingTSTId(tst.id)
+    setTSTEditForm({ nome: tst.nome, crea: tst.crea || '', telefone: tst.telefone || '' })
+  }
+  async function saveTST() {
+    if (!editingTSTId || !tstEditForm.nome.trim()) return
+    await tstsDB.update(editingTSTId, { nome: tstEditForm.nome.trim(), crea: tstEditForm.crea, telefone: tstEditForm.telefone })
+    await refresh()
+    setEditingTSTId(null)
+  }
   async function toggleTST(tstId: string) {
     await tstsDB.toggleAtivo(tstId)
     await refresh()
@@ -88,6 +102,16 @@ export default function ObraDetailPage() {
     await refresh()
     setEncForm({ nome: '', setor: '', telefone: '' })
     setAddingEnc(false)
+  }
+  function startEditEnc(enc: Encarregado) {
+    setEditingEncId(enc.id)
+    setEncEditForm({ nome: enc.nome, setor: enc.setor || '', telefone: enc.telefone || '' })
+  }
+  async function saveEnc() {
+    if (!editingEncId || !encEditForm.nome.trim()) return
+    await encarregadosDB.update(editingEncId, { nome: encEditForm.nome.trim(), setor: encEditForm.setor, telefone: encEditForm.telefone })
+    await refresh()
+    setEditingEncId(null)
   }
   async function toggleEnc(encId: string) {
     await encarregadosDB.toggleAtivo(encId)
@@ -209,37 +233,65 @@ export default function ObraDetailPage() {
           ) : (
             <div className="space-y-2">
               {obraTSTs.map((tst) => (
-                <div key={tst.id}
-                  className={cn('flex items-center gap-3 p-3.5 rounded-xl border transition-colors',
-                    tst.ativo ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-800/50 bg-zinc-900/40 opacity-60')}>
-                  <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
-                    tst.ativo ? 'bg-blue-500/10' : 'bg-zinc-800')}>
-                    <HardHat className={cn('w-4 h-4', tst.ativo ? 'text-blue-400' : 'text-zinc-600')} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-zinc-200">{tst.nome}</p>
-                      <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
-                        tst.ativo ? 'bg-green-500/10 text-green-400' : 'bg-zinc-700 text-zinc-500')}>
-                        {tst.ativo ? 'No canteiro' : 'Afastado'}
-                      </span>
+                <div key={tst.id}>
+                  {editingTSTId === tst.id ? (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-3">
+                      <p className="text-xs font-semibold text-blue-400">Editar TST</p>
+                      <Input value={tstEditForm.nome} onChange={e => setTSTEditForm(f => ({ ...f, nome: e.target.value }))}
+                        placeholder="Nome completo *" autoFocus />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input value={tstEditForm.crea} onChange={e => setTSTEditForm(f => ({ ...f, crea: e.target.value }))}
+                          placeholder="CREA / Registro" />
+                        <Input value={tstEditForm.telefone} onChange={e => setTSTEditForm(f => ({ ...f, telefone: e.target.value }))}
+                          placeholder="Telefone" type="tel" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button onClick={saveTST} size="sm" disabled={!tstEditForm.nome.trim()} className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" />Salvar
+                        </Button>
+                        <Button onClick={() => setEditingTSTId(null)} variant="ghost" size="sm">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <div className={cn('flex items-center gap-3 p-3.5 rounded-xl border transition-colors',
+                      tst.ativo ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-800/50 bg-zinc-900/40 opacity-60')}>
+                      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+                        tst.ativo ? 'bg-blue-500/10' : 'bg-zinc-800')}>
+                        <HardHat className={cn('w-4 h-4', tst.ativo ? 'text-blue-400' : 'text-zinc-600')} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-zinc-200">{tst.nome}</p>
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
+                            tst.ativo ? 'bg-green-500/10 text-green-400' : 'bg-zinc-700 text-zinc-500')}>
+                            {tst.ativo ? 'No canteiro' : 'Afastado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
+                          {tst.crea && <span className="flex items-center gap-1"><Hash className="w-3 h-3" />{tst.crea}</span>}
+                          {tst.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tst.telefone}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => startEditTST(tst)} title="Editar"
+                          className="p-1.5 rounded-lg hover:bg-blue-500/10 text-zinc-500 hover:text-blue-400 transition-colors">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => toggleTST(tst.id)} title={tst.ativo ? 'Marcar como afastado' : 'Marcar como no canteiro'}
+                          className={cn('p-1.5 rounded-lg transition-colors',
+                            tst.ativo ? 'hover:bg-orange-500/10 text-zinc-500 hover:text-orange-400' : 'hover:bg-green-500/10 text-zinc-500 hover:text-green-400')}>
+                          {tst.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => deleteTST(tst.id, tst.nome)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
-                      {tst.crea && <span className="flex items-center gap-1"><Hash className="w-3 h-3" />{tst.crea}</span>}
-                      {tst.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tst.telefone}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => toggleTST(tst.id)} title={tst.ativo ? 'Marcar como afastado' : 'Marcar como no canteiro'}
-                      className={cn('p-1.5 rounded-lg transition-colors',
-                        tst.ativo ? 'hover:bg-orange-500/10 text-zinc-500 hover:text-orange-400' : 'hover:bg-green-500/10 text-zinc-500 hover:text-green-400')}>
-                      {tst.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => deleteTST(tst.id, tst.nome)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -297,37 +349,65 @@ export default function ObraDetailPage() {
           ) : (
             <div className="space-y-2">
               {obraEncarregados.map((enc) => (
-                <div key={enc.id}
-                  className={cn('flex items-center gap-3 p-3.5 rounded-xl border transition-colors',
-                    enc.ativo ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-800/50 bg-zinc-900/40 opacity-60')}>
-                  <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
-                    enc.ativo ? 'bg-purple-500/10' : 'bg-zinc-800')}>
-                    <Users className={cn('w-4 h-4', enc.ativo ? 'text-purple-400' : 'text-zinc-600')} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-zinc-200">{enc.nome}</p>
-                      <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
-                        enc.ativo ? 'bg-green-500/10 text-green-400' : 'bg-zinc-700 text-zinc-500')}>
-                        {enc.ativo ? 'Ativo' : 'Afastado'}
-                      </span>
+                <div key={enc.id}>
+                  {editingEncId === enc.id ? (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 space-y-3">
+                      <p className="text-xs font-semibold text-purple-400">Editar Encarregado</p>
+                      <Input value={encEditForm.nome} onChange={e => setEncEditForm(f => ({ ...f, nome: e.target.value }))}
+                        placeholder="Nome completo *" autoFocus />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input value={encEditForm.setor} onChange={e => setEncEditForm(f => ({ ...f, setor: e.target.value }))}
+                          placeholder="Setor / Área responsável" />
+                        <Input value={encEditForm.telefone} onChange={e => setEncEditForm(f => ({ ...f, telefone: e.target.value }))}
+                          placeholder="Telefone" type="tel" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button onClick={saveEnc} size="sm" disabled={!encEditForm.nome.trim()} className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" />Salvar
+                        </Button>
+                        <Button onClick={() => setEditingEncId(null)} variant="ghost" size="sm">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <div className={cn('flex items-center gap-3 p-3.5 rounded-xl border transition-colors',
+                      enc.ativo ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-800/50 bg-zinc-900/40 opacity-60')}>
+                      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+                        enc.ativo ? 'bg-purple-500/10' : 'bg-zinc-800')}>
+                        <Users className={cn('w-4 h-4', enc.ativo ? 'text-purple-400' : 'text-zinc-600')} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-zinc-200">{enc.nome}</p>
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
+                            enc.ativo ? 'bg-green-500/10 text-green-400' : 'bg-zinc-700 text-zinc-500')}>
+                            {enc.ativo ? 'Ativo' : 'Afastado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
+                          {enc.setor && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{enc.setor}</span>}
+                          {enc.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{enc.telefone}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => startEditEnc(enc)} title="Editar"
+                          className="p-1.5 rounded-lg hover:bg-purple-500/10 text-zinc-500 hover:text-purple-400 transition-colors">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => toggleEnc(enc.id)} title={enc.ativo ? 'Afastar' : 'Retorno ao canteiro'}
+                          className={cn('p-1.5 rounded-lg transition-colors',
+                            enc.ativo ? 'hover:bg-orange-500/10 text-zinc-500 hover:text-orange-400' : 'hover:bg-green-500/10 text-zinc-500 hover:text-green-400')}>
+                          {enc.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => deleteEnc(enc.id, enc.nome)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
-                      {enc.setor && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{enc.setor}</span>}
-                      {enc.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{enc.telefone}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => toggleEnc(enc.id)} title={enc.ativo ? 'Afastar' : 'Retorno ao canteiro'}
-                      className={cn('p-1.5 rounded-lg transition-colors',
-                        enc.ativo ? 'hover:bg-orange-500/10 text-zinc-500 hover:text-orange-400' : 'hover:bg-green-500/10 text-zinc-500 hover:text-green-400')}>
-                      {enc.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => deleteEnc(enc.id, enc.nome)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

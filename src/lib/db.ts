@@ -89,6 +89,11 @@ export const tstsDB = {
     return tst
   },
 
+  update: async (id: string, data: Partial<Pick<TST, 'nome' | 'crea' | 'telefone'>>): Promise<void> => {
+    const { error } = await supabase.from('tsts').update(data).eq('id', id)
+    if (error) throw error
+  },
+
   toggleAtivo: async (id: string): Promise<void> => {
     const { data: current } = await supabase.from('tsts').select('ativo').eq('id', id).maybeSingle()
     const { error } = await supabase.from('tsts').update({ ativo: !current?.ativo }).eq('id', id)
@@ -130,6 +135,11 @@ export const encarregadosDB = {
     const { error } = await supabase.from('encarregados').insert(enc)
     if (error) throw error
     return enc
+  },
+
+  update: async (id: string, data: Partial<Pick<Encarregado, 'nome' | 'setor' | 'telefone'>>): Promise<void> => {
+    const { error } = await supabase.from('encarregados').update(data).eq('id', id)
+    if (error) throw error
   },
 
   toggleAtivo: async (id: string): Promise<void> => {
