@@ -72,6 +72,7 @@ export default function NovoDesvioPage() {
       if (categoria === 'Outros' && !categoriaOutro.trim()) e.categoriaOutro = 'Informe qual é o desvio'
       if (!descricao.trim() || descricao.trim().length < 10) e.descricao = 'Descreva o desvio (mínimo 10 caracteres)'
       if (!dataOcorrencia) e.dataOcorrencia = 'Informe a data'
+      if (!prazoCorrecao) e.prazoCorrecao = 'Informe o prazo para correção'
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -350,9 +351,11 @@ export default function NovoDesvioPage() {
                   <Input type="time" value={horaOcorrencia} onChange={e => setHoraOcorrencia(e.target.value)} />
                 </div>
                 <div className="space-y-1.5 col-span-2">
-                  <Label>Prazo para Correção</Label>
+                  <Label>Prazo para Correção <span className="text-red-400">*</span></Label>
                   <Input type="date" value={prazoCorrecao} onChange={e => setPrazoCorrecao(e.target.value)}
-                    min={dataOcorrencia} />
+                    min={dataOcorrencia}
+                    className={errors.prazoCorrecao ? 'border-red-500/70' : ''} />
+                  {errors.prazoCorrecao && <p className="text-xs text-red-400">{errors.prazoCorrecao}</p>}
                 </div>
               </div>
             </div>
