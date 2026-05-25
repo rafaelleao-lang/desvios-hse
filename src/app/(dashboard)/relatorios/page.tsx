@@ -540,26 +540,38 @@ function gerarPDF(
 
   autoTable(doc, {
     startY: y,
-    head: [['ID', 'Data', 'Obra', 'Categoria', 'Gravidade', 'Status', 'Encarregado', 'SLA']],
-    body: filtered.map(d => [
-      generateDesvioId(d.numero),
-      formatDate(d.data_ocorrencia),
-      d.obra_nome_computado.length > 18 ? d.obra_nome_computado.slice(0,17)+'…' : d.obra_nome_computado,
-      d.categoria.length > 14 ? d.categoria.slice(0,13)+'…' : d.categoria,
-      GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
-      STATUS_CONFIG[d.status]?.label || d.status,
-      d.encarregado_nome_computado.length > 14 ? d.encarregado_nome_computado.slice(0,13)+'…' : d.encarregado_nome_computado,
-      getSlaLabel(d.dias_para_vencer, d.vencido),
-    ]),
-    styles: { fontSize: 7, cellPadding: 2 },
-    headStyles: { fillColor: RED_RGB, textColor: [255,255,255] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
+    head: [['ID', 'Data', 'Categoria', 'Gravidade', 'Status', 'Encarregado', 'SLA', 'Descrição', 'Tratativa']],
+    body: filtered.map(d => {
+      const isFechado = ['fechado', 'concluido', 'reincidente'].includes(d.status)
+      const lastTratativa = d.tratativas && d.tratativas.length > 0 ? d.tratativas[d.tratativas.length - 1] : null
+      const tratativaTexto = isFechado
+        ? (lastTratativa?.acao_realizada || lastTratativa?.comentario || 'Sem registro')
+        : 'Aberto'
+      return [
+        generateDesvioId(d.numero),
+        formatDate(d.data_ocorrencia),
+        d.categoria.length > 14 ? d.categoria.slice(0,13)+'…' : d.categoria,
+        GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
+        STATUS_CONFIG[d.status]?.label || d.status,
+        d.encarregado_nome_computado.length > 14 ? d.encarregado_nome_computado.slice(0,13)+'…' : d.encarregado_nome_computado,
+        getSlaLabel(d.dias_para_vencer, d.vencido),
+        d.descricao.length > 60 ? d.descricao.slice(0,59)+'…' : d.descricao,
+        tratativaTexto.length > 60 ? tratativaTexto.slice(0,59)+'…' : tratativaTexto,
+      ]
+    }),
+    styles: { fontSize: 6.5, cellPadding: 2 },
+    headStyles: { fillColor: RED_RGB, textColor: [255,255,255] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
     alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
     columnStyles: {
-      0: { cellWidth: 16, fontStyle: 'bold', textColor: RED_RGB },
-      1: { cellWidth: 18 },
-      4: { cellWidth: 16 },
-      5: { cellWidth: 20 },
-      7: { cellWidth: 18 },
+      0: { cellWidth: 14, fontStyle: 'bold', textColor: RED_RGB },
+      1: { cellWidth: 15 },
+      2: { cellWidth: 18 },
+      3: { cellWidth: 13 },
+      4: { cellWidth: 17 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 13 },
+      7: { cellWidth: 34 },
+      8: { cellWidth: 36 },
     },
     margin: { top: 22, left: ML, right: MR },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -569,12 +581,17 @@ function gerarPDF(
       if (data.section === 'body') {
         const d = filtered[data.row.index]
         if (!d) return
-        if (data.column.index === 4) {
+        if (data.column.index === 3) {
           data.cell.styles.textColor = h2r(GRAV_HEX[d.gravidade] || '#71717A')
           data.cell.styles.fontStyle = 'bold'
         }
-        if (data.column.index === 5) {
+        if (data.column.index === 4) {
           data.cell.styles.textColor = h2r(STATUS_HEX[d.status] || '#71717A')
+        }
+        if (data.column.index === 8) {
+          const isFechado = ['fechado', 'concluido', 'reincidente'].includes(d.status)
+          data.cell.styles.textColor = isFechado ? [34, 197, 94] : [59, 130, 246]
+          if (!isFechado) data.cell.styles.fontStyle = 'italic'
         }
       }
     },
@@ -1312,36 +1329,55 @@ export default function RelatoriosPage() {
                 ) : (
                   <>
                     {/* Desktop table */}
-                    <div className="hidden sm:block rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-                      <table className="w-full text-sm">
+                    <div className="hidden sm:block rounded-2xl border border-zinc-800 bg-zinc-900 overflow-x-auto">
+                      <table className="w-full text-sm" style={{ minWidth: '900px' }}>
                         <thead>
                           <tr className="border-b border-zinc-800">
-                            {['#','Data','Obra','Categoria','Gravidade','Status','Encarregado','SLA'].map(h => (
-                              <th key={h} className="text-left px-4 py-3 text-xs text-zinc-500 font-semibold whitespace-nowrap">{h}</th>
+                            {['#','Data','Obra','Categoria','Gravidade','Status','Encarregado','SLA','Descrição','Tratativa'].map(h => (
+                              <th key={h} className="text-left px-3 py-3 text-xs text-zinc-500 font-semibold whitespace-nowrap">{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800/50">
-                          {pageItems.map(d => (
-                            <tr key={d.id} className="hover:bg-zinc-800/30 transition-colors">
-                              <td className="px-4 py-3">
-                                <Link href={`/desvios/${d.id}`} className="font-mono font-bold text-xs hover:underline" style={{ color: MSE_RED }}>
-                                  {generateDesvioId(d.numero)}
-                                </Link>
-                              </td>
-                              <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">{formatDate(d.data_ocorrencia)}</td>
-                              <td className="px-4 py-3 text-zinc-300 text-xs max-w-[130px]"><span className="truncate block">{d.obra_nome_computado}</span></td>
-                              <td className="px-4 py-3 text-zinc-400 text-xs max-w-[100px]"><span className="truncate block">{d.categoria}</span></td>
-                              <td className="px-4 py-3"><span className={cn('text-xs font-semibold', GRAVIDADE_CONFIG[d.gravidade]?.color)}>{GRAVIDADE_CONFIG[d.gravidade]?.label}</span></td>
-                              <td className="px-4 py-3">
-                                <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap', STATUS_CONFIG[d.status]?.bg, STATUS_CONFIG[d.status]?.color)}>
-                                  {STATUS_CONFIG[d.status]?.label}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-zinc-400 text-xs max-w-[120px]"><span className="truncate block">{d.encarregado_nome_computado}</span></td>
-                              <td className={cn('px-4 py-3 text-xs font-semibold whitespace-nowrap', getSlaColor(d.dias_para_vencer, d.vencido))}>{getSlaLabel(d.dias_para_vencer, d.vencido)}</td>
-                            </tr>
-                          ))}
+                          {pageItems.map(d => {
+                            const isFechado = ['fechado','concluido','reincidente'].includes(d.status)
+                            const lastTratativa = d.tratativas && d.tratativas.length > 0 ? d.tratativas[d.tratativas.length - 1] : null
+                            const tratativaTexto = isFechado
+                              ? (lastTratativa?.acao_realizada || lastTratativa?.comentario || 'Sem registro')
+                              : null
+                            return (
+                              <tr key={d.id} className="hover:bg-zinc-800/30 transition-colors">
+                                <td className="px-3 py-3">
+                                  <Link href={`/desvios/${d.id}`} className="font-mono font-bold text-xs hover:underline" style={{ color: MSE_RED }}>
+                                    {generateDesvioId(d.numero)}
+                                  </Link>
+                                </td>
+                                <td className="px-3 py-3 text-zinc-400 text-xs whitespace-nowrap">{formatDate(d.data_ocorrencia)}</td>
+                                <td className="px-3 py-3 text-zinc-300 text-xs max-w-[110px]"><span className="truncate block">{d.obra_nome_computado}</span></td>
+                                <td className="px-3 py-3 text-zinc-400 text-xs max-w-[90px]"><span className="truncate block">{d.categoria}</span></td>
+                                <td className="px-3 py-3"><span className={cn('text-xs font-semibold', GRAVIDADE_CONFIG[d.gravidade]?.color)}>{GRAVIDADE_CONFIG[d.gravidade]?.label}</span></td>
+                                <td className="px-3 py-3">
+                                  <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap', STATUS_CONFIG[d.status]?.bg, STATUS_CONFIG[d.status]?.color)}>
+                                    {STATUS_CONFIG[d.status]?.label}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-zinc-400 text-xs max-w-[110px]"><span className="truncate block">{d.encarregado_nome_computado}</span></td>
+                                <td className={cn('px-3 py-3 text-xs font-semibold whitespace-nowrap', getSlaColor(d.dias_para_vencer, d.vencido))}>{getSlaLabel(d.dias_para_vencer, d.vencido)}</td>
+                                <td className="px-3 py-3 text-zinc-300 text-xs max-w-[200px]">
+                                  <span className="block line-clamp-2 leading-relaxed">{d.descricao}</span>
+                                </td>
+                                <td className="px-3 py-3 text-xs max-w-[200px]">
+                                  {isFechado ? (
+                                    <span className="block line-clamp-2 text-emerald-400 leading-relaxed">{tratativaTexto}</span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 whitespace-nowrap">
+                                      Aberto
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
