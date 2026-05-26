@@ -13,6 +13,7 @@ import {
 import {
   Filter, Download, X, Search, Building2, Users, AlertTriangle,
   TrendingUp, ChevronDown, FileText, CheckCircle2, FileSpreadsheet,
+  Presentation,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -707,6 +708,308 @@ function gerarXLSX(
   XLSX.writeFile(wb, `Relatorio-HSE-${yy}-${mm}-${dd}.xlsx`)
 }
 
+// ── PPT Generator ──────────────────────────────────────────────────────────
+async function gerarPPT(
+  filtered: ReturnType<typeof filtrarDesvios>,
+  filtros: FiltrosRelatorio,
+  obrasList: { id: string; nome: string }[]
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const PptxGenJS = (await import('pptxgenjs')).default as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pptx: any = new PptxGenJS()
+
+  pptx.layout  = 'LAYOUT_WIDE' // 13.33" × 7.5"
+  pptx.author  = 'MSE Engenharia'
+  pptx.subject = 'Relatório de Desvios HSE'
+
+  const hoje    = new Date()
+  const dateStr = hoje.toLocaleDateString('pt-BR')
+  const timeStr = hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  const BG   = '18181B'
+  const RED  = 'E8291C'
+  const WHT  = 'FFFFFF'
+  const Z100 = 'F4F4F5'
+  const Z400 = 'A1A1AA'
+  const Z700 = '3F3F46'
+  const Z800 = '27272A'
+
+  const obraFiltrada = filtros.obra_id ? obrasList.find(o => o.id === filtros.obra_id) : null
+  const obraNome     = obraFiltrada?.nome || 'Todas as Obras'
+
+  const filtroDesc = [
+    filtros.status    && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label    || filtros.status}`,
+    filtros.gravidade && `Gravidade: ${GRAVIDADE_CONFIG[filtros.gravidade as GravidadeDesvio]?.label || filtros.gravidade}`,
+    filtros.categoria && `Categoria: ${filtros.categoria}`,
+    (filtros.data_inicio || filtros.data_fim) && `Período: ${filtros.data_inicio || '...'} a ${filtros.data_fim || '...'}`,
+  ].filter(Boolean).join(' · ') || ''
+
+  // ── COVER SLIDE ─────────────────────────────────────────────────────────────
+  const cover = pptx.addSlide()
+  cover.background = { color: BG }
+
+  // Top red band
+  cover.addShape('rect', { x: 0, y: 0, w: 13.33, h: 1.1, fill: { color: RED }, line: { color: RED, width: 0 } })
+
+  // "mse" logo
+  cover.addText('mse', {
+    x: 0.35, y: 0.1, w: 2.0, h: 0.9,
+    fontSize: 38, bold: true, color: WHT, fontFace: 'Arial', valign: 'middle',
+  })
+
+  // Divider
+  cover.addShape('rect', { x: 2.6, y: 0.2, w: 0.02, h: 0.7, fill: { color: 'FFBBBB' }, line: { color: 'FFBBBB', width: 0 } })
+
+  cover.addText('Engenharia', {
+    x: 2.75, y: 0.37, w: 2.5, h: 0.36,
+    fontSize: 11, color: 'FFCCCC', fontFace: 'Arial',
+  })
+
+  cover.addText(`Gerado em ${dateStr} às ${timeStr}`, {
+    x: 9.0, y: 0.42, w: 4.0, h: 0.28,
+    fontSize: 9, color: 'FFCCCC', fontFace: 'Arial', align: 'right',
+  })
+
+  // Title
+  cover.addText('Relatório de Desvios', {
+    x: 0.4, y: 1.5, w: 11, h: 0.95,
+    fontSize: 46, bold: true, color: WHT, fontFace: 'Arial',
+  })
+  cover.addText('HSE · Saúde, Segurança e Meio Ambiente', {
+    x: 0.4, y: 2.4, w: 10, h: 0.45,
+    fontSize: 15, color: Z400, fontFace: 'Arial',
+  })
+
+  // Accent bar + obra name
+  cover.addShape('rect', { x: 0.4, y: 3.15, w: 0.07, h: 0.55, fill: { color: RED }, line: { color: RED, width: 0 } })
+  cover.addText(obraNome, {
+    x: 0.65, y: 3.1, w: 11, h: 0.65,
+    fontSize: 22, bold: true, color: Z100, fontFace: 'Arial',
+  })
+
+  if (filtroDesc) {
+    cover.addText(filtroDesc, {
+      x: 0.65, y: 3.85, w: 10, h: 0.32,
+      fontSize: 10, color: Z400, fontFace: 'Arial',
+    })
+  }
+
+  // Stats cards
+  const statsY = filtroDesc ? 4.45 : 4.15
+  const stats = [
+    { label: 'Total',      value: String(filtered.length), col: '9CA3AF' },
+    { label: 'Abertos',    value: String(filtered.filter(d => d.status === 'aberto').length), col: '3B82F6' },
+    { label: 'Concluídos', value: String(filtered.filter(d => ['concluido','fechado'].includes(d.status)).length), col: '22C55E' },
+    { label: 'Vencidos',   value: String(filtered.filter(d => d.vencido).length), col: 'EF4444' },
+  ]
+  stats.forEach((s, i) => {
+    const cx = 0.4 + i * 3.1
+    cover.addShape('rect', { x: cx, y: statsY, w: 2.9, h: 1.15, fill: { color: Z800 }, line: { color: Z700, width: 0.5 } })
+    cover.addText(s.value, {
+      x: cx, y: statsY + 0.05, w: 2.9, h: 0.65,
+      fontSize: 32, bold: true, color: s.col, fontFace: 'Arial', align: 'center',
+    })
+    cover.addText(s.label, {
+      x: cx, y: statsY + 0.72, w: 2.9, h: 0.3,
+      fontSize: 9.5, color: Z400, fontFace: 'Arial', align: 'center',
+    })
+  })
+
+  // Bottom bar
+  cover.addShape('rect', { x: 0, y: 7.1, w: 13.33, h: 0.4, fill: { color: Z800 }, line: { color: Z800, width: 0 } })
+  cover.addText('MSE Engenharia · Sistema de Gestão HSE · Documento gerado automaticamente', {
+    x: 0.3, y: 7.15, w: 13, h: 0.26,
+    fontSize: 8, color: Z400, fontFace: 'Arial',
+  })
+
+  // ── PER-DESVIO SLIDES ────────────────────────────────────────────────────────
+  filtered.forEach((d, idx) => {
+    const slide = pptx.addSlide()
+    slide.background = { color: BG }
+
+    const isClosed     = ['fechado', 'concluido', 'reincidente'].includes(d.status)
+    const lastTratativa = d.tratativas?.length > 0 ? d.tratativas[d.tratativas.length - 1] : null
+    const tratativaTexto = isClosed
+      ? (lastTratativa?.acao_realizada || lastTratativa?.comentario || 'Sem registro de tratativa')
+      : 'Aberto'
+
+    const gravCol    = (GRAV_HEX[d.gravidade]  || '#EAB308').replace('#', '')
+    const statusCol  = (STATUS_HEX[d.status]   || '#3B82F6').replace('#', '')
+    const gravLabel  = GRAVIDADE_CONFIG[d.gravidade]?.label  || d.gravidade
+    const statusLabel = STATUS_CONFIG[d.status]?.label        || d.status
+
+    const hasPhotos = d.fotos && d.fotos.length > 0
+    const LEFT_W    = hasPhotos ? 7.7  : 13.0
+    const RIGHT_X   = 8.1
+    const RIGHT_W   = 5.0
+
+    // ── Header ──
+    slide.addShape('rect', { x: 0, y: 0, w: 13.33, h: 0.65, fill: { color: RED }, line: { color: RED, width: 0 } })
+
+    slide.addText('mse', {
+      x: 0.15, y: 0.06, w: 1.1, h: 0.52,
+      fontSize: 18, bold: true, color: WHT, fontFace: 'Arial', valign: 'middle',
+    })
+    slide.addShape('rect', { x: 1.47, y: 0.12, w: 0.02, h: 0.42, fill: { color: 'FFBBBB' }, line: { color: 'FFBBBB', width: 0 } })
+    slide.addText(generateDesvioId(d.numero), {
+      x: 1.62, y: 0.07, w: 3.2, h: 0.52,
+      fontSize: 15, bold: true, color: WHT, fontFace: 'Arial', valign: 'middle',
+    })
+
+    // Gravidade badge
+    slide.addShape('rect', { x: 7.55, y: 0.1, w: 1.42, h: 0.45, fill: { color: gravCol }, line: { color: gravCol, width: 0 } })
+    slide.addText(gravLabel, {
+      x: 7.55, y: 0.1, w: 1.42, h: 0.45,
+      fontSize: 10, bold: true, color: WHT, fontFace: 'Arial', align: 'center', valign: 'middle',
+    })
+
+    // Status badge
+    slide.addShape('rect', { x: 9.1, y: 0.1, w: 1.65, h: 0.45, fill: { color: statusCol }, line: { color: statusCol, width: 0 } })
+    slide.addText(statusLabel, {
+      x: 9.1, y: 0.1, w: 1.65, h: 0.45,
+      fontSize: 10, bold: true, color: WHT, fontFace: 'Arial', align: 'center', valign: 'middle',
+    })
+
+    // Slide counter
+    slide.addText(`${idx + 1} / ${filtered.length}`, {
+      x: 11.3, y: 0.12, w: 1.85, h: 0.4,
+      fontSize: 9, color: 'FFCCCC', fontFace: 'Arial', align: 'right', valign: 'middle',
+    })
+
+    // ── Info Grid (2×4) ──
+    const GRID_X  = 0.22
+    const GRID_Y  = 0.78
+    const CELL_W  = (LEFT_W - 0.1) / 4
+    const CELL_H  = 0.75
+
+    const infoItems = [
+      { label: 'DATA',          value: formatDate(d.data_ocorrencia) + (d.hora_ocorrencia ? '  ' + d.hora_ocorrencia : '') },
+      { label: 'CATEGORIA',     value: d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria },
+      { label: 'OBRA',          value: d.obra_nome_computado },
+      { label: 'LOCAL / SETOR', value: [d.local_exato, d.setor].filter(Boolean).join(' · ') || '—' },
+      { label: 'ENCARREGADO',   value: d.encarregado_nome_computado || '—' },
+      { label: 'ABERTO POR',    value: d.aberto_por || '—' },
+      { label: 'COLABORADOR',   value: d.colaborador_nome || '—' },
+      { label: 'SLA / PRAZO',   value: getSlaLabel(d.dias_para_vencer, d.vencido) },
+    ]
+
+    infoItems.forEach((item, i) => {
+      const col = i % 4
+      const row = Math.floor(i / 4)
+      const cx  = GRID_X + col * CELL_W
+      const cy  = GRID_Y + row * CELL_H
+      slide.addShape('rect', {
+        x: cx + 0.03, y: cy + 0.03, w: CELL_W - 0.08, h: CELL_H - 0.07,
+        fill: { color: Z800 }, line: { color: Z700, width: 0.3 },
+      })
+      slide.addText(item.label, {
+        x: cx + 0.12, y: cy + 0.1, w: CELL_W - 0.22, h: 0.18,
+        fontSize: 7, color: Z400, bold: true, fontFace: 'Arial',
+      })
+      slide.addText(item.value, {
+        x: cx + 0.12, y: cy + 0.3, w: CELL_W - 0.22, h: 0.38,
+        fontSize: 10, color: Z100, fontFace: 'Arial', wrap: true,
+      })
+    })
+
+    // ── Description ──
+    const DESC_Y  = GRID_Y + 2 * CELL_H + 0.12
+    const BOX_W   = LEFT_W - 0.1
+    const SECT_H  = 0.24
+    const DESC_CH = 2.0
+    const TRAT_CH = 2.0
+
+    slide.addShape('rect', { x: GRID_X, y: DESC_Y, w: BOX_W, h: SECT_H, fill: { color: RED }, line: { color: RED, width: 0 } })
+    slide.addText('DESCRIÇÃO DO DESVIO', {
+      x: GRID_X + 0.1, y: DESC_Y + 0.03, w: BOX_W - 0.2, h: SECT_H - 0.05,
+      fontSize: 8, bold: true, color: WHT, fontFace: 'Arial', valign: 'middle',
+    })
+
+    const descText = d.descricao.length > 480 ? d.descricao.slice(0, 477) + '...' : d.descricao
+    slide.addShape('rect', { x: GRID_X, y: DESC_Y + SECT_H, w: BOX_W, h: DESC_CH, fill: { color: Z800 }, line: { color: Z700, width: 0.3 } })
+    slide.addText(descText, {
+      x: GRID_X + 0.12, y: DESC_Y + SECT_H + 0.08, w: BOX_W - 0.25, h: DESC_CH - 0.15,
+      fontSize: 10, color: Z100, fontFace: 'Arial', wrap: true, valign: 'top',
+    })
+
+    // ── Tratativa ──
+    const TRAT_Y  = DESC_Y + SECT_H + DESC_CH + 0.1
+    const tratCol = isClosed ? '16A34A' : '3B82F6'
+
+    slide.addShape('rect', { x: GRID_X, y: TRAT_Y, w: BOX_W, h: SECT_H, fill: { color: tratCol }, line: { color: tratCol, width: 0 } })
+    slide.addText('TRATATIVA / AÇÃO CORRETIVA', {
+      x: GRID_X + 0.1, y: TRAT_Y + 0.03, w: BOX_W - 0.2, h: SECT_H - 0.05,
+      fontSize: 8, bold: true, color: WHT, fontFace: 'Arial', valign: 'middle',
+    })
+
+    const tratText = tratativaTexto.length > 380 ? tratativaTexto.slice(0, 377) + '...' : tratativaTexto
+    slide.addShape('rect', { x: GRID_X, y: TRAT_Y + SECT_H, w: BOX_W, h: TRAT_CH, fill: { color: Z800 }, line: { color: Z700, width: 0.3 } })
+    slide.addText(tratText, {
+      x: GRID_X + 0.12, y: TRAT_Y + SECT_H + 0.08, w: BOX_W - 0.25, h: TRAT_CH - 0.15,
+      fontSize: 10, color: isClosed ? '22C55E' : Z400, fontFace: 'Arial', wrap: true, valign: 'top',
+    })
+
+    // ── Footer ──
+    slide.addShape('rect', { x: 0, y: 7.1, w: 13.33, h: 0.4, fill: { color: Z800 }, line: { color: Z800, width: 0 } })
+    slide.addText(`MSE Engenharia · ${d.obra_nome_computado} · ${dateStr}`, {
+      x: 0.3, y: 7.15, w: 9, h: 0.26,
+      fontSize: 7.5, color: Z400, fontFace: 'Arial',
+    })
+    slide.addText(`${idx + 1} / ${filtered.length}`, {
+      x: 11.5, y: 7.15, w: 1.6, h: 0.26,
+      fontSize: 7.5, bold: true, color: RED, fontFace: 'Arial', align: 'right',
+    })
+
+    // ── Photos ──
+    if (hasPhotos) {
+      const photos = d.fotos.slice(0, 3)
+      const photosAvailH = 7.1 - 1.05
+      const photoH       = (photosAvailH - (photos.length - 1) * 0.1) / photos.length
+      const LBL_H        = 0.24
+
+      slide.addText('FOTOS DO DESVIO', {
+        x: RIGHT_X, y: 0.75, w: RIGHT_W, h: 0.25,
+        fontSize: 7.5, bold: true, color: Z400, fontFace: 'Arial',
+      })
+
+      photos.forEach((foto, pi) => {
+        const py    = 1.05 + pi * (photoH + 0.1)
+        const imgH  = photoH - LBL_H
+        const lblColor = foto.tipo === 'antes' ? 'EF4444' : '16A34A'
+
+        slide.addShape('rect', { x: RIGHT_X, y: py, w: RIGHT_W, h: LBL_H, fill: { color: lblColor }, line: { color: lblColor, width: 0 } })
+        slide.addText(foto.tipo === 'antes' ? 'ANTES' : 'DEPOIS', {
+          x: RIGHT_X + 0.1, y: py + 0.03, w: 1.5, h: LBL_H - 0.06,
+          fontSize: 8, bold: true, color: WHT, fontFace: 'Arial', valign: 'middle',
+        })
+        slide.addText(`${pi + 1}/${photos.length}`, {
+          x: RIGHT_X + RIGHT_W - 0.65, y: py + 0.03, w: 0.55, h: LBL_H - 0.06,
+          fontSize: 8, color: 'FFEEEE', fontFace: 'Arial', align: 'right', valign: 'middle',
+        })
+
+        if (foto.data_url?.startsWith('data:')) {
+          try {
+            slide.addImage({ data: foto.data_url, x: RIGHT_X, y: py + LBL_H, w: RIGHT_W, h: imgH,
+              sizing: { type: 'contain', w: RIGHT_W, h: imgH } })
+          } catch { /* skip failed image */ }
+        } else {
+          slide.addShape('rect', { x: RIGHT_X, y: py + LBL_H, w: RIGHT_W, h: imgH, fill: { color: Z700 }, line: { color: Z700, width: 0 } })
+          slide.addText('Sem imagem', {
+            x: RIGHT_X, y: py + LBL_H + imgH / 2 - 0.1, w: RIGHT_W, h: 0.3,
+            fontSize: 9, color: Z400, fontFace: 'Arial', align: 'center',
+          })
+        }
+      })
+    }
+  })
+
+  const dd = String(hoje.getDate()).padStart(2, '0')
+  const mm = String(hoje.getMonth() + 1).padStart(2, '0')
+  const yy = hoje.getFullYear()
+  await pptx.writeFile({ fileName: `Relatorio-HSE-${yy}-${mm}-${dd}.pptx` })
+}
+
 const TABS = [
   { id: 'resumo',      label: 'Resumo'          },
   { id: 'encarregado', label: 'Por Encarregado' },
@@ -728,6 +1031,7 @@ export default function RelatoriosPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('resumo')
   const [page, setPage] = useState(1)
+  const [generatingPPT, setGeneratingPPT] = useState(false)
 
   const tstOptions = useMemo(() =>
     filtros.obra_id ? tsts.filter(t => t.obra_id === filtros.obra_id) : tsts
@@ -910,6 +1214,19 @@ export default function RelatoriosPage() {
             >
               <FileSpreadsheet className="w-4 h-4" />
               Baixar XLSX
+            </button>
+            <button
+              onClick={async () => {
+                setGeneratingPPT(true)
+                try { await gerarPPT(filtered, filtros, obras) }
+                finally { setGeneratingPPT(false) }
+              }}
+              disabled={filtered.length === 0 || generatingPPT}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
+              style={{ background: '#D97706' }}
+            >
+              <Presentation className="w-4 h-4" />
+              {generatingPPT ? 'Gerando...' : 'Baixar PPT'}
             </button>
             <button
               onClick={() => gerarPDF(filtered, filtros, obras)}
