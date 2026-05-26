@@ -18,7 +18,6 @@ export interface Obra {
   responsavel?: string
   ativa: boolean
   criado_em: string
-  destinatarios?: string[]
 }
 
 export interface TST {

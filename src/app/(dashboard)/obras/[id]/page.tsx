@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Edit, Check, X, Plus,
   UserCheck, UserX, Trash2, HardHat, Users, Save,
-  Phone, Hash, MapPin, Pencil, Mail,
+  Phone, Hash, MapPin, Pencil,
 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import { obrasDB, tstsDB, encarregadosDB } from '@/lib/db'
@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { TST, Encarregado } from '@/types'
 
-type Tab = 'info' | 'tsts' | 'encarregados' | 'destinatarios'
+type Tab = 'info' | 'tsts' | 'encarregados'
 
 export default function ObraDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -43,10 +43,6 @@ export default function ObraDetailPage() {
   const [encForm, setEncForm] = useState({ nome: '', setor: '', telefone: '' })
   const [editingEncId, setEditingEncId] = useState<string | null>(null)
   const [encEditForm, setEncEditForm] = useState({ nome: '', setor: '', telefone: '' })
-
-  // Destinatários form
-  const [novoEmail, setNovoEmail] = useState('')
-  const [savingEmail, setSavingEmail] = useState(false)
 
   if (!obra) {
     return (
@@ -127,30 +123,10 @@ export default function ObraDetailPage() {
     await refresh()
   }
 
-  // ── Destinatários ──
-  const destinatarios = obra?.destinatarios || []
-
-  async function addDestinatario() {
-    const email = novoEmail.trim().toLowerCase()
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
-    if (destinatarios.includes(email)) { setNovoEmail(''); return }
-    setSavingEmail(true)
-    await obrasDB.update(id, { destinatarios: [...destinatarios, email] })
-    await refresh()
-    setNovoEmail('')
-    setSavingEmail(false)
-  }
-
-  async function removeDestinatario(email: string) {
-    await obrasDB.update(id, { destinatarios: destinatarios.filter(e => e !== email) })
-    await refresh()
-  }
-
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: 'tsts', label: 'TSTs', count: obraTSTs.length },
     { id: 'encarregados', label: 'Encarregados', count: obraEncarregados.length },
-    { id: 'destinatarios', label: 'E-mail', count: destinatarios.length },
-    { id: 'info', label: 'Dados' },
+    { id: 'info', label: 'Dados da Obra' },
   ]
 
   return (
@@ -436,66 +412,6 @@ export default function ObraDetailPage() {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Destinatários tab ── */}
-      {tab === 'destinatarios' && (
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
-            <div>
-              <p className="text-sm font-semibold text-zinc-300 mb-1">Destinatários do Relatório</p>
-              <p className="text-xs text-zinc-500">
-                Esses e-mails recebem o relatório diário desta obra às 19h. Se vazio, usa os destinatários padrão do sistema.
-              </p>
-            </div>
-
-            {/* Add email */}
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={novoEmail}
-                onChange={e => setNovoEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addDestinatario()}
-                placeholder="nome@empresa.com.br"
-                className="flex-1 h-10 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-mse-500/30 placeholder:text-zinc-600"
-              />
-              <button
-                onClick={addDestinatario}
-                disabled={savingEmail || !novoEmail.trim()}
-                className="flex items-center gap-1.5 h-10 px-4 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
-                style={{ background: '#E8291C' }}
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar
-              </button>
-            </div>
-
-            {/* List */}
-            {destinatarios.length === 0 ? (
-              <div className="flex flex-col items-center py-8 gap-2 text-zinc-600">
-                <Mail className="w-8 h-8 opacity-40" />
-                <p className="text-sm">Nenhum destinatário configurado</p>
-                <p className="text-xs text-center">O relatório usará os destinatários padrão: {process.env.NEXT_PUBLIC_EMAIL_PADRAO || 'configurado no sistema'}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {destinatarios.map(email => (
-                  <div key={email} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-zinc-800 bg-zinc-800/40">
-                    <Mail className="w-4 h-4 text-zinc-500 flex-shrink-0" />
-                    <span className="flex-1 text-sm text-zinc-200 truncate">{email}</span>
-                    <button
-                      onClick={() => removeDestinatario(email)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors flex-shrink-0"
-                      title="Remover"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       )}
 
