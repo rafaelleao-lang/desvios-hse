@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -11,7 +12,7 @@ import {
 } from 'recharts'
 import {
   Filter, Download, X, Search, Building2, Users, AlertTriangle,
-  TrendingUp, ChevronDown, FileText, CheckCircle2,
+  TrendingUp, ChevronDown, FileText, CheckCircle2, FileSpreadsheet,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -618,6 +619,94 @@ function gerarPDF(
   doc.save(`Relatorio-HSE-${yy}-${mm}-${dd}.pdf`)
 }
 
+// ── XLSX Generator ──────────────────────────────────────────────────────────
+function gerarXLSX(
+  filtered: ReturnType<typeof filtrarDesvios>,
+  filtros: FiltrosRelatorio,
+  obrasList: { id: string; nome: string }[]
+) {
+  const hoje = new Date()
+  const wb = XLSX.utils.book_new()
+
+  const filtroDesc = [
+    filtros.obra_id && obrasList.find(o => o.id === filtros.obra_id)?.nome && `Obra: ${obrasList.find(o => o.id === filtros.obra_id)!.nome}`,
+    filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label || filtros.status}`,
+    filtros.gravidade && `Gravidade: ${GRAVIDADE_CONFIG[filtros.gravidade as GravidadeDesvio]?.label || filtros.gravidade}`,
+    filtros.categoria && `Categoria: ${filtros.categoria}`,
+    (filtros.data_inicio || filtros.data_fim) && `Período: ${filtros.data_inicio || '...'} a ${filtros.data_fim || '...'}`,
+    filtros.busca && `Busca: "${filtros.busca}"`,
+  ].filter(Boolean).join(' · ') || 'Todos os desvios'
+
+  const total    = filtered.length
+  const abertos  = filtered.filter(d => d.status === 'aberto').length
+  const fechados = filtered.filter(d => d.status === 'fechado' || d.status === 'reincidente').length
+  const vencidos = filtered.filter(d => d.vencido).length
+  const tratados = filtered.filter(d => d.status !== 'aberto').length
+  const taxa     = total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0
+
+  // ── Aba Resumo ──
+  const resumoData: (string | number)[][] = [
+    ['Relatório de Desvios HSE — MSE Engenharia'],
+    [`Gerado em: ${hoje.toLocaleDateString('pt-BR')} ${hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`],
+    [`Filtros: ${filtroDesc}`],
+    [],
+    ['Indicadores'],
+    ['Abertos', 'Fechados', 'Vencidos', 'Taxa Tratativa (%)'],
+    [abertos, fechados, vencidos, taxa],
+  ]
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumoData)
+  wsResumo['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 22 }]
+  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo')
+
+  // ── Aba Desvios ──
+  const headers = [
+    'ID', 'Data', 'Hora', 'Obra', 'Setor', 'Local Exato', 'Categoria',
+    'Gravidade', 'Status', 'Colaborador', 'Encarregado', 'TST',
+    'SLA / Prazo', 'Descrição', 'Tratativa', 'Aberto por', 'Criado em',
+  ]
+
+  const rows = filtered.map(d => {
+    const isFechado = ['fechado', 'concluido', 'reincidente'].includes(d.status)
+    const lastTratativa = d.tratativas && d.tratativas.length > 0 ? d.tratativas[d.tratativas.length - 1] : null
+    const tratativaTexto = isFechado
+      ? (lastTratativa?.acao_realizada || lastTratativa?.comentario || 'Sem registro')
+      : 'Aberto'
+    return [
+      generateDesvioId(d.numero),
+      formatDate(d.data_ocorrencia),
+      d.hora_ocorrencia || '',
+      d.obra_nome_computado,
+      d.setor || '',
+      d.local_exato || '',
+      d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria,
+      GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
+      STATUS_CONFIG[d.status]?.label || d.status,
+      d.colaborador_nome || '',
+      d.encarregado_nome_computado,
+      d.tst_nome_computado || '',
+      getSlaLabel(d.dias_para_vencer, d.vencido),
+      d.descricao,
+      tratativaTexto,
+      d.aberto_por || '',
+      formatDate(d.criado_em),
+    ]
+  })
+
+  const wsDesvios = XLSX.utils.aoa_to_sheet([headers, ...rows])
+  wsDesvios['!cols'] = [
+    { wch: 12 }, { wch: 12 }, { wch: 8  }, { wch: 28 }, { wch: 14 },
+    { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 14 }, { wch: 24 },
+    { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 60 }, { wch: 60 },
+    { wch: 24 }, { wch: 12 },
+  ]
+  XLSX.utils.book_append_sheet(wb, wsDesvios, 'Desvios')
+
+  const dd = String(hoje.getDate()).padStart(2, '0')
+  const mm = String(hoje.getMonth() + 1).padStart(2, '0')
+  const yy = hoje.getFullYear()
+  XLSX.writeFile(wb, `Relatorio-HSE-${yy}-${mm}-${dd}.xlsx`)
+}
+
 const TABS = [
   { id: 'resumo',      label: 'Resumo'          },
   { id: 'encarregado', label: 'Por Encarregado' },
@@ -809,10 +898,19 @@ export default function RelatoriosPage() {
               {activeFilterCount > 0 ? ` com ${activeFilterCount} filtro${activeFilterCount > 1 ? 's' : ''} ativo${activeFilterCount > 1 ? 's' : ''}` : ' no total'}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={() => exportarCSV(filtered)} disabled={filtered.length === 0} variant="outline" size="sm">
               <Download className="w-4 h-4 mr-1.5" />CSV
             </Button>
+            <button
+              onClick={() => gerarXLSX(filtered, filtros, obras)}
+              disabled={filtered.length === 0}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
+              style={{ background: '#16A34A' }}
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Baixar XLSX
+            </button>
             <button
               onClick={() => gerarPDF(filtered, filtros, obras)}
               disabled={filtered.length === 0}
