@@ -555,8 +555,8 @@ function gerarPDF(
         STATUS_CONFIG[d.status]?.label || d.status,
         d.encarregado_nome_computado.length > 14 ? d.encarregado_nome_computado.slice(0,13)+'…' : d.encarregado_nome_computado,
         getSlaLabel(d.dias_para_vencer, d.vencido),
-        d.descricao.length > 60 ? d.descricao.slice(0,59)+'…' : d.descricao,
-        tratativaTexto.length > 60 ? tratativaTexto.slice(0,59)+'…' : tratativaTexto,
+        d.descricao,
+        tratativaTexto,
       ]
     }),
     styles: { fontSize: 6.5, cellPadding: 2 },
@@ -1363,12 +1363,12 @@ export default function RelatoriosPage() {
                                 </td>
                                 <td className="px-3 py-3 text-zinc-400 text-xs max-w-[110px]"><span className="truncate block">{d.encarregado_nome_computado}</span></td>
                                 <td className={cn('px-3 py-3 text-xs font-semibold whitespace-nowrap', getSlaColor(d.dias_para_vencer, d.vencido))}>{getSlaLabel(d.dias_para_vencer, d.vencido)}</td>
-                                <td className="px-3 py-3 text-zinc-300 text-xs max-w-[200px]">
-                                  <span className="block line-clamp-2 leading-relaxed">{d.descricao}</span>
+                                <td className="px-3 py-3 text-zinc-300 text-xs">
+                                  <span className="block leading-relaxed">{d.descricao}</span>
                                 </td>
-                                <td className="px-3 py-3 text-xs max-w-[200px]">
+                                <td className="px-3 py-3 text-xs">
                                   {isFechado ? (
-                                    <span className="block line-clamp-2 text-emerald-400 leading-relaxed">{tratativaTexto}</span>
+                                    <span className="block text-emerald-400 leading-relaxed">{tratativaTexto}</span>
                                   ) : (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 whitespace-nowrap">
                                       Aberto

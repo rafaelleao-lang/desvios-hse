@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { CATEGORIAS_PADRAO } from '@/types'
 import type { FotoDesvio, GravidadeDesvio } from '@/types'
 
@@ -29,7 +29,7 @@ const STEP_LABELS = ['Obra & Pessoas', 'Desvio', 'Fotos']
 
 export default function NovoDesvioPage() {
   const router = useRouter()
-  const { obras, tsts, encarregados, refresh } = useApp()
+  const { obras, tsts, encarregados, desviosComputados, refresh } = useApp()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep] = useState(0)
@@ -52,6 +52,14 @@ export default function NovoDesvioPage() {
   const [fotos, setFotos] = useState<FotoDesvio[]>([])
   const [loadingFoto, setLoadingFoto] = useState(false)
   const [errors, setErrors] = useState<Record<string, string | undefined>>({})
+
+  const desviosDoColaborador = useMemo(() => {
+    const nome = colaboradorNome.trim().toLowerCase()
+    if (nome.length < 3) return []
+    return desviosComputados.filter(d =>
+      d.colaborador_nome?.trim().toLowerCase() === nome
+    )
+  }, [colaboradorNome, desviosComputados])
 
   // Derived data from selected obra (filtered from context, no extra DB calls)
   const obraAtiva = obras.find(o => o.id === obraId)
@@ -223,6 +231,23 @@ export default function NovoDesvioPage() {
                 <Input value={colaboradorNome} onChange={e => setColaboradorNome(e.target.value)}
                   placeholder="Ex: José da Silva" />
                 {errors.colaboradorNome && <p className="text-xs text-red-400">{errors.colaboradorNome}</p>}
+                <AnimatePresence>
+                  {desviosDoColaborador.length > 0 && (
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                      className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-amber-400">
+                          Reincidência — {desviosDoColaborador.length} desvio{desviosDoColaborador.length > 1 ? 's' : ''} anterior{desviosDoColaborador.length > 1 ? 'es' : ''}
+                        </p>
+                        <p className="text-xs text-amber-300/80 mt-1 leading-relaxed">
+                          {colaboradorNome.trim()} já possui desvio{desviosDoColaborador.length > 1 ? 's' : ''} registrado{desviosDoColaborador.length > 1 ? 's' : ''}.
+                          {' '}Mais recente: {formatDate(desviosDoColaborador[0].data_ocorrencia)} · {desviosDoColaborador[0].categoria}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Encarregado */}
