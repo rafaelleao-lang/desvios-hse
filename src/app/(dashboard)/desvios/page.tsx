@@ -18,16 +18,19 @@ import type { FiltrosRelatorio } from '@/lib/db'
 
 const PER_PAGE = 15
 
-const STATUS_TABS: { value: StatusDesvio | 'todos'; label: string }[] = [
+const STATUS_TABS: { value: StatusDesvio | 'todos' | 'vencido'; label: string }[] = [
   { value: 'todos', label: 'Todos' },
-  { value: 'aberto', label: 'Abertos' },
-  { value: 'concluido', label: 'Concluídos' },
+  { value: 'aberto', label: 'Aberto' },
+  { value: 'fechado', label: 'Fechado' },
+  { value: 'concluido', label: 'Concluído' },
+  { value: 'reincidente', label: 'Reincidente' },
+  { value: 'vencido', label: 'Vencido' },
 ]
 
 export default function DesviosPage() {
   const router = useRouter()
   const { obras, tsts, encarregados, desviosComputados, loaded } = useApp()
-  const [activeTab, setActiveTab] = useState<StatusDesvio | 'todos'>('todos')
+  const [activeTab, setActiveTab] = useState<StatusDesvio | 'todos' | 'vencido'>('todos')
   const [busca, setBusca] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [page, setPage] = useState(1)
@@ -40,14 +43,13 @@ export default function DesviosPage() {
 
   const filtered = useMemo(() => {
     let base
-    if (activeTab === 'concluido') {
-      base = filtrarDesvios(desviosComputados, { ...filtros, busca })
-        .filter(d => d.status === 'concluido' || d.status === 'fechado' || d.status === 'reincidente')
+    if (activeTab === 'vencido') {
+      base = filtrarDesvios(desviosComputados, { ...filtros, busca, vencido: true })
     } else {
       base = filtrarDesvios(desviosComputados, {
         ...filtros,
         busca,
-        status: activeTab === 'todos' ? undefined : activeTab,
+        status: activeTab === 'todos' ? undefined : activeTab as StatusDesvio,
       })
     }
     return base.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
@@ -59,7 +61,7 @@ export default function DesviosPage() {
   const counts = useMemo(() => {
     const c: Record<string, number> = { todos: desviosComputados.length }
     desviosComputados.forEach(d => { c[d.status] = (c[d.status] || 0) + 1 })
-    c['concluido'] = (c['concluido'] || 0) + (c['fechado'] || 0) + (c['reincidente'] || 0)
+    c['vencido'] = desviosComputados.filter(d => d.vencido).length
     return c
   }, [desviosComputados])
 

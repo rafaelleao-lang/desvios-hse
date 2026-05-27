@@ -257,7 +257,7 @@ function gerarPDF(
 
   const filtroDesc = [
     filtros.obra_id && obrasList.find(o=>o.id===filtros.obra_id)?.nome && `Obra: ${obrasList.find(o=>o.id===filtros.obra_id)!.nome}`,
-    filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label||filtros.status}`,
+    filtros.vencido ? 'Status: Vencido' : (filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label||filtros.status}`),
     filtros.gravidade && `Gravidade: ${GRAVIDADE_CONFIG[filtros.gravidade as GravidadeDesvio]?.label||filtros.gravidade}`,
     filtros.categoria && `Categoria: ${filtros.categoria}`,
     (filtros.data_inicio||filtros.data_fim) && `Período: ${filtros.data_inicio||'...'} a ${filtros.data_fim||'...'}`,
@@ -631,7 +631,7 @@ function gerarXLSX(
 
   const filtroDesc = [
     filtros.obra_id && obrasList.find(o => o.id === filtros.obra_id)?.nome && `Obra: ${obrasList.find(o => o.id === filtros.obra_id)!.nome}`,
-    filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label || filtros.status}`,
+    filtros.vencido ? 'Status: Vencido' : (filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label || filtros.status}`),
     filtros.gravidade && `Gravidade: ${GRAVIDADE_CONFIG[filtros.gravidade as GravidadeDesvio]?.label || filtros.gravidade}`,
     filtros.categoria && `Categoria: ${filtros.categoria}`,
     (filtros.data_inicio || filtros.data_fim) && `Período: ${filtros.data_inicio || '...'} a ${filtros.data_fim || '...'}`,
@@ -739,7 +739,7 @@ async function gerarPPT(
   const obraNome     = obraFiltrada?.nome || 'Todas as Obras'
 
   const filtroDesc = [
-    filtros.status    && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label    || filtros.status}`,
+    filtros.vencido ? 'Status: Vencido' : (filtros.status && `Status: ${STATUS_CONFIG[filtros.status as StatusDesvio]?.label || filtros.status}`),
     filtros.gravidade && `Gravidade: ${GRAVIDADE_CONFIG[filtros.gravidade as GravidadeDesvio]?.label || filtros.gravidade}`,
     filtros.categoria && `Categoria: ${filtros.categoria}`,
     (filtros.data_inicio || filtros.data_fim) && `Período: ${filtros.data_inicio || '...'} a ${filtros.data_fim || '...'}`,
@@ -1315,11 +1315,24 @@ export default function RelatoriosPage() {
                     </div>
                     <div>
                       <label className="text-xs text-zinc-500 mb-1.5 block">Status</label>
-                      <select value={filtros.status || ''} onChange={e => setFiltro('status', (e.target.value as StatusDesvio) || undefined)} className={inputCls}>
+                      <select
+                        value={filtros.vencido ? 'vencido' : (filtros.status || '')}
+                        onChange={e => {
+                          const v = e.target.value
+                          if (v === 'vencido') {
+                            setFiltros(prev => ({ ...prev, status: undefined, vencido: true }))
+                          } else {
+                            setFiltros(prev => ({ ...prev, status: (v as StatusDesvio) || undefined, vencido: undefined }))
+                          }
+                        }}
+                        className={inputCls}
+                      >
                         <option value="">Todos</option>
-                        <option value="aberto">Aberto</option><option value="em_tratativa">Em Tratativa</option>
-                        <option value="pendente">Pendente</option><option value="concluido">Concluído</option>
-                        <option value="fechado">Fechado</option><option value="reincidente">Reincidente</option>
+                        <option value="aberto">Aberto</option>
+                        <option value="fechado">Fechado</option>
+                        <option value="concluido">Concluído</option>
+                        <option value="reincidente">Reincidente</option>
+                        <option value="vencido">Vencido</option>
                       </select>
                     </div>
                     <div>

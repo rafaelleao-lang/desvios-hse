@@ -15,6 +15,7 @@ import { useApp } from '@/contexts/AppContext'
 import { computeStats } from '@/lib/db'
 import { cn, formatNumber, formatPercent } from '@/lib/utils'
 import { STATUS_CONFIG, GRAVIDADE_CONFIG } from '@/lib/utils'
+import type { StatusDesvio } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -42,11 +43,18 @@ export default function DashboardPage() {
   const { obras, tsts, encarregados, desvios, desviosComputados, loaded } = useApp()
 
   const [obraFiltro, setObraFiltro] = useState<string>('all')
+  const [statusFiltro, setStatusFiltro] = useState<StatusDesvio | 'vencido' | 'all'>('all')
 
   // Filter desvios by selected obra
-  const desviosFiltrados = useMemo(() =>
+  const desviosPorObra = useMemo(() =>
     obraFiltro === 'all' ? desviosComputados : desviosComputados.filter(d => d.obra_id === obraFiltro)
   , [desviosComputados, obraFiltro])
+
+  const desviosFiltrados = useMemo(() => {
+    if (statusFiltro === 'all') return desviosPorObra
+    if (statusFiltro === 'vencido') return desviosPorObra.filter(d => d.vencido)
+    return desviosPorObra.filter(d => d.status === statusFiltro)
+  }, [desviosPorObra, statusFiltro])
 
   const desviosRaw = useMemo(() =>
     obraFiltro === 'all' ? desvios : desvios.filter(d => d.obra_id === obraFiltro)
@@ -96,11 +104,11 @@ export default function DashboardPage() {
   const obrasData = useMemo(() =>
     obras.map(obra => ({
       name: obra.nome.length > 14 ? obra.nome.slice(0, 13) + '…' : obra.nome,
-      total:    desviosComputados.filter(d => d.obra_id === obra.id).length,
-      abertos:  desviosComputados.filter(d => d.obra_id === obra.id && d.status === 'aberto').length,
-      criticos: desviosComputados.filter(d => d.obra_id === obra.id && d.gravidade === 'critico').length,
+      total:    desviosFiltrados.filter(d => d.obra_id === obra.id).length,
+      abertos:  desviosFiltrados.filter(d => d.obra_id === obra.id && d.status === 'aberto').length,
+      criticos: desviosFiltrados.filter(d => d.obra_id === obra.id && d.gravidade === 'critico').length,
     })).sort((a, b) => b.total - a.total).slice(0, 6),
-    [obras, desviosComputados]
+    [obras, desviosFiltrados]
   )
 
   const encarregadoData = useMemo(() =>
@@ -226,21 +234,34 @@ export default function DashboardPage() {
             }
           </p>
         </div>
-        {/* Obra selector */}
-        <div className="flex items-center gap-2">
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
           <Building2 className="w-4 h-4 text-zinc-500 flex-shrink-0" />
           <select
             value={obraFiltro}
             onChange={e => setObraFiltro(e.target.value)}
-            className="h-9 pl-3 pr-8 rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-200 text-sm focus:outline-none appearance-none cursor-pointer min-w-[180px]"
+            className="h-9 pl-3 pr-8 rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-200 text-sm focus:outline-none appearance-none cursor-pointer min-w-[160px]"
             style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2371717A\' stroke-width=\'2\'%3E%3Cpath d=\'m6 9 6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
           >
             <option value="all">Todas as Obras</option>
             {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
           </select>
-          {obraFiltro !== 'all' && (
-            <button onClick={() => setObraFiltro('all')}
-              className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors" title="Limpar filtro">
+          <select
+            value={statusFiltro}
+            onChange={e => setStatusFiltro(e.target.value as StatusDesvio | 'vencido' | 'all')}
+            className="h-9 pl-3 pr-8 rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-200 text-sm focus:outline-none appearance-none cursor-pointer min-w-[140px]"
+            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2371717A\' stroke-width=\'2\'%3E%3Cpath d=\'m6 9 6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center' }}
+          >
+            <option value="all">Todos os Status</option>
+            <option value="aberto">Aberto</option>
+            <option value="fechado">Fechado</option>
+            <option value="concluido">Concluído</option>
+            <option value="reincidente">Reincidente</option>
+            <option value="vencido">Vencido</option>
+          </select>
+          {(obraFiltro !== 'all' || statusFiltro !== 'all') && (
+            <button onClick={() => { setObraFiltro('all'); setStatusFiltro('all') }}
+              className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors" title="Limpar filtros">
               <RefreshCw className="w-4 h-4" />
             </button>
           )}
@@ -418,15 +439,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* No data for filtered obra */}
-      {desviosFiltrados.length === 0 && desvios.length > 0 && obraFiltro !== 'all' && (
+      {/* No data for active filters */}
+      {desviosFiltrados.length === 0 && desvios.length > 0 && (obraFiltro !== 'all' || statusFiltro !== 'all') && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 flex flex-col items-center justify-center py-16 gap-3">
           <Building2 className="w-8 h-8 text-zinc-600" />
-          <p className="text-zinc-400 font-semibold">Nenhum desvio para {obraAtual?.nome}</p>
-          <button onClick={() => router.push('/desvios/novo')}
+          <p className="text-zinc-400 font-semibold">Nenhum desvio para os filtros selecionados</p>
+          <button onClick={() => { setObraFiltro('all'); setStatusFiltro('all') }}
             className="text-sm font-semibold px-4 py-2 rounded-xl transition-all text-white"
             style={{ background: '#E8291C' }}>
-            Registrar Desvio
+            Limpar Filtros
           </button>
         </div>
       )}
