@@ -66,7 +66,8 @@ function ChartTooltip({ active, payload, label }: any) {
 function gerarPDF(
   filtered: ReturnType<typeof filtrarDesvios>,
   filtros: FiltrosRelatorio,
-  obrasList: { id: string; nome: string }[]
+  obrasList: { id: string; nome: string }[],
+  tstsList: { id: string; nome: string; obra_id: string }[]
 ) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const hoje = new Date()
@@ -210,9 +211,15 @@ function gerarPDF(
   filtered.forEach(d => { obraMap[d.obra_nome_computado] = (obraMap[d.obra_nome_computado]||0)+1 })
   const obraData = Object.entries(obraMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total).slice(0,8)
 
-  const tstMap: Record<string, number> = {}
-  filtered.forEach(d => { const n = d.tst_nome_computado; if (n !== '—') tstMap[n] = (tstMap[n]||0)+1 })
-  const tstData = Object.entries(tstMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total).slice(0,8)
+  const relevantTsts = filtros.obra_id
+    ? tstsList.filter(t => t.obra_id === filtros.obra_id)
+    : tstsList
+  const tstCountMap: Record<string, number> = {}
+  relevantTsts.forEach(t => { tstCountMap[t.id] = 0 })
+  filtered.forEach(d => { if (d.tst_id && tstCountMap[d.tst_id] !== undefined) tstCountMap[d.tst_id] += 1 })
+  const tstData = relevantTsts
+    .map(t => ({ name: t.nome, total: tstCountMap[t.id] ?? 0 }))
+    .sort((a, b) => b.total - a.total)
 
   const catMap: Record<string, number> = {}
   filtered.forEach(d => {
@@ -624,7 +631,8 @@ function gerarPDF(
 function gerarXLSX(
   filtered: ReturnType<typeof filtrarDesvios>,
   filtros: FiltrosRelatorio,
-  obrasList: { id: string; nome: string }[]
+  obrasList: { id: string; nome: string }[],
+  tstsList: { id: string; nome: string; obra_id: string }[]
 ) {
   const hoje = new Date()
   const wb = XLSX.utils.book_new()
@@ -658,6 +666,20 @@ function gerarXLSX(
   const wsResumo = XLSX.utils.aoa_to_sheet(resumoData)
   wsResumo['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 22 }]
   XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo')
+
+  // ── Aba Por TST ──
+  const tstRelRelevant = filtros.obra_id
+    ? tstsList.filter(t => t.obra_id === filtros.obra_id)
+    : tstsList
+  const tstRelCountMap: Record<string, number> = {}
+  tstRelRelevant.forEach(t => { tstRelCountMap[t.id] = 0 })
+  filtered.forEach(d => { if (d.tst_id && tstRelCountMap[d.tst_id] !== undefined) tstRelCountMap[d.tst_id] += 1 })
+  const tstRelRows = tstRelRelevant
+    .map(t => [t.nome, tstRelCountMap[t.id] ?? 0])
+    .sort((a, b) => (b[1] as number) - (a[1] as number))
+  const wsTst = XLSX.utils.aoa_to_sheet([['TST', 'Total de Desvios'], ...tstRelRows])
+  wsTst['!cols'] = [{ wch: 32 }, { wch: 18 }]
+  XLSX.utils.book_append_sheet(wb, wsTst, 'Por TST')
 
   // ── Aba Desvios ──
   const headers = [
@@ -1143,12 +1165,19 @@ export default function RelatoriosPage() {
   }, [filtered])
 
   const tstChartData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filtered.forEach(d => { const n = d.tst_nome_computado; if (n !== '—') counts[n] = (counts[n] || 0) + 1 })
-    return Object.entries(counts).map(([name, total]) => ({
-      name: name.length > 22 ? name.slice(0, 22) + '…' : name, total,
-    })).sort((a, b) => b.total - a.total).slice(0, 10)
-  }, [filtered])
+    const relevantTsts = filtros.obra_id
+      ? tsts.filter(t => t.obra_id === filtros.obra_id)
+      : tsts
+    const countMap: Record<string, number> = {}
+    relevantTsts.forEach(t => { countMap[t.id] = 0 })
+    filtered.forEach(d => { if (d.tst_id && countMap[d.tst_id] !== undefined) countMap[d.tst_id] += 1 })
+    return relevantTsts
+      .map(t => ({
+        name: t.nome.length > 22 ? t.nome.slice(0, 22) + '…' : t.nome,
+        total: countMap[t.id] ?? 0,
+      }))
+      .sort((a, b) => b.total - a.total)
+  }, [filtered, tsts, filtros.obra_id])
 
   // SLA analysis
   const slaData = useMemo(() => [
@@ -1207,7 +1236,7 @@ export default function RelatoriosPage() {
               <Download className="w-4 h-4 mr-1.5" />CSV
             </Button>
             <button
-              onClick={() => gerarXLSX(filtered, filtros, obras)}
+              onClick={() => gerarXLSX(filtered, filtros, obras, tsts)}
               disabled={filtered.length === 0}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
               style={{ background: '#16A34A' }}
@@ -1229,7 +1258,7 @@ export default function RelatoriosPage() {
               {generatingPPT ? 'Gerando...' : 'Baixar PPT'}
             </button>
             <button
-              onClick={() => gerarPDF(filtered, filtros, obras)}
+              onClick={() => gerarPDF(filtered, filtros, obras, tsts)}
               disabled={filtered.length === 0}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
               style={{ background: MSE_RED }}
