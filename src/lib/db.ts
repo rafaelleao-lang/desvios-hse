@@ -250,7 +250,7 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
     hojeOnly.setHours(0, 0, 0, 0)
     const diff = Math.round((prazo.getTime() - hojeOnly.getTime()) / 86400000)
     dias_para_vencer = diff
-    vencido = diff < 0 && !['concluido', 'fechado'].includes(d.status)
+    vencido = diff < 0 && !['concluido', 'fechado', 'reincidente'].includes(d.status)
   }
 
   const obra = obras.find(o => o.id === d.obra_id)
