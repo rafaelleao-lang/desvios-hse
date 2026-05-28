@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -36,6 +36,26 @@ export default function DesviosPage() {
   const [page, setPage] = useState(1)
   const [filtros, setFiltros] = useState<Omit<FiltrosRelatorio, 'busca' | 'status'>>({})
 
+  // Carrega filtros salvos ao montar
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('desvios-filters')
+      if (!raw) return
+      const saved = JSON.parse(raw)
+      if (saved.activeTab) setActiveTab(saved.activeTab)
+      if (saved.busca) setBusca(saved.busca)
+      if (saved.filtros && Object.keys(saved.filtros).length > 0) {
+        setFiltros(saved.filtros)
+        setShowFilters(true)
+      }
+    } catch {}
+  }, [])
+
+  // Persiste filtros no sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('desvios-filters', JSON.stringify({ activeTab, busca, filtros }))
+  }, [activeTab, busca, filtros])
+
   function setFiltro(key: keyof typeof filtros, value: string) {
     setFiltros(f => ({ ...f, [key]: value || undefined }))
     setPage(1)
@@ -45,6 +65,10 @@ export default function DesviosPage() {
     let base
     if (activeTab === 'vencido') {
       base = filtrarDesvios(desviosComputados, { ...filtros, busca, vencido: true })
+    } else if (activeTab === 'fechado') {
+      const fechados = filtrarDesvios(desviosComputados, { ...filtros, busca, status: 'fechado' })
+      const reincidentes = filtrarDesvios(desviosComputados, { ...filtros, busca, status: 'reincidente' as StatusDesvio })
+      base = [...fechados, ...reincidentes]
     } else {
       base = filtrarDesvios(desviosComputados, {
         ...filtros,
@@ -62,6 +86,8 @@ export default function DesviosPage() {
     const c: Record<string, number> = { todos: desviosComputados.length }
     desviosComputados.forEach(d => { c[d.status] = (c[d.status] || 0) + 1 })
     c['vencido'] = desviosComputados.filter(d => d.vencido).length
+    // Reincidente também conta como fechado (foi encerrado porém marcado como reincidente)
+    c['fechado'] = (c['fechado'] || 0) + (c['reincidente'] || 0)
     return c
   }, [desviosComputados])
 
@@ -72,6 +98,7 @@ export default function DesviosPage() {
     setBusca('')
     setActiveTab('todos')
     setPage(1)
+    sessionStorage.removeItem('desvios-filters')
   }
 
   return (
@@ -350,16 +377,18 @@ export default function DesviosPage() {
                   className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 disabled:opacity-30 transition-colors">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                  const p = i + 1
-                  return (
+                {(() => {
+                  const WINDOW = 5
+                  const start = Math.max(1, Math.min(page - 1, totalPages - WINDOW + 1))
+                  const end = Math.min(totalPages, start + WINDOW - 1)
+                  return Array.from({ length: end - start + 1 }, (_, i) => start + i).map(p => (
                     <button key={p} onClick={() => setPage(p)}
                       className={cn('w-8 h-8 rounded-lg text-xs font-semibold transition-colors',
                         page === p ? 'bg-amber-500 text-zinc-950' : 'text-zinc-500 hover:bg-zinc-800')}>
                       {p}
                     </button>
-                  )
-                })}
+                  ))
+                })()}
                 <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages}
                   className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 disabled:opacity-30 transition-colors">
                   <ChevronRight className="w-4 h-4" />
