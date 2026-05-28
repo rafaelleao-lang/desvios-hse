@@ -46,8 +46,6 @@ export default function NovoDesvioPage() {
   const [categoriaOutro, setCategoriaOutro] = useState('')
   const [gravidade, setGravidade] = useState<GravidadeDesvio>('medio')
   const [descricao, setDescricao] = useState('')
-  const [dataOcorrencia, setDataOcorrencia] = useState(new Date().toISOString().split('T')[0])
-  const [horaOcorrencia, setHoraOcorrencia] = useState('')
   const [prazoCorrecao, setPrazoCorrecao] = useState('')
   const [fotos, setFotos] = useState<FotoDesvio[]>([])
   const [loadingFoto, setLoadingFoto] = useState(false)
@@ -79,7 +77,6 @@ export default function NovoDesvioPage() {
       if (!categoria) e.categoria = 'Selecione a categoria'
       if (categoria === 'Outros' && !categoriaOutro.trim()) e.categoriaOutro = 'Informe qual é o desvio'
       if (!descricao.trim() || descricao.trim().length < 10) e.descricao = 'Descreva o desvio (mínimo 10 caracteres)'
-      if (!dataOcorrencia) e.dataOcorrencia = 'Informe a data'
       if (!prazoCorrecao) e.prazoCorrecao = 'Informe o prazo para correção'
     }
     setErrors(e)
@@ -125,6 +122,7 @@ export default function NovoDesvioPage() {
     }
     setSaving(true)
     try {
+      const agora = new Date()
       const obraObj = obras.find(o => o.id === obraId)
       const encObj = encsDaObra.find(e => e.id === encarregadoId)
       const tstObj = tstsDaObra.find(t => t.id === tstId)
@@ -145,8 +143,8 @@ export default function NovoDesvioPage() {
         encarregado_nome: encObj?.nome,
         tst_id: tstId || undefined,
         tst_nome: tstObj?.nome,
-        data_ocorrencia: dataOcorrencia,
-        hora_ocorrencia: horaOcorrencia || undefined,
+        data_ocorrencia: agora.toISOString().split('T')[0],
+        hora_ocorrencia: agora.toTimeString().slice(0, 5),
         prazo_correcao: prazoCorrecao || undefined,
         reincidente: false,
         fotos,
@@ -366,26 +364,15 @@ export default function NovoDesvioPage() {
               {errors.descricao && <p className="text-xs text-red-400">{errors.descricao}</p>}
             </div>
 
-            {/* Data / Prazo */}
+            {/* Prazo */}
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-3">
-              <p className="text-sm font-semibold text-zinc-200">Data e Prazo</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Data <span className="text-red-400">*</span></Label>
-                  <Input type="date" value={dataOcorrencia} onChange={e => setDataOcorrencia(e.target.value)} />
-                  {errors.dataOcorrencia && <p className="text-xs text-red-400">{errors.dataOcorrencia}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Hora</Label>
-                  <Input type="time" value={horaOcorrencia} onChange={e => setHoraOcorrencia(e.target.value)} />
-                </div>
-                <div className="space-y-1.5 col-span-2">
-                  <Label>Prazo para Correção <span className="text-red-400">*</span></Label>
-                  <Input type="date" value={prazoCorrecao} onChange={e => setPrazoCorrecao(e.target.value)}
-                    min={dataOcorrencia}
-                    className={errors.prazoCorrecao ? 'border-red-500/70' : ''} />
-                  {errors.prazoCorrecao && <p className="text-xs text-red-400">{errors.prazoCorrecao}</p>}
-                </div>
+              <p className="text-sm font-semibold text-zinc-200">Prazo</p>
+              <div className="space-y-1.5">
+                <Label>Prazo para Correção <span className="text-red-400">*</span></Label>
+                <Input type="date" value={prazoCorrecao} onChange={e => setPrazoCorrecao(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={errors.prazoCorrecao ? 'border-red-500/70' : ''} />
+                {errors.prazoCorrecao && <p className="text-xs text-red-400">{errors.prazoCorrecao}</p>}
               </div>
             </div>
           </motion.div>
