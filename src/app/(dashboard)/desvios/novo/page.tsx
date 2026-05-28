@@ -9,12 +9,12 @@ import {
   ChevronRight, Info,
 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
-import { desviosDB, comprimirImagem } from '@/lib/db'
+import { desviosDB, uploadFotoToStorage } from '@/lib/db'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatDate, compressImage } from '@/lib/utils'
 import { CATEGORIAS_PADRAO } from '@/types'
 import type { FotoDesvio, GravidadeDesvio } from '@/types'
 
@@ -93,10 +93,11 @@ export default function NovoDesvioPage() {
   async function handleFoto(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return
     setLoadingFoto(true)
-    const files = Array.from(e.target.files).slice(0, 4 - fotos.length)
-    for (const file of files) {
-      const data_url = await comprimirImagem(file, 500, 0.5)
-      if (data_url) {
+    try {
+      const files = Array.from(e.target.files).slice(0, 4 - fotos.length)
+      for (const file of files) {
+        const compressed = await compressImage(file, 1024, 0.75)
+        const data_url = await uploadFotoToStorage(compressed)
         setFotos(prev => [...prev, {
           id: Date.now().toString(36) + Math.random().toString(36).slice(2),
           tipo: 'antes',
@@ -104,10 +105,13 @@ export default function NovoDesvioPage() {
           nome: file.name,
         }])
       }
+      setErrors(prev => ({ ...prev, fotos: undefined }))
+    } catch {
+      setErrors(prev => ({ ...prev, fotos: 'Erro ao fazer upload da foto. Tente novamente.' }))
+    } finally {
+      setLoadingFoto(false)
+      e.target.value = ''
     }
-    setErrors(prev => ({ ...prev, fotos: undefined }))
-    setLoadingFoto(false)
-    e.target.value = ''
   }
 
   function removerFoto(id: string) {

@@ -385,28 +385,20 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
   URL.revokeObjectURL(url)
 }
 
-// ── Image compression ─────────────────────────────────────────────────────────
-export async function comprimirImagem(file: File, maxSize = 400, quality = 0.4): Promise<string> {
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')!
-    const img = new Image()
-    const url = URL.createObjectURL(file)
+// ── Image upload to Supabase Storage ─────────────────────────────────────────
+export async function uploadFotoToStorage(file: File): Promise<string> {
+  const month = new Date().toISOString().slice(0, 7)
+  const path = `fotos/${month}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
 
-    img.onload = () => {
-      let { width, height } = img
-      if (width > height) {
-        if (width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize }
-      } else {
-        if (height > maxSize) { width = Math.round(width * maxSize / height); height = maxSize }
-      }
-      canvas.width = width
-      canvas.height = height
-      ctx.drawImage(img, 0, 0, width, height)
-      URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', quality))
-    }
-    img.onerror = () => { URL.revokeObjectURL(url); resolve('') }
-    img.src = url
-  })
+  const { data, error } = await supabase.storage
+    .from('desvios')
+    .upload(path, file, { contentType: 'image/jpeg', cacheControl: '31536000' })
+
+  if (error) throw error
+
+  const { data: urlData } = supabase.storage
+    .from('desvios')
+    .getPublicUrl(data.path)
+
+  return urlData.publicUrl
 }

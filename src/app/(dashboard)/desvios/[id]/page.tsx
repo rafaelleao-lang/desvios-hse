@@ -9,8 +9,8 @@ import {
   CheckCircle2, ChevronRight, Trash2, Image as ImageIcon, X,
 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
-import { desviosDB, comprimirImagem } from '@/lib/db'
-import { formatDateTime, formatDate, generateDesvioId, getSlaLabel, getSlaColor, cn } from '@/lib/utils'
+import { desviosDB, uploadFotoToStorage } from '@/lib/db'
+import { formatDateTime, formatDate, generateDesvioId, getSlaLabel, getSlaColor, cn, compressImage } from '@/lib/utils'
 import { STATUS_CONFIG, GRAVIDADE_CONFIG } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -99,12 +99,18 @@ export default function DesvioDetailPage() {
   async function handleFotoConclusao(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return
     setLoadingConclusaoFoto(true)
-    for (const file of Array.from(e.target.files).slice(0, 3)) {
-      const data_url = await comprimirImagem(file, 500, 0.5)
-      if (data_url) setConclusaoFotos(prev => [...prev, { id: Date.now().toString(36) + Math.random().toString(36).slice(2), tipo: 'depois', data_url, nome: file.name }])
+    try {
+      for (const file of Array.from(e.target.files).slice(0, 3)) {
+        const compressed = await compressImage(file, 1024, 0.75)
+        const data_url = await uploadFotoToStorage(compressed)
+        setConclusaoFotos(prev => [...prev, { id: Date.now().toString(36) + Math.random().toString(36).slice(2), tipo: 'depois', data_url, nome: file.name }])
+      }
+    } catch {
+      // silently ignore upload errors — user can retry by removing and re-adding
+    } finally {
+      setLoadingConclusaoFoto(false)
+      e.target.value = ''
     }
-    setLoadingConclusaoFoto(false)
-    e.target.value = ''
   }
 
   async function handleAddTratativa() {
@@ -130,15 +136,18 @@ export default function DesvioDetailPage() {
   async function handleFotoTratativa(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return
     setLoadingFoto(true)
-    const files = Array.from(e.target.files).slice(0, 2)
-    for (const file of files) {
-      const data_url = await comprimirImagem(file, 500, 0.5)
-      if (data_url) {
+    try {
+      for (const file of Array.from(e.target.files).slice(0, 2)) {
+        const compressed = await compressImage(file, 1024, 0.75)
+        const data_url = await uploadFotoToStorage(compressed)
         setFotosTratativa(prev => [...prev, { id: Date.now().toString(36), tipo: 'depois', data_url, nome: file.name }])
       }
+    } catch {
+      // silently ignore upload errors — user can retry
+    } finally {
+      setLoadingFoto(false)
+      e.target.value = ''
     }
-    setLoadingFoto(false)
-    e.target.value = ''
   }
 
   async function handleDelete() {
