@@ -846,7 +846,8 @@ async function gerarPPT(
   })
 
   // ── PER-DESVIO SLIDES ────────────────────────────────────────────────────────
-  filtered.forEach((d, idx) => {
+  for (let idx = 0; idx < filtered.length; idx++) {
+    const d = filtered[idx]
     const slide = pptx.addSlide()
     slide.background = { color: BG }
 
@@ -995,7 +996,8 @@ async function gerarPPT(
         fontSize: 7.5, bold: true, color: Z400, fontFace: 'Arial',
       })
 
-      photos.forEach((foto, pi) => {
+      for (let pi = 0; pi < photos.length; pi++) {
+        const foto = photos[pi]
         const py    = 1.05 + pi * (photoH + 0.1)
         const imgH  = photoH - LBL_H
         const lblColor = foto.tipo === 'antes' ? 'EF4444' : '16A34A'
@@ -1010,9 +1012,23 @@ async function gerarPPT(
           fontSize: 8, color: 'FFEEEE', fontFace: 'Arial', align: 'right', valign: 'middle',
         })
 
-        if (foto.data_url?.startsWith('data:')) {
+        let imgDataUrl = foto.data_url
+        if (imgDataUrl && imgDataUrl.startsWith('http')) {
           try {
-            slide.addImage({ data: foto.data_url, x: RIGHT_X, y: py + LBL_H, w: RIGHT_W, h: imgH,
+            const res = await fetch(imgDataUrl)
+            const blob = await res.blob()
+            imgDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result as string)
+              reader.onerror = reject
+              reader.readAsDataURL(blob)
+            })
+          } catch { imgDataUrl = '' }
+        }
+
+        if (imgDataUrl?.startsWith('data:')) {
+          try {
+            slide.addImage({ data: imgDataUrl, x: RIGHT_X, y: py + LBL_H, w: RIGHT_W, h: imgH,
               sizing: { type: 'contain', w: RIGHT_W, h: imgH } })
           } catch { /* skip failed image */ }
         } else {
@@ -1022,9 +1038,9 @@ async function gerarPPT(
             fontSize: 9, color: Z400, fontFace: 'Arial', align: 'center',
           })
         }
-      })
+      }
     }
-  })
+  }
 
   const dd = String(hoje.getDate()).padStart(2, '0')
   const mm = String(hoje.getMonth() + 1).padStart(2, '0')
