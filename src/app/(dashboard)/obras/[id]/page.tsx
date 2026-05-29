@@ -47,9 +47,9 @@ export default function ObraDetailPage() {
 
   // Coordenador form
   const [addingCoord, setAddingCoord] = useState(false)
-  const [coordForm, setCoordForm] = useState({ nome: '', telefone: '' })
+  const [coordForm, setCoordForm] = useState({ nome: '', email: '', telefone: '' })
   const [editingCoordId, setEditingCoordId] = useState<string | null>(null)
-  const [coordEditForm, setCoordEditForm] = useState({ nome: '', telefone: '' })
+  const [coordEditForm, setCoordEditForm] = useState({ nome: '', email: '', telefone: '' })
 
   if (!obra) {
     return (
@@ -132,19 +132,19 @@ export default function ObraDetailPage() {
 
   // ── Coordenador ──
   async function addCoord() {
-    if (!coordForm.nome.trim()) return
-    await coordenadoresDB.create({ obra_id: id, nome: coordForm.nome.trim(), telefone: coordForm.telefone, ativo: true })
+    if (!coordForm.nome.trim() || !coordForm.email.trim()) return
+    await coordenadoresDB.create({ obra_id: id, nome: coordForm.nome.trim(), email: coordForm.email.trim(), telefone: coordForm.telefone, ativo: true })
     await refresh()
-    setCoordForm({ nome: '', telefone: '' })
+    setCoordForm({ nome: '', email: '', telefone: '' })
     setAddingCoord(false)
   }
   function startEditCoord(coord: Coordenador) {
     setEditingCoordId(coord.id)
-    setCoordEditForm({ nome: coord.nome, telefone: coord.telefone || '' })
+    setCoordEditForm({ nome: coord.nome, email: coord.email || '', telefone: coord.telefone || '' })
   }
   async function saveCoord() {
-    if (!editingCoordId || !coordEditForm.nome.trim()) return
-    await coordenadoresDB.update(editingCoordId, { nome: coordEditForm.nome.trim(), telefone: coordEditForm.telefone })
+    if (!editingCoordId || !coordEditForm.nome.trim() || !coordEditForm.email.trim()) return
+    await coordenadoresDB.update(editingCoordId, { nome: coordEditForm.nome.trim(), email: coordEditForm.email.trim(), telefone: coordEditForm.telefone })
     await refresh()
     setEditingCoordId(null)
   }
@@ -237,13 +237,15 @@ export default function ObraDetailPage() {
                 <p className="text-xs font-semibold text-amber-400">Novo Coordenador</p>
                 <Input value={coordForm.nome} onChange={e => setCoordForm(f => ({ ...f, nome: e.target.value }))}
                   placeholder="Nome completo *" autoFocus />
+                <Input value={coordForm.email} onChange={e => setCoordForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="E-mail *" type="email" />
                 <Input value={coordForm.telefone} onChange={e => setCoordForm(f => ({ ...f, telefone: e.target.value }))}
                   placeholder="Telefone" type="tel" />
                 <div className="flex gap-2">
-                  <Button onClick={addCoord} size="sm" disabled={!coordForm.nome.trim()} className="flex items-center gap-1.5">
+                  <Button onClick={addCoord} size="sm" disabled={!coordForm.nome.trim() || !coordForm.email.trim()} className="flex items-center gap-1.5">
                     <Check className="w-3.5 h-3.5" />Confirmar
                   </Button>
-                  <Button onClick={() => { setAddingCoord(false); setCoordForm({ nome: '', telefone: '' }) }}
+                  <Button onClick={() => { setAddingCoord(false); setCoordForm({ nome: '', email: '', telefone: '' }) }}
                     variant="ghost" size="sm">
                     <X className="w-3.5 h-3.5" />
                   </Button>
@@ -267,10 +269,12 @@ export default function ObraDetailPage() {
                       <p className="text-xs font-semibold text-green-400">Editar Coordenador</p>
                       <Input value={coordEditForm.nome} onChange={e => setCoordEditForm(f => ({ ...f, nome: e.target.value }))}
                         placeholder="Nome completo *" autoFocus />
+                      <Input value={coordEditForm.email} onChange={e => setCoordEditForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="E-mail *" type="email" />
                       <Input value={coordEditForm.telefone} onChange={e => setCoordEditForm(f => ({ ...f, telefone: e.target.value }))}
                         placeholder="Telefone" type="tel" />
                       <div className="flex gap-2">
-                        <Button onClick={saveCoord} size="sm" disabled={!coordEditForm.nome.trim()} className="flex items-center gap-1.5">
+                        <Button onClick={saveCoord} size="sm" disabled={!coordEditForm.nome.trim() || !coordEditForm.email.trim()} className="flex items-center gap-1.5">
                           <Check className="w-3.5 h-3.5" />Salvar
                         </Button>
                         <Button onClick={() => setEditingCoordId(null)} variant="ghost" size="sm">
@@ -293,11 +297,10 @@ export default function ObraDetailPage() {
                             {coord.ativo ? 'Ativo' : 'Afastado'}
                           </span>
                         </div>
-                        {coord.telefone && (
-                          <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
-                            <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{coord.telefone}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500 flex-wrap">
+                          {coord.email && <span className="flex items-center gap-1 truncate">{coord.email}</span>}
+                          {coord.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{coord.telefone}</span>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <button onClick={() => startEditCoord(coord)} title="Editar"

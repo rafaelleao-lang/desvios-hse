@@ -186,7 +186,7 @@ export const coordenadoresDB = {
     return coord
   },
 
-  update: async (id: string, data: Partial<Pick<Coordenador, 'nome' | 'telefone'>>): Promise<void> => {
+  update: async (id: string, data: Partial<Pick<Coordenador, 'nome' | 'email' | 'telefone'>>): Promise<void> => {
     const { error } = await supabase.from('coordenadores').update(data).eq('id', id)
     if (error) throw error
   },
