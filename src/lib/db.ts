@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Obra, TST, Encarregado, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa } from '@/types'
+import type { Obra, TST, Encarregado, Coordenador, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa } from '@/types'
 import { parseCategoria } from '@/types'
 
 const supabase = createClient(
@@ -155,6 +155,54 @@ export const encarregadosDB = {
   },
 }
 
+// ── Coordenadores ─────────────────────────────────────────────────────────────
+export const coordenadoresDB = {
+  list: async (): Promise<Coordenador[]> => {
+    const { data, error } = await supabase
+      .from('coordenadores').select('*').order('criado_em', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as Coordenador[]
+  },
+
+  byObra: async (obraId: string): Promise<Coordenador[]> => {
+    const { data } = await supabase.from('coordenadores').select('*').eq('obra_id', obraId)
+    return (data ?? []) as Coordenador[]
+  },
+
+  activeByObra: async (obraId: string): Promise<Coordenador[]> => {
+    const { data } = await supabase.from('coordenadores').select('*').eq('obra_id', obraId).eq('ativo', true)
+    return (data ?? []) as Coordenador[]
+  },
+
+  find: async (id: string): Promise<Coordenador | undefined> => {
+    const { data } = await supabase.from('coordenadores').select('*').eq('id', id).maybeSingle()
+    return data as Coordenador | undefined
+  },
+
+  create: async (data: Omit<Coordenador, 'id' | 'criado_em'>): Promise<Coordenador> => {
+    const coord: Coordenador = { ...data, id: uid(), criado_em: now() }
+    const { error } = await supabase.from('coordenadores').insert(coord)
+    if (error) throw error
+    return coord
+  },
+
+  update: async (id: string, data: Partial<Pick<Coordenador, 'nome' | 'telefone'>>): Promise<void> => {
+    const { error } = await supabase.from('coordenadores').update(data).eq('id', id)
+    if (error) throw error
+  },
+
+  toggleAtivo: async (id: string): Promise<void> => {
+    const { data: current } = await supabase.from('coordenadores').select('ativo').eq('id', id).maybeSingle()
+    const { error } = await supabase.from('coordenadores').update({ ativo: !current?.ativo }).eq('id', id)
+    if (error) throw error
+  },
+
+  delete: async (id: string): Promise<void> => {
+    const { error } = await supabase.from('coordenadores').delete().eq('id', id)
+    if (error) throw error
+  },
+}
+
 // ── Desvios ───────────────────────────────────────────────────────────────────
 export const desviosDB = {
   list: async (): Promise<Desvio[]> => {
@@ -235,7 +283,7 @@ export const desviosDB = {
 }
 
 // ── Computed / Analytics ──────────────────────────────────────────────────────
-export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregados: Encarregado[]): DesvioComputado {
+export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregados: Encarregado[], coordenadores: Coordenador[]): DesvioComputado {
   const hoje = new Date()
   const criado = new Date(d.criado_em)
   const dias_aberto = Math.floor((hoje.getTime() - criado.getTime()) / 86400000)
@@ -257,6 +305,7 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   const obra = obras.find(o => o.id === d.obra_id)
   const enc = encarregados.find(e => e.id === d.encarregado_id)
   const tst = tsts.find(t => t.id === d.tst_id)
+  const coord = coordenadores.find(c => c.id === d.coordenador_id)
 
   return {
     ...d,
@@ -266,12 +315,13 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
     obra_nome_computado: obra?.nome || d.obra_nome || '—',
     encarregado_nome_computado: enc?.nome || d.encarregado_nome || '—',
     tst_nome_computado: tst?.nome || d.tst_nome || '—',
+    coordenador_nome_computado: coord?.nome || d.coordenador_nome || '—',
     categorias: parseCategoria(d.categoria),
   }
 }
 
-export function computeStats(desvios: Desvio[], obras: Obra[], tsts: TST[], encarregados: Encarregado[]) {
-  const computed = desvios.map(d => computeDesvio(d, obras, tsts, encarregados))
+export function computeStats(desvios: Desvio[], obras: Obra[], tsts: TST[], encarregados: Encarregado[], coordenadores: Coordenador[] = []) {
+  const computed = desvios.map(d => computeDesvio(d, obras, tsts, encarregados, coordenadores))
   const total = computed.length
   const abertos = computed.filter(d => d.status === 'aberto').length
   const em_tratativa = computed.filter(d => d.status === 'em_tratativa').length
@@ -303,6 +353,7 @@ export interface FiltrosRelatorio {
   obra_id?: string
   tst_id?: string
   encarregado_id?: string
+  coordenador_id?: string
   gravidade?: GravidadeDesvio
   status?: StatusDesvio
   categoria?: string
@@ -317,6 +368,7 @@ export function filtrarDesvios(desvios: DesvioComputado[], f: FiltrosRelatorio):
     if (f.obra_id && d.obra_id !== f.obra_id) return false
     if (f.tst_id && d.tst_id !== f.tst_id) return false
     if (f.encarregado_id && d.encarregado_id !== f.encarregado_id) return false
+    if (f.coordenador_id && d.coordenador_id !== f.coordenador_id) return false
     if (f.gravidade && d.gravidade !== f.gravidade) return false
     if (f.status && d.status !== f.status) return false
     if (f.categoria && !d.categorias.includes(f.categoria)) return false
@@ -331,6 +383,7 @@ export function filtrarDesvios(desvios: DesvioComputado[], f: FiltrosRelatorio):
         d.obra_nome_computado.toLowerCase().includes(q) ||
         d.encarregado_nome_computado.toLowerCase().includes(q) ||
         d.tst_nome_computado.toLowerCase().includes(q) ||
+        d.coordenador_nome_computado.toLowerCase().includes(q) ||
         d.aberto_por.toLowerCase().includes(q) ||
         String(d.numero).includes(q)
       if (!match) return false
@@ -344,7 +397,7 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
   const SEP = ';'
   const headers = [
     'Número', 'Data', 'Hora', 'Obra', 'Categoria', 'Setor', 'Local Exato',
-    'Gravidade', 'Status', 'Aberto Por', 'Encarregado', 'TST',
+    'Gravidade', 'Status', 'Aberto Por', 'Coordenador', 'Encarregado', 'TST',
     'Prazo', 'SLA', 'Descrição', 'Ação Corretiva',
   ]
 
@@ -367,6 +420,7 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
     GRAV_PT[d.gravidade] || d.gravidade,
     STATUS_PT[d.status] || d.status,
     d.aberto_por,
+    d.coordenador_nome_computado,
     d.encarregado_nome_computado,
     d.tst_nome_computado,
     d.prazo_correcao || '',

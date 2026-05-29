@@ -40,6 +40,15 @@ export interface Encarregado {
   criado_em: string
 }
 
+export interface Coordenador {
+  id: string
+  obra_id: string
+  nome: string
+  telefone?: string
+  ativo: boolean
+  criado_em: string
+}
+
 export interface FotoDesvio {
   id: string
   tipo: 'antes' | 'depois'
@@ -83,6 +92,8 @@ export interface Desvio {
   encarregado_nome?: string
   tst_id?: string
   tst_nome?: string
+  coordenador_id?: string
+  coordenador_nome?: string
   data_ocorrencia: string
   hora_ocorrencia?: string
   prazo_correcao?: string
@@ -103,6 +114,7 @@ export interface DesvioComputado extends Desvio {
   obra_nome_computado: string
   encarregado_nome_computado: string
   tst_nome_computado: string
+  coordenador_nome_computado: string
   categorias: string[]
 }
 

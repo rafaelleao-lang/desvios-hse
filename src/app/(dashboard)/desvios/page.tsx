@@ -29,7 +29,7 @@ const STATUS_TABS: { value: StatusDesvio | 'todos' | 'vencido'; label: string }[
 
 export default function DesviosPage() {
   const router = useRouter()
-  const { obras, tsts, encarregados, desviosComputados, loaded } = useApp()
+  const { obras, tsts, encarregados, coordenadores, desviosComputados, loaded } = useApp()
   const [activeTab, setActiveTab] = useState<StatusDesvio | 'todos' | 'vencido'>('todos')
   const [busca, setBusca] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -181,6 +181,14 @@ export default function DesviosPage() {
               </select>
             </div>
             <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Coordenador</label>
+              <select value={filtros.coordenador_id || ''} onChange={e => setFiltro('coordenador_id', e.target.value)}
+                className="w-full h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30">
+                <option value="">Todos</option>
+                {coordenadores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="text-xs font-medium text-zinc-500 mb-1.5 block">TST</label>
               <select value={filtros.tst_id || ''} onChange={e => setFiltro('tst_id', e.target.value)}
                 className="w-full h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30">
@@ -306,7 +314,7 @@ export default function DesviosPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-800">
-                {['Foto', 'ID / Desvio', 'Data', 'Obra', 'Categoria', 'Gravidade', 'Encarregado', 'TST', 'Status', 'SLA', ''].map(h => (
+                {['Foto', 'ID / Desvio', 'Data', 'Obra', 'Categoria', 'Gravidade', 'Coordenador', 'Encarregado', 'TST', 'Status', 'SLA', ''].map(h => (
                   <th key={h} className="px-3 py-3 text-left text-[10px] font-semibold text-zinc-500 uppercase tracking-wider first:px-5">{h}</th>
                 ))}
               </tr>
@@ -343,6 +351,7 @@ export default function DesviosPage() {
                         {gc.label}
                       </span>
                     </td>
+                    <td className="px-3 py-3 text-sm text-zinc-300 max-w-[100px] truncate">{d.coordenador_nome_computado || '—'}</td>
                     <td className="px-3 py-3 text-sm text-zinc-300 max-w-[100px] truncate">{d.encarregado_nome_computado}</td>
                     <td className="px-3 py-3 text-sm text-zinc-400 max-w-[100px] truncate">{d.tst_nome_computado || '—'}</td>
                     <td className="px-3 py-3">

@@ -40,7 +40,7 @@ const MSE_RED = '#E8291C'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { obras, tsts, encarregados, desvios, desviosComputados, loaded } = useApp()
+  const { obras, tsts, encarregados, coordenadores, desvios, desviosComputados, loaded } = useApp()
 
   const [obraFiltro, setObraFiltro] = useState<string>('all')
   const [statusFiltro, setStatusFiltro] = useState<StatusDesvio | 'vencido' | 'all'>('all')
@@ -65,8 +65,8 @@ export default function DashboardPage() {
   , [obras, obraFiltro])
 
   const stats = useMemo(
-    () => computeStats(desviosRaw, obrasFiltradas, tsts, encarregados),
-    [desviosRaw, obrasFiltradas, tsts, encarregados],
+    () => computeStats(desviosRaw, obrasFiltradas, tsts, encarregados, coordenadores),
+    [desviosRaw, obrasFiltradas, tsts, encarregados, coordenadores],
   )
 
   const obraAtual = obras.find(o => o.id === obraFiltro)
@@ -157,6 +157,18 @@ export default function DashboardPage() {
       .sort((a, b) => b.total - a.total)
       .slice(0, 8)
   , [tsts, desviosFiltrados, obraFiltro])
+
+  const coordenadorData = useMemo(() =>
+    coordenadores
+      .filter(c => obraFiltro === 'all' || c.obra_id === obraFiltro)
+      .map(c => ({
+        name: c.nome.length > 16 ? c.nome.slice(0, 15) + '…' : c.nome,
+        total: desviosFiltrados.filter(d => d.coordenador_id === c.id).length,
+      }))
+      .filter(c => c.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8)
+  , [coordenadores, desviosFiltrados, obraFiltro])
 
   const fechados = useMemo(
     () => desviosFiltrados.filter(d => d.status === 'fechado' || d.status === 'reincidente').length,
@@ -382,6 +394,26 @@ export default function DashboardPage() {
                   <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                   <Bar dataKey="total" name="Desvios" fill={MSE_RED} radius={[0, 6, 6, 0]}>
+                    <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </motion.div>
+          )}
+
+          {/* Por Coordenador */}
+          {coordenadorData.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.53 }}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 lg:col-span-2">
+              <p className="text-sm font-semibold text-zinc-200 mb-0.5">Por Coordenador</p>
+              <p className="text-xs text-zinc-500 mb-4">Desvios por coordenador responsável</p>
+              <ResponsiveContainer width="100%" height={Math.max(160, coordenadorData.length * 38)}>
+                <BarChart data={coordenadorData} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                  <Bar dataKey="total" name="Desvios" fill="#22C55E" radius={[0, 6, 6, 0]}>
                     <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
                   </Bar>
                 </BarChart>

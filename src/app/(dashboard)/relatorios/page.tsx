@@ -67,7 +67,8 @@ function gerarPDF(
   filtered: ReturnType<typeof filtrarDesvios>,
   filtros: FiltrosRelatorio,
   obrasList: { id: string; nome: string }[],
-  tstsList: { id: string; nome: string; obra_id: string }[]
+  tstsList: { id: string; nome: string; obra_id: string }[],
+  coordsList: { id: string; nome: string; obra_id: string }[]
 ) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const hoje = new Date()
@@ -202,6 +203,16 @@ function gerarPDF(
     vencidos:       filtered.filter(d => d.vencido).length,
     taxa_tratativa: total > 0 ? Math.round((tratados / total) * 1000) / 10 : 0,
   }
+
+  const coordRelRelevant = filtros.obra_id
+    ? coordsList.filter(c => c.obra_id === filtros.obra_id)
+    : coordsList
+  const coordCountMapPDF: Record<string, number> = {}
+  coordRelRelevant.forEach(c => { coordCountMapPDF[c.id] = 0 })
+  filtered.forEach(d => { if (d.coordenador_id && coordCountMapPDF[d.coordenador_id] !== undefined) coordCountMapPDF[d.coordenador_id] += 1 })
+  const coordDataPDF = coordRelRelevant
+    .map(c => ({ name: c.nome, total: coordCountMapPDF[c.id] ?? 0 }))
+    .sort((a, b) => b.total - a.total)
 
   const encMap: Record<string, number> = {}
   filtered.forEach(d => { const n = d.encarregado_nome_computado; if (n !== '—') encMap[n] = (encMap[n]||0)+1 })
@@ -402,6 +413,39 @@ function gerarPDF(
   drawVertBars(ML, y, CW, 46, slaItems)
   y += 46 + 8
 
+  // ── Coordenador visual bars ───────────────────────────────
+  if (coordDataPDF.length > 0) {
+    ensureY(coordDataPDF.length * 9 + 25)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(50, 50, 50)
+    doc.text('Desvios por Coordenador', ML, y)
+    y += 5
+
+    const coordLabelW = 46
+    const coordBarMaxW = CW - coordLabelW - 12
+    const maxCoord = Math.max(1, ...coordDataPDF.map(e => e.total))
+    const coordYStart = y
+
+    coordDataPDF.forEach((e, i) => {
+      const cy = coordYStart + i * 9
+      const bw = (e.total / maxCoord) * coordBarMaxW
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(60, 60, 60)
+      const lbl = e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name
+      doc.text(lbl, ML, cy + 4.5)
+      doc.setFillColor(228, 228, 228)
+      doc.rect(ML + coordLabelW, cy, coordBarMaxW, 6, 'F')
+      if (e.total > 0) { doc.setFillColor(34, 197, 94); doc.rect(ML + coordLabelW, cy, Math.max(bw, 0.5), 6, 'F') }
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7)
+      doc.setTextColor(34, 197, 94)
+      doc.text(String(e.total), ML + coordLabelW + coordBarMaxW + 3, cy + 4.5)
+    })
+    y += coordDataPDF.length * 9 + 8
+  }
+
   // ── Encarregado visual bars + table ──────────────────────
   if (encData.length > 0) {
     ensureY(encData.length * 9 + 25)
@@ -551,7 +595,7 @@ function gerarPDF(
 
   autoTable(doc, {
     startY: y,
-    head: [['ID', 'Data', 'Categoria', 'Gravidade', 'Status', 'Encarregado', 'SLA', 'Descrição', 'Tratativa']],
+    head: [['ID', 'Data', 'Categoria', 'Gravidade', 'Status', 'Coordenador', 'Encarregado', 'SLA', 'Descrição', 'Tratativa']],
     body: filtered.map(d => {
       const isFechado = ['fechado', 'concluido', 'reincidente'].includes(d.status)
       const lastTratativa = d.tratativas && d.tratativas.length > 0 ? d.tratativas[d.tratativas.length - 1] : null
@@ -564,6 +608,7 @@ function gerarPDF(
         d.categorias.map(c => c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c).join(', ').slice(0, 14),
         GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
         STATUS_CONFIG[d.status]?.label || d.status,
+        (d.coordenador_nome_computado || '—').length > 14 ? (d.coordenador_nome_computado || '—').slice(0,13)+'…' : (d.coordenador_nome_computado || '—'),
         d.encarregado_nome_computado.length > 14 ? d.encarregado_nome_computado.slice(0,13)+'…' : d.encarregado_nome_computado,
         getSlaLabel(d.dias_para_vencer, d.vencido),
         d.descricao,
@@ -574,15 +619,16 @@ function gerarPDF(
     headStyles: { fillColor: RED_RGB, textColor: [255,255,255] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
     alternateRowStyles: { fillColor: [250,250,252] as [number,number,number] },
     columnStyles: {
-      0: { cellWidth: 14, fontStyle: 'bold', textColor: RED_RGB },
-      1: { cellWidth: 15 },
-      2: { cellWidth: 18 },
-      3: { cellWidth: 13 },
-      4: { cellWidth: 17 },
-      5: { cellWidth: 22 },
-      6: { cellWidth: 13 },
-      7: { cellWidth: 34 },
-      8: { cellWidth: 36 },
+      0: { cellWidth: 13, fontStyle: 'bold', textColor: RED_RGB },
+      1: { cellWidth: 14 },
+      2: { cellWidth: 16 },
+      3: { cellWidth: 12 },
+      4: { cellWidth: 16 },
+      5: { cellWidth: 20 },
+      6: { cellWidth: 20 },
+      7: { cellWidth: 12 },
+      8: { cellWidth: 28 },
+      9: { cellWidth: 31 },
     },
     margin: { top: 22, left: ML, right: MR },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -599,7 +645,7 @@ function gerarPDF(
         if (data.column.index === 4) {
           data.cell.styles.textColor = h2r(STATUS_HEX[d.status] || '#71717A')
         }
-        if (data.column.index === 8) {
+        if (data.column.index === 9) {
           const isFechado = ['fechado', 'concluido', 'reincidente'].includes(d.status)
           data.cell.styles.textColor = isFechado ? [34, 197, 94] : [59, 130, 246]
           if (!isFechado) data.cell.styles.fontStyle = 'italic'
@@ -634,7 +680,8 @@ function gerarXLSX(
   filtered: ReturnType<typeof filtrarDesvios>,
   filtros: FiltrosRelatorio,
   obrasList: { id: string; nome: string }[],
-  tstsList: { id: string; nome: string; obra_id: string }[]
+  tstsList: { id: string; nome: string; obra_id: string }[],
+  coordsList: { id: string; nome: string; obra_id: string }[]
 ) {
   const hoje = new Date()
   const wb = XLSX.utils.book_new()
@@ -669,6 +716,20 @@ function gerarXLSX(
   wsResumo['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 22 }]
   XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo')
 
+  // ── Aba Por Coordenador ──
+  const coordRelRelevantXLSX = filtros.obra_id
+    ? coordsList.filter(c => c.obra_id === filtros.obra_id)
+    : coordsList
+  const coordRelCountMap: Record<string, number> = {}
+  coordRelRelevantXLSX.forEach(c => { coordRelCountMap[c.id] = 0 })
+  filtered.forEach(d => { if (d.coordenador_id && coordRelCountMap[d.coordenador_id] !== undefined) coordRelCountMap[d.coordenador_id] += 1 })
+  const coordRelRows = coordRelRelevantXLSX
+    .map(c => [c.nome, coordRelCountMap[c.id] ?? 0])
+    .sort((a, b) => (b[1] as number) - (a[1] as number))
+  const wsCoord = XLSX.utils.aoa_to_sheet([['Coordenador', 'Total de Desvios'], ...coordRelRows])
+  wsCoord['!cols'] = [{ wch: 32 }, { wch: 18 }]
+  XLSX.utils.book_append_sheet(wb, wsCoord, 'Por Coordenador')
+
   // ── Aba Por TST ──
   const tstRelRelevant = filtros.obra_id
     ? tstsList.filter(t => t.obra_id === filtros.obra_id)
@@ -686,7 +747,7 @@ function gerarXLSX(
   // ── Aba Desvios ──
   const headers = [
     'ID', 'Data', 'Hora', 'Obra', 'Setor', 'Local Exato', 'Categoria',
-    'Gravidade', 'Status', 'Colaborador', 'Encarregado', 'TST',
+    'Gravidade', 'Status', 'Colaborador', 'Coordenador', 'Encarregado', 'TST',
     'SLA / Prazo', 'Descrição', 'Tratativa', 'Aberto por', 'Criado em',
   ]
 
@@ -707,6 +768,7 @@ function gerarXLSX(
       GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
       STATUS_CONFIG[d.status]?.label || d.status,
       d.colaborador_nome || '',
+      d.coordenador_nome_computado || '',
       d.encarregado_nome_computado,
       d.tst_nome_computado || '',
       getSlaLabel(d.dias_para_vencer, d.vencido),
@@ -721,8 +783,8 @@ function gerarXLSX(
   wsDesvios['!cols'] = [
     { wch: 12 }, { wch: 12 }, { wch: 8  }, { wch: 28 }, { wch: 14 },
     { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 14 }, { wch: 24 },
-    { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 60 }, { wch: 60 },
-    { wch: 24 }, { wch: 12 },
+    { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 60 },
+    { wch: 60 }, { wch: 24 }, { wch: 12 },
   ]
   XLSX.utils.book_append_sheet(wb, wsDesvios, 'Desvios')
 
@@ -905,7 +967,8 @@ async function gerarPPT(
     // ── Info Grid (2×4) ──
     const GRID_X  = 0.22
     const GRID_Y  = 0.78
-    const CELL_W  = (LEFT_W - 0.1) / 4
+    const COLS    = 3
+    const CELL_W  = (LEFT_W - 0.1) / COLS
     const CELL_H  = 0.75
 
     const infoItems = [
@@ -913,6 +976,7 @@ async function gerarPPT(
       { label: 'CATEGORIA',     value: d.categorias.map(c => c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c).join(', ') },
       { label: 'OBRA',          value: d.obra_nome_computado },
       { label: 'LOCAL / SETOR', value: [d.local_exato, d.setor].filter(Boolean).join(' · ') || '—' },
+      { label: 'COORDENADOR',   value: d.coordenador_nome_computado || '—' },
       { label: 'ENCARREGADO',   value: d.encarregado_nome_computado || '—' },
       { label: 'ABERTO POR',    value: d.aberto_por || '—' },
       { label: 'COLABORADOR',   value: d.colaborador_nome || '—' },
@@ -920,8 +984,8 @@ async function gerarPPT(
     ]
 
     infoItems.forEach((item, i) => {
-      const col = i % 4
-      const row = Math.floor(i / 4)
+      const col = i % COLS
+      const row = Math.floor(i / COLS)
       const cx  = GRID_X + col * CELL_W
       const cy  = GRID_Y + row * CELL_H
       slide.addShape('rect', {
@@ -939,7 +1003,7 @@ async function gerarPPT(
     })
 
     // ── Description ──
-    const DESC_Y  = GRID_Y + 2 * CELL_H + 0.12
+    const DESC_Y  = GRID_Y + 3 * CELL_H + 0.12
     const BOX_W   = LEFT_W - 0.1
     const SECT_H  = 0.24
     const DESC_CH = 2.0
@@ -1051,12 +1115,13 @@ async function gerarPPT(
 }
 
 const TABS = [
-  { id: 'resumo',      label: 'Resumo'          },
-  { id: 'encarregado', label: 'Por Encarregado' },
-  { id: 'obra',        label: 'Por Obra'         },
-  { id: 'categoria',   label: 'Por Categoria'    },
-  { id: 'tst',         label: 'Por TST'          },
-  { id: 'tabela',      label: 'Tabela'           },
+  { id: 'resumo',        label: 'Resumo'            },
+  { id: 'coordenador',   label: 'Por Coordenador'   },
+  { id: 'encarregado',   label: 'Por Encarregado'   },
+  { id: 'obra',          label: 'Por Obra'           },
+  { id: 'categoria',     label: 'Por Categoria'      },
+  { id: 'tst',           label: 'Por TST'            },
+  { id: 'tabela',        label: 'Tabela'             },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -1065,7 +1130,7 @@ const inputCls =
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function RelatoriosPage() {
-  const { obras, tsts, encarregados, desviosComputados, loaded } = useApp()
+  const { obras, tsts, encarregados, coordenadores, desviosComputados, loaded } = useApp()
 
   const [filtros, setFiltros] = useState<FiltrosRelatorio>({})
   const [showFilters, setShowFilters] = useState(false)
@@ -1081,6 +1146,10 @@ export default function RelatoriosPage() {
     filtros.obra_id ? encarregados.filter(e => e.obra_id === filtros.obra_id) : encarregados
   , [encarregados, filtros.obra_id])
 
+  const coordOptions = useMemo(() =>
+    filtros.obra_id ? coordenadores.filter(c => c.obra_id === filtros.obra_id) : coordenadores
+  , [coordenadores, filtros.obra_id])
+
   const filtered = useMemo(() => filtrarDesvios(desviosComputados, filtros), [desviosComputados, filtros])
 
   const activeFilterCount = useMemo(() =>
@@ -1093,7 +1162,7 @@ export default function RelatoriosPage() {
   }
 
   function handleObraChange(id: string) {
-    setFiltros(prev => ({ ...prev, obra_id: id || undefined, tst_id: undefined, encarregado_id: undefined }))
+    setFiltros(prev => ({ ...prev, obra_id: id || undefined, tst_id: undefined, encarregado_id: undefined, coordenador_id: undefined }))
     setPage(1)
   }
 
@@ -1199,6 +1268,21 @@ export default function RelatoriosPage() {
       .sort((a, b) => b.total - a.total)
   }, [filtered, tsts, filtros.obra_id])
 
+  const coordChartData = useMemo(() => {
+    const relevantCoords = filtros.obra_id
+      ? coordenadores.filter(c => c.obra_id === filtros.obra_id)
+      : coordenadores
+    const countMap: Record<string, number> = {}
+    relevantCoords.forEach(c => { countMap[c.id] = 0 })
+    filtered.forEach(d => { if (d.coordenador_id && countMap[d.coordenador_id] !== undefined) countMap[d.coordenador_id] += 1 })
+    return relevantCoords
+      .map(c => ({
+        name: c.nome.length > 22 ? c.nome.slice(0, 22) + '…' : c.nome,
+        total: countMap[c.id] ?? 0,
+      }))
+      .sort((a, b) => b.total - a.total)
+  }, [filtered, coordenadores, filtros.obra_id])
+
   // SLA analysis
   const slaData = useMemo(() => [
     { name: 'Vencidos', total: filtered.filter(d => d.vencido).length, fill: '#EF4444' },
@@ -1256,7 +1340,7 @@ export default function RelatoriosPage() {
               <Download className="w-4 h-4 mr-1.5" />CSV
             </Button>
             <button
-              onClick={() => gerarXLSX(filtered, filtros, obras, tsts)}
+              onClick={() => gerarXLSX(filtered, filtros, obras, tsts, coordenadores)}
               disabled={filtered.length === 0}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
               style={{ background: '#16A34A' }}
@@ -1278,7 +1362,7 @@ export default function RelatoriosPage() {
               {generatingPPT ? 'Gerando...' : 'Baixar PPT'}
             </button>
             <button
-              onClick={() => gerarPDF(filtered, filtros, obras, tsts)}
+              onClick={() => gerarPDF(filtered, filtros, obras, tsts, coordenadores)}
               disabled={filtered.length === 0}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
               style={{ background: MSE_RED }}
@@ -1330,7 +1414,7 @@ export default function RelatoriosPage() {
                 exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
                 className="overflow-hidden border-t border-zinc-800">
                 <div className="px-4 pt-3 pb-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-zinc-500 mb-1.5 block">Obra</label>
                       <select value={filtros.obra_id || ''} onChange={e => handleObraChange(e.target.value)} className={inputCls}>
@@ -1338,6 +1422,15 @@ export default function RelatoriosPage() {
                         {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
                       </select>
                     </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 mb-1.5 block">Coordenador</label>
+                      <select value={filtros.coordenador_id || ''} onChange={e => setFiltro('coordenador_id', e.target.value || undefined)} className={inputCls}>
+                        <option value="">Todos</option>
+                        {coordOptions.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-zinc-500 mb-1.5 block">TST</label>
                       <select value={filtros.tst_id || ''} onChange={e => setFiltro('tst_id', e.target.value || undefined)} className={inputCls}>
@@ -1590,6 +1683,24 @@ export default function RelatoriosPage() {
                   </div>
                 )}
 
+                {/* Por Coordenador */}
+                {coordChartData.length > 0 && (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                    <p className="text-sm font-semibold text-zinc-300 mb-4">Por Coordenador</p>
+                    <ResponsiveContainer width="100%" height={Math.max(160, coordChartData.length * 40)}>
+                      <BarChart data={coordChartData} layout="vertical" margin={{ top: 4, right: 48, left: 4, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: '#71717A', fontSize: 11 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} width={110} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="total" name="Desvios" fill="#22C55E" radius={[0, 6, 6, 0]}>
+                          <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
                 {/* Por TST */}
                 {tstChartData.length > 0 && (
                   <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
@@ -1608,6 +1719,57 @@ export default function RelatoriosPage() {
                   </div>
                 )}
 
+              </div>
+            )}
+
+            {/* ── POR COORDENADOR ── */}
+            {activeTab === 'coordenador' && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <p className="text-sm font-semibold text-zinc-300">Desvios por Coordenador</p>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-green-600">TODOS</span>
+                  </div>
+                  {coordChartData.length === 0
+                    ? <div className="h-48 flex items-center justify-center text-zinc-600 text-sm">Nenhum coordenador associado</div>
+                    : <>
+                        <ResponsiveContainer width="100%" height={Math.max(200, coordChartData.length * 44)}>
+                          <BarChart data={coordChartData} layout="vertical" margin={{ top: 4, right: 56, left: 4, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#27272A" horizontal={false} />
+                            <XAxis type="number" tick={{ fill: '#71717A', fontSize: 11 }} allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" tick={{ fill: '#A1A1AA', fontSize: 11 }} width={110} />
+                            <Tooltip content={<ChartTooltip />} />
+                            <Bar dataKey="total" name="Total" fill="#22C55E" radius={[0, 6, 6, 0]}>
+                              <LabelList dataKey="total" position="right" style={{ fill: '#A1A1AA', fontSize: 12, fontWeight: 700 }} />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+
+                        {/* Ranking table */}
+                        <div className="mt-4 rounded-2xl border border-zinc-800 overflow-hidden">
+                          <div className="px-4 py-2.5 border-b border-zinc-800 bg-green-500/5">
+                            <p className="text-xs font-semibold text-zinc-300">Ranking completo — todos os coordenadores</p>
+                          </div>
+                          <div className="divide-y divide-zinc-800">
+                            {coordChartData.map((c, i) => (
+                              <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                                <span className={cn('w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0',
+                                  i === 0 ? 'text-white bg-green-600' : i === 1 ? 'bg-zinc-500 text-white' : i === 2 ? 'bg-yellow-700 text-white' : 'bg-zinc-800 text-zinc-400',
+                                )}>{i + 1}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-zinc-200 truncate">{c.name}</p>
+                                  <div className="mt-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full bg-green-500" style={{ width: `${(c.total / (coordChartData[0]?.total || 1)) * 100}%` }} />
+                                  </div>
+                                </div>
+                                <span className="text-base font-black text-green-400 flex-shrink-0 w-8 text-center">{c.total}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                  }
+                </div>
               </div>
             )}
 
@@ -1810,7 +1972,7 @@ export default function RelatoriosPage() {
                       <table className="w-full text-sm" style={{ minWidth: '900px' }}>
                         <thead>
                           <tr className="border-b border-zinc-800">
-                            {['#','Data','Obra','Categoria','Gravidade','Status','Encarregado','SLA','Descrição','Tratativa'].map(h => (
+                            {['#','Data','Obra','Categoria','Gravidade','Status','Coordenador','Encarregado','SLA','Descrição','Tratativa'].map(h => (
                               <th key={h} className="text-left px-3 py-3 text-xs text-zinc-500 font-semibold whitespace-nowrap">{h}</th>
                             ))}
                           </tr>
@@ -1838,6 +2000,7 @@ export default function RelatoriosPage() {
                                     {STATUS_CONFIG[d.status]?.label}
                                   </span>
                                 </td>
+                                <td className="px-3 py-3 text-zinc-400 text-xs max-w-[100px]"><span className="truncate block">{d.coordenador_nome_computado || '—'}</span></td>
                                 <td className="px-3 py-3 text-zinc-400 text-xs max-w-[110px]"><span className="truncate block">{d.encarregado_nome_computado}</span></td>
                                 <td className={cn('px-3 py-3 text-xs font-semibold whitespace-nowrap', getSlaColor(d.dias_para_vencer, d.vencido))}>{getSlaLabel(d.dias_para_vencer, d.vencido)}</td>
                                 <td className="px-3 py-3 text-zinc-300 text-xs">
