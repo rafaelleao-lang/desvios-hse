@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 
 export default function ObrasPage() {
   const router = useRouter()
-  const { obras, tsts, encarregados, desvios, refresh } = useApp()
+  const { obras, tsts, encarregados, coordenadores, desvios, refresh } = useApp()
   const [busca, setBusca] = useState('')
   const [menuAberto, setMenuAberto] = useState<string | null>(null)
 
@@ -35,10 +35,11 @@ export default function ObrasPage() {
     const d = desvios.filter(x => x.obra_id === obraId)
     const total = d.length
     const abertos = d.filter(x => ['aberto', 'em_tratativa', 'pendente'].includes(x.status)).length
-    const criticos = d.filter(x => x.gravidade === 'critico' && x.status !== 'fechado').length
+    const fechados = d.filter(x => ['fechado', 'concluido', 'reincidente'].includes(x.status)).length
     const tstCount = tsts.filter(t => t.obra_id === obraId && t.ativo).length
     const encCount = encarregados.filter(e => e.obra_id === obraId && e.ativo).length
-    return { total, abertos, criticos, tstCount, encCount }
+    const coordCount = coordenadores.filter(c => c.obra_id === obraId && c.ativo).length
+    return { total, abertos, fechados, tstCount, encCount, coordCount }
   }
 
   return (
@@ -133,7 +134,7 @@ export default function ObrasPage() {
                 </div>
 
                 {/* Stats row */}
-                <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-zinc-800">
+                <div className="grid grid-cols-6 gap-2 mt-4 pt-4 border-t border-zinc-800">
                   <div className="text-center">
                     <p className="text-lg font-black text-zinc-100">{s.total}</p>
                     <p className="text-[10px] text-zinc-600 uppercase">Desvios</p>
@@ -145,10 +146,10 @@ export default function ObrasPage() {
                     <p className="text-[10px] text-zinc-600 uppercase">Abertos</p>
                   </div>
                   <div className="text-center">
-                    <p className={cn('text-lg font-black', s.criticos > 0 ? 'text-red-400' : 'text-zinc-500')}>
-                      {s.criticos}
+                    <p className={cn('text-lg font-black', s.fechados > 0 ? 'text-green-400' : 'text-zinc-500')}>
+                      {s.fechados}
                     </p>
-                    <p className="text-[10px] text-zinc-600 uppercase">Críticos</p>
+                    <p className="text-[10px] text-zinc-600 uppercase">Fechados</p>
                   </div>
                   <div className="text-center">
                     <p className={cn('text-lg font-black', s.tstCount > 0 ? 'text-blue-400' : 'text-zinc-500')}>
@@ -161,6 +162,12 @@ export default function ObrasPage() {
                       {s.encCount}
                     </p>
                     <p className="text-[10px] text-zinc-600 uppercase">Enc.</p>
+                  </div>
+                  <div className="text-center">
+                    <p className={cn('text-lg font-black', s.coordCount > 0 ? 'text-emerald-400' : 'text-zinc-500')}>
+                      {s.coordCount}
+                    </p>
+                    <p className="text-[10px] text-zinc-600 uppercase">Coord.</p>
                   </div>
                 </div>
               </div>
