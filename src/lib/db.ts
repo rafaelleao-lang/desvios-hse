@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Obra, TST, Encarregado, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa } from '@/types'
+import { parseCategoria } from '@/types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -265,6 +266,7 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
     obra_nome_computado: obra?.nome || d.obra_nome || '—',
     encarregado_nome_computado: enc?.nome || d.encarregado_nome || '—',
     tst_nome_computado: tst?.nome || d.tst_nome || '—',
+    categorias: parseCategoria(d.categoria),
   }
 }
 
@@ -317,7 +319,7 @@ export function filtrarDesvios(desvios: DesvioComputado[], f: FiltrosRelatorio):
     if (f.encarregado_id && d.encarregado_id !== f.encarregado_id) return false
     if (f.gravidade && d.gravidade !== f.gravidade) return false
     if (f.status && d.status !== f.status) return false
-    if (f.categoria && d.categoria !== f.categoria) return false
+    if (f.categoria && !d.categorias.includes(f.categoria)) return false
     if (f.data_inicio && d.data_ocorrencia < f.data_inicio) return false
     if (f.data_fim && d.data_ocorrencia > f.data_fim) return false
     if (f.vencido !== undefined && d.vencido !== f.vencido) return false
@@ -359,7 +361,7 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
     d.data_ocorrencia,
     d.hora_ocorrencia?.slice(0, 5) || '',
     d.obra_nome_computado,
-    d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria,
+    d.categorias.map(c => c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c).join(', '),
     d.setor || '',
     d.local_exato,
     GRAV_PT[d.gravidade] || d.gravidade,

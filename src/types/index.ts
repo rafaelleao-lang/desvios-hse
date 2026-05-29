@@ -103,6 +103,26 @@ export interface DesvioComputado extends Desvio {
   obra_nome_computado: string
   encarregado_nome_computado: string
   tst_nome_computado: string
+  categorias: string[]
+}
+
+// Parses both legacy string ("EPI/EPC") and new JSON array ('["EPI/EPC","Ferramentas"]')
+export function parseCategoria(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw as string[]
+  if (typeof raw === 'string' && raw.trim()) {
+    if (raw.startsWith('[')) {
+      try { return JSON.parse(raw) } catch {}
+    }
+    return [raw]
+  }
+  return []
+}
+
+// Single category → plain string; multiple → JSON array (minimizes DB changes)
+export function serializeCategoria(cats: string[]): string {
+  if (cats.length === 0) return ''
+  if (cats.length === 1) return cats[0]
+  return JSON.stringify(cats)
 }
 
 export const CATEGORIAS_PADRAO = [

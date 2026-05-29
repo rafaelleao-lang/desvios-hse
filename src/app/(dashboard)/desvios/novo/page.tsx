@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { cn, formatDate, compressImage } from '@/lib/utils'
-import { CATEGORIAS_PADRAO } from '@/types'
+import { CATEGORIAS_PADRAO, serializeCategoria } from '@/types'
 import type { FotoDesvio, GravidadeDesvio } from '@/types'
 
 const GRAVIDADES: { value: GravidadeDesvio; label: string; color: string; desc: string }[] = [
@@ -42,7 +42,7 @@ export default function NovoDesvioPage() {
   const [colaboradorNome, setColaboradorNome] = useState('')
   const [setor, setSetor] = useState('')
   const [localExato, setLocalExato] = useState('')
-  const [categoria, setCategoria] = useState('')
+  const [categorias, setCategorias] = useState<string[]>([])
   const [categoriaOutro, setCategoriaOutro] = useState('')
   const [gravidade, setGravidade] = useState<GravidadeDesvio>('medio')
   const [descricao, setDescricao] = useState('')
@@ -74,8 +74,8 @@ export default function NovoDesvioPage() {
     }
     if (s === 1) {
       if (!localExato.trim()) e.localExato = 'Informe o local exato'
-      if (!categoria) e.categoria = 'Selecione a categoria'
-      if (categoria === 'Outros' && !categoriaOutro.trim()) e.categoriaOutro = 'Informe qual é o desvio'
+      if (categorias.length === 0) e.categoria = 'Selecione ao menos uma categoria'
+      if (categorias.includes('Outros') && !categoriaOutro.trim()) e.categoriaOutro = 'Informe qual é o desvio'
       if (!descricao.trim() || descricao.trim().length < 10) e.descricao = 'Descreva o desvio (mínimo 10 caracteres)'
       if (!prazoCorrecao) e.prazoCorrecao = 'Informe o prazo para correção'
     }
@@ -130,8 +130,8 @@ export default function NovoDesvioPage() {
       await desviosDB.create({
         obra_id: obraId,
         obra_nome: obraObj?.nome,
-        categoria,
-        categoria_outro: categoria === 'Outros' ? categoriaOutro : undefined,
+        categoria: serializeCategoria(categorias),
+        categoria_outro: categorias.includes('Outros') ? categoriaOutro : undefined,
         setor,
         local_exato: localExato,
         gravidade,
@@ -244,7 +244,7 @@ export default function NovoDesvioPage() {
                         </p>
                         <p className="text-xs text-amber-300/80 mt-1 leading-relaxed">
                           {colaboradorNome.trim()} já possui desvio{desviosDoColaborador.length > 1 ? 's' : ''} registrado{desviosDoColaborador.length > 1 ? 's' : ''}.
-                          {' '}Mais recente: {formatDate(desviosDoColaborador[0].data_ocorrencia)} · {desviosDoColaborador[0].categoria}
+                          {' '}Mais recente: {formatDate(desviosDoColaborador[0].data_ocorrencia)} · {desviosDoColaborador[0].categorias.join(', ')}
                         </p>
                       </div>
                     </motion.div>
@@ -298,26 +298,48 @@ export default function NovoDesvioPage() {
 
             {/* Categoria */}
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-3">
-              <div className="flex items-center gap-2 pb-3 border-b border-zinc-800">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <p className="text-sm font-semibold text-zinc-200">Categoria do Desvio <span className="text-red-400">*</span></p>
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <p className="text-sm font-semibold text-zinc-200">Categoria do Desvio <span className="text-red-400">*</span></p>
+                </div>
+                {categorias.length > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-semibold">
+                    {categorias.length} selecionada{categorias.length > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
+              <p className="text-[11px] text-zinc-500">Selecione uma ou mais categorias</p>
               <div className="grid grid-cols-2 gap-2">
-                {CATEGORIAS_PADRAO.map(cat => (
-                  <button key={cat} type="button" onClick={() => { setCategoria(cat); if (cat !== 'Outros') setCategoriaOutro('') }}
-                    className={cn('text-left px-3 py-2.5 rounded-xl border text-xs font-medium transition-all',
-                      categoria === cat
-                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                        : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200')}>
-                    {cat}
-                  </button>
-                ))}
+                {CATEGORIAS_PADRAO.map(cat => {
+                  const selected = categorias.includes(cat)
+                  return (
+                    <button key={cat} type="button"
+                      onClick={() => {
+                        setCategorias(prev =>
+                          prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                        )
+                        if (cat === 'Outros') setCategoriaOutro('')
+                      }}
+                      className={cn('relative text-left px-3 py-2.5 rounded-xl border text-xs font-medium transition-all',
+                        selected
+                          ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                          : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200')}>
+                      {cat}
+                      {selected && (
+                        <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full bg-amber-500 flex items-center justify-center">
+                          <CheckCircle2 className="w-2.5 h-2.5 text-zinc-900" />
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
               {errors.categoria && <p className="text-xs text-red-400">{errors.categoria}</p>}
 
               {/* Outros text input */}
               <AnimatePresence>
-                {categoria === 'Outros' && (
+                {categorias.includes('Outros') && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                     className="space-y-1.5 pt-1">
                     <Label>Qual é o desvio? <span className="text-red-400">*</span></Label>
@@ -475,7 +497,7 @@ export default function NovoDesvioPage() {
                 { label: 'TST (quem abre)', value: tstsDaObra.find(t => t.id === tstId)?.nome },
                 { label: 'Colaborador', value: colaboradorNome },
                 { label: 'Encarregado', value: encsDaObra.find(e => e.id === encarregadoId)?.nome },
-                { label: 'Categoria', value: categoria === 'Outros' ? `Outros: ${categoriaOutro}` : categoria },
+                { label: 'Categoria', value: categorias.map(c => c === 'Outros' && categoriaOutro ? `Outros: ${categoriaOutro}` : c).join(', ') || undefined },
                 { label: 'Local', value: localExato },
                 { label: 'Gravidade', value: GRAVIDADES.find(g => g.value === gravidade)?.label },
               ].map(r => r.value && (

@@ -334,8 +334,8 @@ export default function DesviosPage() {
                     <td className="px-3 py-3">
                       <p className="text-sm text-zinc-200 max-w-[120px] truncate">{d.obra_nome_computado}</p>
                     </td>
-                    <td className="px-3 py-3 text-xs text-zinc-400 max-w-[100px] truncate">
-                      {d.categoria === 'Outros' && d.categoria_outro ? `${d.categoria_outro}` : d.categoria}
+                    <td className="px-3 py-3 text-xs text-zinc-400 max-w-[120px] truncate">
+                      {d.categorias.map(c => c === 'Outros' && d.categoria_outro ? d.categoria_outro : c).join(', ')}
                     </td>
                     <td className="px-3 py-3">
                       <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border', gc.bg, gc.color, gc.border)}>

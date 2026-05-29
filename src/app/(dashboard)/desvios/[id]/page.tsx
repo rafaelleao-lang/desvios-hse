@@ -291,7 +291,7 @@ export default function DesvioDetailPage() {
           <div className="w-1 min-h-[40px] rounded-full flex-shrink-0 mt-1" style={{ background: GRAVIDADE_CONFIG[desvio.gravidade].color as string }} />
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: GRAVIDADE_CONFIG[desvio.gravidade].color as string }}>
-              {desvio.categoria === 'Outros' && desvio.categoria_outro ? desvio.categoria_outro : desvio.categoria}
+              {desvio.categorias.map(c => c === 'Outros' && desvio.categoria_outro ? desvio.categoria_outro : c).join(' · ')}
             </p>
             <p className="text-base text-zinc-100 leading-relaxed">{desvio.descricao}</p>
           </div>
@@ -355,9 +355,13 @@ export default function DesvioDetailPage() {
             </div>
             <div className="pt-2 border-t border-zinc-800">
               <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Categoria</p>
-              <p className="text-sm text-zinc-300 font-medium">
-                {desvio.categoria === 'Outros' && desvio.categoria_outro ? `Outros: ${desvio.categoria_outro}` : desvio.categoria}
-              </p>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {desvio.categorias.map(c => (
+                  <span key={c} className="text-xs px-2 py-0.5 rounded-lg bg-zinc-800 text-zinc-300 font-medium border border-zinc-700">
+                    {c === 'Outros' && desvio.categoria_outro ? `Outros: ${desvio.categoria_outro}` : c}
+                  </span>
+                ))}
+              </div>
             </div>
             <div className="pt-2 border-t border-zinc-800">
               <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Descrição Completa</p>

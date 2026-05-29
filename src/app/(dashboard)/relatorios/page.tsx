@@ -223,8 +223,10 @@ function gerarPDF(
 
   const catMap: Record<string, number> = {}
   filtered.forEach(d => {
-    const cat = d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria
-    catMap[cat] = (catMap[cat]||0)+1
+    d.categorias.forEach(c => {
+      const key = c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c
+      catMap[key] = (catMap[key]||0)+1
+    })
   })
   const catData = Object.entries(catMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total)
 
@@ -559,7 +561,7 @@ function gerarPDF(
       return [
         generateDesvioId(d.numero),
         formatDate(d.data_ocorrencia),
-        d.categoria.length > 14 ? d.categoria.slice(0,13)+'…' : d.categoria,
+        d.categorias.map(c => c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c).join(', ').slice(0, 14),
         GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
         STATUS_CONFIG[d.status]?.label || d.status,
         d.encarregado_nome_computado.length > 14 ? d.encarregado_nome_computado.slice(0,13)+'…' : d.encarregado_nome_computado,
@@ -701,7 +703,7 @@ function gerarXLSX(
       d.obra_nome_computado,
       d.setor || '',
       d.local_exato || '',
-      d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria,
+      d.categorias.map(c => c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c).join(', '),
       GRAVIDADE_CONFIG[d.gravidade]?.label || d.gravidade,
       STATUS_CONFIG[d.status]?.label || d.status,
       d.colaborador_nome || '',
@@ -908,7 +910,7 @@ async function gerarPPT(
 
     const infoItems = [
       { label: 'DATA',          value: formatDate(d.data_ocorrencia) + (d.hora_ocorrencia ? '  ' + d.hora_ocorrencia : '') },
-      { label: 'CATEGORIA',     value: d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria },
+      { label: 'CATEGORIA',     value: d.categorias.map(c => c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c).join(', ') },
       { label: 'OBRA',          value: d.obra_nome_computado },
       { label: 'LOCAL / SETOR', value: [d.local_exato, d.setor].filter(Boolean).join(' · ') || '—' },
       { label: 'ENCARREGADO',   value: d.encarregado_nome_computado || '—' },
@@ -1171,8 +1173,10 @@ export default function RelatoriosPage() {
   const categoriaData = useMemo(() => {
     const counts: Record<string, number> = {}
     filtered.forEach(d => {
-      const cat = d.categoria === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : d.categoria
-      counts[cat] = (counts[cat] || 0) + 1
+      d.categorias.forEach(c => {
+        const key = c === 'Outros' && d.categoria_outro ? `Outros: ${d.categoria_outro}` : c
+        counts[key] = (counts[key] || 0) + 1
+      })
     })
     return Object.entries(counts).map(([fullName, total]) => ({
       fullName, name: fullName.length > 24 ? fullName.slice(0, 24) + '…' : fullName, total,
@@ -1827,7 +1831,7 @@ export default function RelatoriosPage() {
                                 </td>
                                 <td className="px-3 py-3 text-zinc-400 text-xs whitespace-nowrap">{formatDate(d.data_ocorrencia)}</td>
                                 <td className="px-3 py-3 text-zinc-300 text-xs max-w-[110px]"><span className="truncate block">{d.obra_nome_computado}</span></td>
-                                <td className="px-3 py-3 text-zinc-400 text-xs max-w-[90px]"><span className="truncate block">{d.categoria}</span></td>
+                                <td className="px-3 py-3 text-zinc-400 text-xs max-w-[90px]"><span className="truncate block">{d.categorias.map(c => c === 'Outros' && d.categoria_outro ? d.categoria_outro : c).join(', ')}</span></td>
                                 <td className="px-3 py-3"><span className={cn('text-xs font-semibold', GRAVIDADE_CONFIG[d.gravidade]?.color)}>{GRAVIDADE_CONFIG[d.gravidade]?.label}</span></td>
                                 <td className="px-3 py-3">
                                   <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap', STATUS_CONFIG[d.status]?.bg, STATUS_CONFIG[d.status]?.color)}>
