@@ -23,6 +23,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# uploads (fotos salvas no storage local)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # OS
 .DS_Store
 Thumbs.db

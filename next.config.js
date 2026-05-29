@@ -1,5 +1,25 @@
 /** @type {import('next').NextConfig} */
+
+// Origens autorizadas a embedar a aplicação em um <iframe>.
+// Configure EMBED_ANCESTORS no .env (separe múltiplas por espaço), ex.:
+//   EMBED_ANCESTORS="https://portal.mse.com.br https://intranet.mse.com.br"
+// Padrão 'self' permite apenas a própria origem.
+const frameAncestors = (process.env.EMBED_ANCESTORS || "'self'").trim()
+
 const nextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: `frame-ancestors ${frameAncestors};`,
+          },
+        ],
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       {

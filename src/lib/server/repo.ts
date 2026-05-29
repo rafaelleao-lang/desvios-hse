@@ -1,0 +1,393 @@
+import 'server-only'
+import type { ResultSetHeader, RowDataPacket } from 'mysql2'
+import { query } from '@/lib/mysql'
+import type { Obra, TST, Encarregado, Desvio, StatusDesvio, Tratativa } from '@/types'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function uid(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2)
+}
+
+function now(): string {
+  return new Date().toISOString()
+}
+
+function toBool(v: unknown): boolean {
+  return v === 1 || v === true || v === '1'
+}
+
+function parseJSON<T>(v: unknown, fallback: T): T {
+  if (v == null) return fallback
+  if (typeof v === 'string') {
+    try { return JSON.parse(v) as T } catch { return fallback }
+  }
+  return v as T
+}
+
+// ── Mappers (row do MySQL → tipo da aplicação) ─────────────────────────────────
+function mapObra(r: RowDataPacket): Obra {
+  return {
+    id: r.id,
+    nome: r.nome,
+    codigo: r.codigo,
+    empresa: r.empresa ?? undefined,
+    cidade: r.cidade ?? undefined,
+    estado: r.estado ?? undefined,
+    responsavel: r.responsavel ?? undefined,
+    ativa: toBool(r.ativa),
+    criado_em: r.criado_em,
+  }
+}
+
+function mapTST(r: RowDataPacket): TST {
+  return {
+    id: r.id,
+    obra_id: r.obra_id,
+    nome: r.nome,
+    crea: r.crea ?? undefined,
+    telefone: r.telefone ?? undefined,
+    ativo: toBool(r.ativo),
+    criado_em: r.criado_em,
+  }
+}
+
+function mapEncarregado(r: RowDataPacket): Encarregado {
+  return {
+    id: r.id,
+    obra_id: r.obra_id,
+    nome: r.nome,
+    setor: r.setor ?? undefined,
+    telefone: r.telefone ?? undefined,
+    ativo: toBool(r.ativo),
+    criado_em: r.criado_em,
+  }
+}
+
+function mapDesvio(r: RowDataPacket): Desvio {
+  return {
+    id: r.id,
+    numero: r.numero,
+    obra_id: r.obra_id,
+    obra_nome: r.obra_nome ?? undefined,
+    categoria: r.categoria,
+    categoria_outro: r.categoria_outro ?? undefined,
+    setor: r.setor ?? undefined,
+    local_exato: r.local_exato,
+    gravidade: r.gravidade,
+    status: r.status,
+    descricao: r.descricao,
+    aberto_por: r.aberto_por,
+    colaborador_nome: r.colaborador_nome ?? undefined,
+    encarregado_id: r.encarregado_id,
+    encarregado_nome: r.encarregado_nome ?? undefined,
+    tst_id: r.tst_id ?? undefined,
+    tst_nome: r.tst_nome ?? undefined,
+    data_ocorrencia: r.data_ocorrencia,
+    hora_ocorrencia: r.hora_ocorrencia ?? undefined,
+    prazo_correcao: r.prazo_correcao ?? undefined,
+    acao_corretiva: r.acao_corretiva ?? undefined,
+    acao_preventiva: r.acao_preventiva ?? undefined,
+    reincidente: toBool(r.reincidente),
+    fotos: parseJSON(r.fotos, []),
+    tratativas: parseJSON(r.tratativas, []),
+    historico_status: parseJSON(r.historico_status, []),
+    criado_em: r.criado_em,
+    atualizado_em: r.atualizado_em,
+  }
+}
+
+// ── Obras ─────────────────────────────────────────────────────────────────────
+export const obrasRepo = {
+  async list(): Promise<Obra[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM obras ORDER BY criado_em ASC')
+    return rows.map(mapObra)
+  },
+
+  async find(id: string): Promise<Obra | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM obras WHERE id = ? LIMIT 1', [id])
+    return rows[0] ? mapObra(rows[0]) : undefined
+  },
+
+  async create(data: Omit<Obra, 'id' | 'criado_em'>): Promise<Obra> {
+    const obra: Obra = { ...data, id: uid(), criado_em: now() }
+    await query(
+      `INSERT INTO obras (id, nome, codigo, empresa, cidade, estado, responsavel, ativa, criado_em, destinatarios)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        obra.id, obra.nome, obra.codigo,
+        obra.empresa ?? null, obra.cidade ?? null, obra.estado ?? null, obra.responsavel ?? null,
+        obra.ativa ? 1 : 0, obra.criado_em, '[]',
+      ],
+    )
+    return obra
+  },
+
+  async update(id: string, data: Partial<Obra>): Promise<Obra | undefined> {
+    const cols: string[] = []
+    const vals: unknown[] = []
+    const allow: (keyof Obra)[] = ['nome', 'codigo', 'empresa', 'cidade', 'estado', 'responsavel', 'ativa']
+    for (const key of allow) {
+      if (key in data) {
+        cols.push(`${key} = ?`)
+        vals.push(key === 'ativa' ? (data[key] ? 1 : 0) : (data[key] ?? null))
+      }
+    }
+    if (cols.length) {
+      vals.push(id)
+      await query(`UPDATE obras SET ${cols.join(', ')} WHERE id = ?`, vals)
+    }
+    return obrasRepo.find(id)
+  },
+
+  async delete(id: string): Promise<void> {
+    // tsts e encarregados saem por ON DELETE CASCADE
+    await query('DELETE FROM obras WHERE id = ?', [id])
+  },
+}
+
+// ── TSTs ──────────────────────────────────────────────────────────────────────
+export const tstsRepo = {
+  async list(): Promise<TST[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM tsts ORDER BY criado_em ASC')
+    return rows.map(mapTST)
+  },
+
+  async byObra(obraId: string): Promise<TST[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM tsts WHERE obra_id = ?', [obraId])
+    return rows.map(mapTST)
+  },
+
+  async activeByObra(obraId: string): Promise<TST[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM tsts WHERE obra_id = ? AND ativo = 1', [obraId])
+    return rows.map(mapTST)
+  },
+
+  async find(id: string): Promise<TST | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM tsts WHERE id = ? LIMIT 1', [id])
+    return rows[0] ? mapTST(rows[0]) : undefined
+  },
+
+  async create(data: Omit<TST, 'id' | 'criado_em'>): Promise<TST> {
+    const tst: TST = { ...data, id: uid(), criado_em: now() }
+    await query(
+      `INSERT INTO tsts (id, obra_id, nome, crea, telefone, ativo, criado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [tst.id, tst.obra_id, tst.nome, tst.crea ?? null, tst.telefone ?? null, tst.ativo ? 1 : 0, tst.criado_em],
+    )
+    return tst
+  },
+
+  async update(id: string, data: Partial<Pick<TST, 'nome' | 'crea' | 'telefone'>>): Promise<void> {
+    const cols: string[] = []
+    const vals: unknown[] = []
+    for (const key of ['nome', 'crea', 'telefone'] as const) {
+      if (key in data) { cols.push(`${key} = ?`); vals.push(data[key] ?? null) }
+    }
+    if (!cols.length) return
+    vals.push(id)
+    await query(`UPDATE tsts SET ${cols.join(', ')} WHERE id = ?`, vals)
+  },
+
+  async toggleAtivo(id: string): Promise<void> {
+    await query('UPDATE tsts SET ativo = 1 - ativo WHERE id = ?', [id])
+  },
+
+  async delete(id: string): Promise<void> {
+    await query('DELETE FROM tsts WHERE id = ?', [id])
+  },
+}
+
+// ── Encarregados ────────────────────────────────────────────────────────────────
+export const encarregadosRepo = {
+  async list(): Promise<Encarregado[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM encarregados ORDER BY criado_em ASC')
+    return rows.map(mapEncarregado)
+  },
+
+  async byObra(obraId: string): Promise<Encarregado[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM encarregados WHERE obra_id = ?', [obraId])
+    return rows.map(mapEncarregado)
+  },
+
+  async activeByObra(obraId: string): Promise<Encarregado[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM encarregados WHERE obra_id = ? AND ativo = 1', [obraId])
+    return rows.map(mapEncarregado)
+  },
+
+  async find(id: string): Promise<Encarregado | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM encarregados WHERE id = ? LIMIT 1', [id])
+    return rows[0] ? mapEncarregado(rows[0]) : undefined
+  },
+
+  async create(data: Omit<Encarregado, 'id' | 'criado_em'>): Promise<Encarregado> {
+    const enc: Encarregado = { ...data, id: uid(), criado_em: now() }
+    await query(
+      `INSERT INTO encarregados (id, obra_id, nome, setor, telefone, ativo, criado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [enc.id, enc.obra_id, enc.nome, enc.setor ?? null, enc.telefone ?? null, enc.ativo ? 1 : 0, enc.criado_em],
+    )
+    return enc
+  },
+
+  async update(id: string, data: Partial<Pick<Encarregado, 'nome' | 'setor' | 'telefone'>>): Promise<void> {
+    const cols: string[] = []
+    const vals: unknown[] = []
+    for (const key of ['nome', 'setor', 'telefone'] as const) {
+      if (key in data) { cols.push(`${key} = ?`); vals.push(data[key] ?? null) }
+    }
+    if (!cols.length) return
+    vals.push(id)
+    await query(`UPDATE encarregados SET ${cols.join(', ')} WHERE id = ?`, vals)
+  },
+
+  async toggleAtivo(id: string): Promise<void> {
+    await query('UPDATE encarregados SET ativo = 1 - ativo WHERE id = ?', [id])
+  },
+
+  async delete(id: string): Promise<void> {
+    await query('DELETE FROM encarregados WHERE id = ?', [id])
+  },
+}
+
+// ── Desvios ─────────────────────────────────────────────────────────────────────
+async function nextNum(): Promise<number> {
+  const rows = await query<RowDataPacket[]>('SELECT MAX(numero) AS max FROM desvios')
+  return ((rows[0]?.max as number) ?? 0) + 1
+}
+
+const DESVIO_JSON_FIELDS = new Set(['fotos', 'tratativas', 'historico_status'])
+const DESVIO_BOOL_FIELDS = new Set(['reincidente'])
+const DESVIO_UPDATABLE: (keyof Desvio)[] = [
+  'obra_id', 'obra_nome', 'categoria', 'categoria_outro', 'setor', 'local_exato',
+  'gravidade', 'status', 'descricao', 'aberto_por', 'colaborador_nome',
+  'encarregado_id', 'encarregado_nome', 'tst_id', 'tst_nome', 'data_ocorrencia',
+  'hora_ocorrencia', 'prazo_correcao', 'acao_corretiva', 'acao_preventiva',
+  'reincidente', 'fotos', 'tratativas', 'historico_status', 'atualizado_em',
+]
+
+function bindDesvioValue(key: string, value: unknown): unknown {
+  if (value === undefined) return null
+  if (DESVIO_JSON_FIELDS.has(key)) return JSON.stringify(value ?? [])
+  if (DESVIO_BOOL_FIELDS.has(key)) return value ? 1 : 0
+  return value ?? null
+}
+
+export const desviosRepo = {
+  async list(): Promise<Desvio[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM desvios ORDER BY numero DESC')
+    return rows.map(mapDesvio)
+  },
+
+  async find(id: string): Promise<Desvio | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM desvios WHERE id = ? LIMIT 1', [id])
+    return rows[0] ? mapDesvio(rows[0]) : undefined
+  },
+
+  async create(
+    data: Omit<Desvio, 'id' | 'numero' | 'criado_em' | 'atualizado_em' | 'historico_status'>,
+  ): Promise<Desvio> {
+    const num = await nextNum()
+    const d: Desvio = {
+      ...data,
+      id: uid(),
+      numero: num,
+      historico_status: [{ id: uid(), status_novo: 'aberto', por: data.aberto_por, criado_em: now() }],
+      criado_em: now(),
+      atualizado_em: now(),
+    }
+    await query(
+      `INSERT INTO desvios (
+        id, numero, obra_id, obra_nome, categoria, categoria_outro, setor, local_exato,
+        gravidade, status, descricao, aberto_por, colaborador_nome, encarregado_id, encarregado_nome,
+        tst_id, tst_nome, data_ocorrencia, hora_ocorrencia, prazo_correcao, acao_corretiva, acao_preventiva,
+        reincidente, fotos, tratativas, historico_status, criado_em, atualizado_em
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        d.id, d.numero, d.obra_id, d.obra_nome ?? null, d.categoria, d.categoria_outro ?? null,
+        d.setor ?? null, d.local_exato, d.gravidade, d.status, d.descricao, d.aberto_por,
+        d.colaborador_nome ?? null, d.encarregado_id, d.encarregado_nome ?? null,
+        d.tst_id ?? null, d.tst_nome ?? null, d.data_ocorrencia, d.hora_ocorrencia ?? null,
+        d.prazo_correcao ?? null, d.acao_corretiva ?? null, d.acao_preventiva ?? null,
+        d.reincidente ? 1 : 0, JSON.stringify(d.fotos ?? []),
+        JSON.stringify(d.tratativas ?? []), JSON.stringify(d.historico_status ?? []),
+        d.criado_em, d.atualizado_em,
+      ],
+    )
+    return d
+  },
+
+  async update(id: string, data: Partial<Desvio>): Promise<Desvio | undefined> {
+    const payload = { ...data, atualizado_em: now() }
+    const cols: string[] = []
+    const vals: unknown[] = []
+    for (const key of DESVIO_UPDATABLE) {
+      if (key in payload) {
+        cols.push(`${key} = ?`)
+        vals.push(bindDesvioValue(key, (payload as Record<string, unknown>)[key]))
+      }
+    }
+    if (cols.length) {
+      vals.push(id)
+      await query(`UPDATE desvios SET ${cols.join(', ')} WHERE id = ?`, vals)
+    }
+    return desviosRepo.find(id)
+  },
+
+  async updateStatus(
+    id: string, status: StatusDesvio, por: string, observacao?: string,
+  ): Promise<Desvio | undefined> {
+    const current = await desviosRepo.find(id)
+    if (!current) return undefined
+    const hist = {
+      id: uid(),
+      status_anterior: current.status,
+      status_novo: status,
+      por,
+      observacao,
+      criado_em: now(),
+    }
+    await query(
+      'UPDATE desvios SET status = ?, atualizado_em = ?, historico_status = ? WHERE id = ?',
+      [status, now(), JSON.stringify([...(current.historico_status ?? []), hist]), id],
+    )
+    return desviosRepo.find(id)
+  },
+
+  async addTratativa(
+    id: string, tratativa: Omit<Tratativa, 'id' | 'criado_em'>,
+  ): Promise<Desvio | undefined> {
+    const current = await desviosRepo.find(id)
+    if (!current) return undefined
+    const t: Tratativa = { ...tratativa, id: uid(), criado_em: now() }
+    await query(
+      'UPDATE desvios SET tratativas = ?, atualizado_em = ? WHERE id = ?',
+      [JSON.stringify([...(current.tratativas ?? []), t]), now(), id],
+    )
+    return desviosRepo.find(id)
+  },
+
+  async delete(id: string): Promise<void> {
+    await query('DELETE FROM desvios WHERE id = ?', [id])
+  },
+}
+
+// ── Dispatcher (usado pela rota /api/db) ────────────────────────────────────────
+export const repos = {
+  obras: obrasRepo,
+  tsts: tstsRepo,
+  encarregados: encarregadosRepo,
+  desvios: desviosRepo,
+} as const
+
+export type ResourceName = keyof typeof repos
+
+export async function dispatch(resource: string, action: string, args: unknown[]): Promise<unknown> {
+  const repo = (repos as Record<string, Record<string, unknown>>)[resource]
+  if (!repo) throw new Error(`Recurso desconhecido: ${resource}`)
+  const fn = repo[action]
+  if (typeof fn !== 'function') throw new Error(`Ação desconhecida: ${resource}.${action}`)
+  return (fn as (...a: unknown[]) => Promise<unknown>)(...args)
+}
+
+// Mantém ResultSetHeader referenciado p/ tipagem futura de mutations.
+export type { ResultSetHeader }
