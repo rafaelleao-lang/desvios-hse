@@ -171,7 +171,7 @@ export default function ObrasPage() {
                 className="w-full flex items-center justify-between px-5 py-3 bg-zinc-800/50 hover:bg-zinc-800 border-t border-zinc-800 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                 <span className="flex items-center gap-2">
                   <Users className="w-3.5 h-3.5" />
-                  Gerenciar TSTs e Encarregados
+                  Gerenciar Coordenadores, TSTs e Encarregados
                 </span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
