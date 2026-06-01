@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, LabelList,
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend, LabelList, RadialBarChart, RadialBar,
+  PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts'
 import {
   Plus, FileDown, Loader2, TrendingUp, Users, AlertTriangle,
-  BookOpen, ShieldCheck, Home, Filter, Pencil, RefreshCw,
-  ChevronDown, X,
+  BookOpen, ShieldCheck, Filter, Pencil, RefreshCw,
+  ChevronDown, X, Home, Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useApp } from '@/contexts/AppContext'
@@ -18,155 +19,182 @@ import { indicadoresDB } from '@/lib/db'
 import type { IndicadorSemanal } from '@/types'
 import { cn } from '@/lib/utils'
 
-const MSE_RED = '#E8291C'
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface ChartPoint {
+  label: string
+  semana: number; ano: number
+  efetivo: number; ausentes: number
+  apr: number; pt: number
+  desvOcorridos: number; desvSolucionados: number
+  aloConformes: number; aloNaoConformes: number; aloTotais: number
+  hht: number; acidentes: number; dds: number
+  campanhas: number; pessoasTreinadas: number; primeirosSocorros: number
+  quaseAcidentes: number; inspecoes: number
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const BLUE   = '#3B82F6'
+const CYAN   = '#06B6D4'
+const GREEN  = '#22C55E'
+const RED    = '#EF4444'
+const PURPLE = '#8B5CF6'
+const AMBER  = '#F59E0B'
+const ANOS   = [2024, 2025, 2026, 2027]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function semLabel(semana: number, ano: number) {
   return `Se${String(semana).padStart(2, '0')}/${ano}`
 }
+function fmt(n: number) { return n.toLocaleString('pt-BR') }
 
-function fmt(n: number) {
-  return n.toLocaleString('pt-BR')
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return [r, g, b]
-}
-
-// ── Gauge SVG ─────────────────────────────────────────────────────────────────
-
-function GaugeSVG({
-  value, max = 5, label, color = '#3B82F6', size = 160,
-}: {
-  value: number; max?: number; label: string; color?: string; size?: number
-}) {
-  const pct = Math.min(value / max, 1)
-  const cx = size / 2
-  const cy = size * 0.62
-  const r = size * 0.38
-  const startAngle = Math.PI
-  const endAngle = 0
-  const angle = startAngle + pct * (endAngle - startAngle) // goes from π to 0
-  const actualEnd = Math.PI - pct * Math.PI
-
-  function arc(fromA: number, toA: number, stroke: string, strokeWidth: number) {
-    const x1 = cx + r * Math.cos(fromA)
-    const y1 = cy - r * Math.sin(fromA)
-    const x2 = cx + r * Math.cos(toA)
-    const y2 = cy - r * Math.sin(toA)
-    const large = Math.abs(toA - fromA) > Math.PI ? 1 : 0
-    return (
-      <path
-        d={`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-      />
-    )
-  }
-
-  const needleX = cx + (r * 0.75) * Math.cos(Math.PI - pct * Math.PI)
-  const needleY = cy - (r * 0.75) * Math.sin(Math.PI - pct * Math.PI)
-
+// ── Custom Tooltip ─────────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
   return (
-    <div className="flex flex-col items-center">
-      <svg width={size} height={size * 0.72} viewBox={`0 0 ${size} ${size * 0.72}`}>
-        {/* BG arc */}
-        {arc(Math.PI, 0, '#3F3F46', 10)}
-        {/* Value arc */}
-        {pct > 0 && arc(Math.PI, actualEnd, color, 10)}
-        {/* Needle */}
-        <line x1={cx} y1={cy} x2={needleX} y2={needleY} stroke="#E4E4E7" strokeWidth={2} strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r={4} fill="#E4E4E7" />
-        {/* Min/Max labels */}
-        <text x={cx - r - 6} y={cy + 14} fontSize={9} fill="#71717A" textAnchor="middle">0</text>
-        <text x={cx + r + 6} y={cy + 14} fontSize={9} fill="#71717A" textAnchor="middle">{max}</text>
-        {/* Value */}
-        <text x={cx} y={cy + 4} fontSize={size * 0.14} fontWeight="700" fill="#F4F4F5" textAnchor="middle">
-          {value.toLocaleString('pt-BR', { minimumFractionDigits: value % 1 !== 0 ? 1 : 0 })}
-        </text>
-      </svg>
-      <p className="text-[10px] text-zinc-500 text-center mt-1 leading-tight max-w-[120px]">{label}</p>
+    <div className="bg-zinc-800/95 border border-zinc-700 rounded-xl px-3 py-2 shadow-2xl text-xs backdrop-blur">
+      <p className="font-bold text-zinc-200 mb-1.5">{label}</p>
+      {payload.map((p: { name: string; value: number; color: string }, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+          <span className="text-zinc-400">{p.name}:</span>
+          <span className="font-bold text-zinc-100">{fmt(Number(p.value))}</span>
+        </div>
+      ))}
     </div>
   )
 }
 
-// Same gauge but for the light PDF export div
-function GaugeSVGLight({
-  value, max = 5, label, color = '#3B82F6', size = 140,
-}: {
-  value: number; max?: number; label: string; color?: string; size?: number
+// ── Gauge com RadialBar ───────────────────────────────────────────────────────
+
+function Gauge({ value, max = 5, label, color, size = 140 }: {
+  value: number; max?: number; label: string; color: string; size?: number
 }) {
-  const pct = Math.min(value / max, 1)
-  const cx = size / 2, cy = size * 0.62, r = size * 0.38
-  const actualEnd = Math.PI - pct * Math.PI
-  function arc(fromA: number, toA: number, stroke: string, sw: number) {
-    const x1 = cx + r * Math.cos(fromA), y1 = cy - r * Math.sin(fromA)
-    const x2 = cx + r * Math.cos(toA), y2 = cy - r * Math.sin(toA)
-    const large = Math.abs(toA - fromA) > Math.PI ? 1 : 0
-    return <path d={`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
-  }
-  const needleX = cx + (r * 0.75) * Math.cos(Math.PI - pct * Math.PI)
-  const needleY = cy - (r * 0.75) * Math.sin(Math.PI - pct * Math.PI)
+  const pct = Math.min((value / max) * 100, 100)
+  const data = [{ value: pct, fill: color }]
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <svg width={size} height={size * 0.72} viewBox={`0 0 ${size} ${size * 0.72}`}>
-        {arc(Math.PI, 0, '#D4D4D8', 10)}
-        {pct > 0 && arc(Math.PI, actualEnd, color, 10)}
-        <line x1={cx} y1={cy} x2={needleX} y2={needleY} stroke="#111" strokeWidth={2} strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r={4} fill="#111" />
-        <text x={cx - r - 6} y={cy + 14} fontSize={9} fill="#666" textAnchor="middle">0</text>
-        <text x={cx + r + 6} y={cy + 14} fontSize={9} fill="#666" textAnchor="middle">{max}</text>
-        <text x={cx} y={cy + 4} fontSize={size * 0.14} fontWeight="700" fill="#111" textAnchor="middle">
-          {value.toLocaleString('pt-BR', { minimumFractionDigits: value % 1 !== 0 ? 1 : 0 })}
-        </text>
-      </svg>
-      <p style={{ fontSize: 9, color: '#666', textAlign: 'center', marginTop: 2, maxWidth: 110 }}>{label}</p>
+    <div className="flex flex-col items-center gap-1">
+      <div style={{ width: size, height: size * 0.6, position: 'relative' }}>
+        <RadialBarChart
+          width={size} height={size}
+          cx={size / 2} cy={size * 0.72}
+          innerRadius={size * 0.38} outerRadius={size * 0.5}
+          startAngle={180} endAngle={0}
+          data={[{ value: 100, fill: '#27272A' }, { value: pct, fill: color }]}
+          barSize={size * 0.1}
+        >
+          <RadialBar dataKey="value" cornerRadius={4} background={false} />
+        </RadialBarChart>
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          textAlign: 'center',
+          lineHeight: 1,
+        }}>
+          <div style={{ fontSize: size * 0.18, fontWeight: 800, color: '#F4F4F5', lineHeight: 1 }}>
+            {value % 1 !== 0 ? value.toFixed(1) : value}
+          </div>
+        </div>
+      </div>
+      <p className="text-[10px] text-zinc-500 text-center leading-tight max-w-[110px]">{label}</p>
     </div>
   )
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
-function KPICard({ label, value, icon: Icon, color }: {
-  label: string; value: string | number; icon: React.ElementType; color: string
+function KPICard({
+  label, value, icon: Icon, color, sub,
+}: {
+  label: string; value: string | number; icon: React.ElementType; color: string; sub?: string
 }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">{label}</span>
-        <div className="p-1.5 rounded-lg" style={{ background: color + '20' }}>
-          <Icon className="w-3.5 h-3.5" style={{ color }} />
+    <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl p-4 overflow-hidden group hover:border-zinc-700 transition-all">
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ background: `radial-gradient(circle at top right, ${color}08 0%, transparent 60%)` }} />
+      <div className="relative">
+        <div className="flex items-start justify-between mb-3">
+          <div className="p-2 rounded-xl" style={{ background: color + '18' }}>
+            <Icon className="w-4 h-4" style={{ color }} />
+          </div>
         </div>
+        <div className="text-2xl font-black text-zinc-100 leading-none">{value}</div>
+        <div className="text-xs font-semibold text-zinc-500 mt-1.5 uppercase tracking-wide">{label}</div>
+        {sub && <div className="text-[10px] text-zinc-600 mt-0.5">{sub}</div>}
       </div>
-      <span className="text-2xl font-black text-zinc-100">{value}</span>
     </div>
   )
 }
 
-// ── Custom Tooltip ─────────────────────────────────────────────────────────────
+// ── Donut Chart ───────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
+function DonutChart({ ocorridos, solucionados }: { ocorridos: number; solucionados: number }) {
+  const taxa = ocorridos > 0 ? Math.round((solucionados / ocorridos) * 100) : 0
+  const restante = Math.max(0, ocorridos - solucionados)
+  const data = [
+    { name: 'Solucionados', value: solucionados, fill: GREEN },
+    { name: 'Em aberto', value: restante, fill: '#3F3F46' },
+  ]
   return (
-    <div className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 shadow-xl text-xs">
-      <p className="font-semibold text-zinc-300 mb-1">{label}</p>
-      {payload.map((p: { name: string; value: number; color: string }, i: number) => (
-        <p key={i} style={{ color: p.color }}>{p.name}: <span className="font-bold">{fmt(p.value)}</span></p>
-      ))}
+    <div className="flex flex-col items-center justify-center gap-2">
+      <div className="relative" style={{ width: 120, height: 120 }}>
+        <PieChart width={120} height={120}>
+          <Pie data={data} dataKey="value" cx={55} cy={55} innerRadius={36} outerRadius={52} strokeWidth={0} startAngle={90} endAngle={-270}>
+            {data.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+          </Pie>
+        </PieChart>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-black text-zinc-100">{taxa}%</span>
+          <span className="text-[9px] text-zinc-500">solução</span>
+        </div>
+      </div>
+      <div className="space-y-1 w-full">
+        {data.map(d => (
+          <div key={d.name} className="flex items-center gap-2 text-xs">
+            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.fill }} />
+            <span className="text-zinc-500 flex-1">{d.name}</span>
+            <span className="font-bold text-zinc-300">{d.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Gauge light (export PDF) ─────────────────────────────────────────────────
+
+function GaugeLight({ value, max = 5, label, color }: { value: number; max: number; label: string; color: string }) {
+  const pct = Math.min(value / max, 1)
+  const cx = 70, cy = 85, r = 50
+  function arcPath(fromA: number, toA: number) {
+    const x1 = cx + r * Math.cos(fromA), y1 = cy - r * Math.sin(fromA)
+    const x2 = cx + r * Math.cos(toA), y2 = cy - r * Math.sin(toA)
+    return `M ${x1} ${y1} A ${r} ${r} 0 ${Math.abs(toA - fromA) > Math.PI ? 1 : 0} 1 ${x2} ${y2}`
+  }
+  const actualEnd = Math.PI - pct * Math.PI
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <svg width={140} height={100} viewBox="0 0 140 100">
+        <path d={arcPath(Math.PI, 0)} fill="none" stroke="#D4D4D8" strokeWidth={10} strokeLinecap="round" />
+        {pct > 0 && <path d={arcPath(Math.PI, actualEnd)} fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" />}
+        <text x={cx} y={cy + 4} fontSize={20} fontWeight="800" fill="#111" textAnchor="middle">
+          {value % 1 !== 0 ? value.toFixed(1) : value}
+        </text>
+        <text x={15} y={cy + 14} fontSize={8} fill="#666" textAnchor="middle">0</text>
+        <text x={125} y={cy + 14} fontSize={8} fill="#666" textAnchor="middle">{max}</text>
+      </svg>
+      <p style={{ fontSize: 9, color: '#666', textAlign: 'center', maxWidth: 110 }}>{label}</p>
     </div>
   )
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-
-const ANOS = [2024, 2025, 2026, 2027]
 
 export default function IndicadoresPage() {
   const { obras, loaded } = useApp()
@@ -178,7 +206,6 @@ export default function IndicadoresPage() {
   const [exportando, setExportando] = useState(false)
   const [showFiltros, setShowFiltros] = useState(false)
 
-  // Filters
   const [filtroObra, setFiltroObra] = useState('todas')
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear())
   const [filtroSemIni, setFiltroSemIni] = useState(1)
@@ -194,72 +221,61 @@ export default function IndicadoresPage() {
         semana_fim: filtroSemFim,
       })
       setIndicadores(dados)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoadingData(false)
-    }
+    } catch (e) { console.error(e) }
+    finally { setLoadingData(false) }
   }
 
   useEffect(() => { carregarDados() }, [filtroObra, filtroAno, filtroSemIni, filtroSemFim])
 
-  // ── Computed: chart data (aggregated by week) ────────────────────────────────
+  // ── Chart data ─────────────────────────────────────────────────────────────
 
-  const chartData = useMemo(() => {
-    const map = new Map<string, {
-      label: string; semana: number; ano: number
-      efetivo: number; ausentes: number
-      apr: number; pt: number
-      desvOcorridos: number; desvSolucionados: number
-      aloConformes: number; aloNaoConformes: number; aloTotais: number
-      hht: number; acidentes: number; dds: number; campanhas: number
-      pessoasTreinadas: number; primeirosSocorros: number
-      quaseAcidentes: number; danosMateriais: number; inspecoes: number
-    }>()
-
+  const chartData = useMemo((): ChartPoint[] => {
+    const map = new Map<string, ChartPoint>()
     const sorted = [...indicadores].sort((a, b) => a.ano - b.ano || a.semana - b.semana)
     for (const item of sorted) {
       const key = semLabel(item.semana, item.ano)
-      const existing = map.get(key)
-      if (existing) {
-        existing.efetivo += item.efetivo
-        existing.ausentes += item.ausentes
-        existing.apr += item.apr_realizadas
-        existing.pt += item.pt_realizadas
-        existing.desvOcorridos += item.desvios_ocorridos
-        existing.desvSolucionados += item.desvios_solucionados
-        existing.aloConformes += item.alojamentos_conformes
-        existing.aloNaoConformes += item.alojamentos_nao_conformes
-        existing.aloTotais += item.alojamentos_totais
-        existing.hht += item.hht_semanal
-        existing.acidentes += item.acidentes
-        existing.dds += item.dds
-        existing.campanhas += item.campanhas
-        existing.pessoasTreinadas += item.pessoas_treinadas
-        existing.primeirosSocorros += item.primeiros_socorros
-        existing.quaseAcidentes += item.quase_acidentes
-        existing.danosMateriais += item.danos_materiais
-        existing.inspecoes += item.inspecoes_semanais
-      } else {
-        map.set(key, {
-          label: key, semana: item.semana, ano: item.ano,
-          efetivo: item.efetivo, ausentes: item.ausentes,
-          apr: item.apr_realizadas, pt: item.pt_realizadas,
-          desvOcorridos: item.desvios_ocorridos, desvSolucionados: item.desvios_solucionados,
-          aloConformes: item.alojamentos_conformes, aloNaoConformes: item.alojamentos_nao_conformes,
-          aloTotais: item.alojamentos_totais,
-          hht: item.hht_semanal, acidentes: item.acidentes,
-          dds: item.dds, campanhas: item.campanhas,
-          pessoasTreinadas: item.pessoas_treinadas, primeirosSocorros: item.primeiros_socorros,
-          quaseAcidentes: item.quase_acidentes, danosMateriais: item.danos_materiais,
-          inspecoes: item.inspecoes_semanais,
-        })
+      const ex = map.get(key) ?? {
+        label: key, semana: item.semana, ano: item.ano,
+        efetivo: 0, ausentes: 0, apr: 0, pt: 0,
+        desvOcorridos: 0, desvSolucionados: 0,
+        aloConformes: 0, aloNaoConformes: 0, aloTotais: 0,
+        hht: 0, acidentes: 0, dds: 0, campanhas: 0,
+        pessoasTreinadas: 0, primeirosSocorros: 0,
+        quaseAcidentes: 0, inspecoes: 0,
       }
+      ex.efetivo          += item.efetivo
+      ex.ausentes         += item.ausentes
+      ex.apr              += item.apr_realizadas
+      ex.pt               += item.pt_realizadas
+      ex.desvOcorridos    += item.desvios_ocorridos
+      ex.desvSolucionados += item.desvios_solucionados
+      ex.aloConformes     += item.alojamentos_conformes
+      ex.aloNaoConformes  += item.alojamentos_nao_conformes
+      ex.aloTotais        += item.alojamentos_totais
+      ex.hht              += Number(item.hht_semanal)
+      ex.acidentes        += item.acidentes
+      ex.dds              += item.dds
+      ex.campanhas        += item.campanhas
+      ex.pessoasTreinadas += item.pessoas_treinadas
+      ex.primeirosSocorros += item.primeiros_socorros
+      ex.quaseAcidentes   += item.quase_acidentes
+      ex.inspecoes        += item.inspecoes_semanais
+      map.set(key, ex)
     }
     return Array.from(map.values())
   }, [indicadores])
 
-  // ── KPI Totals ───────────────────────────────────────────────────────────────
+  // ── Taxa de solução por semana (para linha no gráfico de desvios) ──────────
+  const chartDataComTaxa = useMemo(() =>
+    chartData.map(d => ({
+      ...d,
+      taxaSolucao: d.desvOcorridos > 0
+        ? Math.round((d.desvSolucionados / d.desvOcorridos) * 100)
+        : 100,
+    })),
+  [chartData])
+
+  // ── Totais ─────────────────────────────────────────────────────────────────
 
   const totais = useMemo(() => ({
     hht: indicadores.reduce((s, d) => s + Number(d.hht_semanal), 0),
@@ -270,18 +286,21 @@ export default function IndicadoresPage() {
     inspecoes: indicadores.reduce((s, d) => s + d.inspecoes_semanais, 0),
     primeirosSocorros: indicadores.reduce((s, d) => s + d.primeiros_socorros, 0),
     quaseAcidentes: indicadores.reduce((s, d) => s + d.quase_acidentes, 0),
+    desvOcorridos: indicadores.reduce((s, d) => s + d.desvios_ocorridos, 0),
+    desvSolucionados: indicadores.reduce((s, d) => s + d.desvios_solucionados, 0),
   }), [indicadores])
 
   const ultimaSemana = chartData[chartData.length - 1]
-
-  // ── Obra info ─────────────────────────────────────────────────────────────────
-
   const obraAtual = obras.find(o => o.id === filtroObra)
   const semanaLabel = filtroSemIni === 1 && filtroSemFim === 53
-    ? `Ano ${filtroAno} — todas as semanas`
-    : `Se${String(filtroSemIni).padStart(2,'0')} a Se${String(filtroSemFim).padStart(2,'0')}/${filtroAno}`
+    ? `Ano ${filtroAno}`
+    : `Se${String(filtroSemIni).padStart(2,'0')}–Se${String(filtroSemFim).padStart(2,'0')}/${filtroAno}`
 
-  // ── PDF Export ─────────────────────────────────────────────────────────────────
+  const entradas = useMemo(() =>
+    [...indicadores].sort((a, b) => b.ano - a.ano || b.semana - a.semana),
+  [indicadores])
+
+  // ── PDF ────────────────────────────────────────────────────────────────────
 
   const gerarPDF = async () => {
     if (!exportRef.current) return
@@ -289,56 +308,30 @@ export default function IndicadoresPage() {
     try {
       const el = exportRef.current
       el.style.visibility = 'visible'
-      el.style.pointerEvents = 'none'
-
-      await new Promise(r => setTimeout(r, 800))
+      await new Promise(r => setTimeout(r, 900))
 
       const html2canvas = (await import('html2canvas')).default
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-      })
-
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true })
       el.style.visibility = 'hidden'
-      el.style.pointerEvents = 'none'
 
       const { jsPDF } = await import('jspdf')
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.92)
-      const pdfW = pdf.internal.pageSize.getWidth()
-      const pdfH = pdf.internal.pageSize.getHeight()
+      const pW = pdf.internal.pageSize.getWidth()
+      const pH = pdf.internal.pageSize.getHeight()
       const ratio = canvas.height / canvas.width
-      const imgH = pdfW * ratio
-      if (imgH <= pdfH) {
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, imgH)
-      } else {
-        // Scale to fit height
-        const imgW = pdfH / ratio
-        pdf.addImage(imgData, 'JPEG', (pdfW - imgW) / 2, 0, imgW, pdfH)
-      }
-
-      const nomeObra = obraAtual?.nome ?? 'Consolidado'
-      pdf.save(`indicadores_hse_${nomeObra.replace(/\s+/g, '_')}_${filtroAno}.pdf`)
+      const iH = pW * ratio
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, iH <= pH ? pW : pH / ratio, iH <= pH ? iH : pH)
+      pdf.save(`indicadores_${(obraAtual?.nome ?? 'consolidado').replace(/\s+/g, '_')}_${filtroAno}.pdf`)
     } catch (e) {
-      console.error('PDF error:', e)
-      alert('Erro ao gerar PDF. Tente novamente.')
-    } finally {
-      setExportando(false)
-    }
+      console.error(e)
+      alert('Erro ao gerar PDF.')
+    } finally { setExportando(false) }
   }
 
-  // ── Table entries sorted ─────────────────────────────────────────────────────
+  // ── Shared chart props ────────────────────────────────────────────────────
 
-  const entradas = useMemo(() =>
-    [...indicadores].sort((a, b) => b.ano - a.ano || b.semana - a.semana),
-  [indicadores])
-
-  const tick = { fill: '#71717A', fontSize: 11 }
-  const gridProps = { strokeDasharray: '3 3', stroke: '#27272A' }
+  const tick   = { fill: '#52525B', fontSize: 10 }
+  const grid   = { strokeDasharray: '3 3', stroke: '#1F1F23', vertical: false }
 
   if (!loaded) return (
     <div className="flex items-center justify-center min-h-[50vh]">
@@ -347,41 +340,35 @@ export default function IndicadoresPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex-1">
-          <h1 className="text-2xl font-black text-zinc-100 flex items-center gap-2">
-            <TrendingUp className="w-6 h-6" style={{ color: MSE_RED }} />
-            Indicadores HSE
-          </h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{semanaLabel}</p>
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: BLUE + '20' }}>
+              <TrendingUp className="w-4 h-4" style={{ color: BLUE }} />
+            </div>
+            <h1 className="text-xl font-black text-zinc-100">Indicadores HSE</h1>
+          </div>
+          <p className="text-sm text-zinc-500 ml-9">{semanaLabel} · {indicadores.length} lançamentos</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowFiltros(v => !v)}
-            className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2"
-          >
+          <Button variant="outline" onClick={() => setShowFiltros(v => !v)}
+            className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2 h-9">
             <Filter className="w-4 h-4" />
             Filtros
             {showFiltros ? <X className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </Button>
-          <Button
-            variant="outline"
-            onClick={gerarPDF}
-            disabled={exportando || indicadores.length === 0}
-            className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2"
-          >
-            {exportando
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <FileDown className="w-4 h-4" />}
+          <Button variant="outline" onClick={gerarPDF}
+            disabled={exportando || !indicadores.length}
+            className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2 h-9">
+            {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
             PDF
           </Button>
           <Link href={`/indicadores/novo${filtroObra !== 'todas' ? `?obra_id=${filtroObra}` : ''}`}>
-            <Button className="text-white font-semibold gap-2" style={{ background: MSE_RED }}>
-              <Plus className="w-4 h-4" />
-              Lançar
+            <Button className="text-white font-semibold gap-2 h-9" style={{ background: BLUE }}>
+              <Plus className="w-4 h-4" /> Lançar
             </Button>
           </Link>
         </div>
@@ -391,66 +378,49 @@ export default function IndicadoresPage() {
       {showFiltros && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="col-span-2 sm:col-span-1 flex flex-col gap-1">
-            <label className="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Obra</label>
-            <select
-              value={filtroObra}
-              onChange={e => setFiltroObra(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-red-600"
-            >
+            <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Obra</label>
+            <select value={filtroObra} onChange={e => setFiltroObra(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-blue-600">
               <option value="todas">Todas as obras</option>
               {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
             </select>
           </div>
-
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Ano</label>
-            <select
-              value={filtroAno}
-              onChange={e => setFiltroAno(parseInt(e.target.value))}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-red-600"
-            >
+            <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Ano</label>
+            <select value={filtroAno} onChange={e => setFiltroAno(+e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-blue-600">
               {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
-
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Semana de</label>
-            <input
-              type="number" min="1" max="53"
-              value={filtroSemIni}
-              onChange={e => setFiltroSemIni(Math.max(1, Math.min(53, parseInt(e.target.value) || 1)))}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-red-600"
-            />
+            <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Semana de</label>
+            <input type="number" min="1" max="53" value={filtroSemIni}
+              onChange={e => setFiltroSemIni(Math.max(1, Math.min(53, +e.target.value || 1)))}
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-blue-600" />
           </div>
-
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Semana até</label>
-            <input
-              type="number" min="1" max="53"
-              value={filtroSemFim}
-              onChange={e => setFiltroSemFim(Math.max(1, Math.min(53, parseInt(e.target.value) || 53)))}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-red-600"
-            />
+            <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Semana até</label>
+            <input type="number" min="1" max="53" value={filtroSemFim}
+              onChange={e => setFiltroSemFim(Math.max(1, Math.min(53, +e.target.value || 53)))}
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-blue-600" />
           </div>
         </div>
       )}
 
       {/* ── Loading / Empty ── */}
       {loadingData ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
-        </div>
-      ) : indicadores.length === 0 ? (
+        <div className="flex items-center justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-zinc-500" /></div>
+      ) : !indicadores.length ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-            <TrendingUp className="w-8 h-8 text-zinc-700" />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: BLUE + '15' }}>
+            <TrendingUp className="w-8 h-8" style={{ color: BLUE }} />
           </div>
           <div>
             <p className="text-zinc-300 font-semibold">Nenhum indicador encontrado</p>
-            <p className="text-zinc-600 text-sm mt-1">Lance os indicadores semanais para visualizar os gráficos</p>
+            <p className="text-zinc-600 text-sm mt-1">Lance os indicadores semanais para ver os gráficos</p>
           </div>
           <Link href="/indicadores/novo">
-            <Button className="text-white" style={{ background: MSE_RED }}>
+            <Button className="text-white" style={{ background: BLUE }}>
               <Plus className="w-4 h-4 mr-2" /> Lançar primeiros indicadores
             </Button>
           </Link>
@@ -459,160 +429,226 @@ export default function IndicadoresPage() {
         <>
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-            <KPICard label="HHT Acum." value={fmt(Math.round(totais.hht))} icon={BookOpen} color="#3B82F6" />
-            <KPICard label="Acidentes" value={totais.acidentes} icon={AlertTriangle} color="#EF4444" />
-            <KPICard label="DDS" value={fmt(totais.dds)} icon={ShieldCheck} color="#10B981" />
-            <KPICard label="Campanhas" value={totais.campanhas} icon={TrendingUp} color="#8B5CF6" />
-            <KPICard label="P. Treinadas" value={fmt(totais.pessoasTreinadas)} icon={Users} color="#F59E0B" />
-            <KPICard label="Inspeções" value={fmt(totais.inspecoes)} icon={ShieldCheck} color="#06B6D4" />
+            <KPICard label="HHT Acum." value={fmt(Math.round(totais.hht))} icon={BookOpen} color={BLUE} sub="horas homem" />
+            <KPICard label="Acidentes" value={totais.acidentes} icon={AlertTriangle} color={RED} />
+            <KPICard label="DDS" value={fmt(totais.dds)} icon={ShieldCheck} color={GREEN} />
+            <KPICard label="Campanhas" value={totais.campanhas} icon={Activity} color={PURPLE} />
+            <KPICard label="P. Treinadas" value={fmt(totais.pessoasTreinadas)} icon={Users} color={AMBER} />
+            <KPICard label="Inspeções" value={fmt(totais.inspecoes)} icon={ShieldCheck} color={CYAN} />
             <KPICard label="1ºs Socorros" value={totais.primeirosSocorros} icon={AlertTriangle} color="#EC4899" />
             <KPICard label="Quase Acid." value={totais.quaseAcidentes} icon={AlertTriangle} color="#F97316" />
           </div>
 
-          {/* ── Gauges ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="col-span-2 sm:col-span-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">HHT Semanal</p>
-              <GaugeSVG
-                value={ultimaSemana?.hht ?? 0}
-                max={Math.max(5, (ultimaSemana?.hht ?? 0) * 1.5)}
-                label="Hora Homem de Treinamento"
-                color="#3B82F6"
-              />
-              {ultimaSemana && (
-                <p className="text-[10px] text-zinc-600">{ultimaSemana.label}</p>
-              )}
-            </div>
-
-            <div className="col-span-2 sm:col-span-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Acidentes</p>
-              <GaugeSVG
-                value={ultimaSemana?.acidentes ?? 0}
-                max={5}
-                label="Quantidade de Acidentes"
-                color="#EF4444"
-              />
-              {ultimaSemana && (
-                <p className="text-[10px] text-zinc-600">{ultimaSemana.label}</p>
-              )}
-            </div>
-
-            {/* Mini KPIs no espaço das gauges */}
-            <div className="col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-2 gap-3">
-              {[
-                { label: 'Efetivo médio', value: chartData.length ? Math.round(chartData.reduce((s, d) => s + d.efetivo, 0) / chartData.length) : 0 },
-                { label: 'Média APR/sem', value: chartData.length ? Math.round(chartData.reduce((s, d) => s + d.apr, 0) / chartData.length) : 0 },
-                { label: 'Taxa solução', value: (() => {
-                  const oc = indicadores.reduce((s, d) => s + d.desvios_ocorridos, 0)
-                  const sol = indicadores.reduce((s, d) => s + d.desvios_solucionados, 0)
-                  return oc > 0 ? `${Math.round((sol / oc) * 100)}%` : '—'
-                })() },
-                { label: 'Semanas lançadas', value: chartData.length },
-              ].map(item => (
-                <div key={item.label} className="flex flex-col gap-1">
-                  <span className="text-[10px] text-zinc-600 uppercase tracking-wide font-semibold">{item.label}</span>
-                  <span className="text-xl font-black text-zinc-100">{item.value}</span>
+          {/* ── Efetivo (Area) + Taxa de Desvios (Donut) ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Area Chart — Efetivo */}
+            <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-bold text-zinc-200">Efetivo MSE</p>
+                  <p className="text-xs text-zinc-500">Evolução semanal do headcount</p>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Charts 2x2 ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Efetivo MSE */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Efetivo MSE</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData} barGap={2}>
-                  <CartesianGrid {...gridProps} />
+                <div className="text-right">
+                  <div className="text-lg font-black text-zinc-100">
+                    {ultimaSemana?.efetivo ?? 0}
+                  </div>
+                  <div className="text-[10px] text-zinc-500">última semana</div>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradEfetivo" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={BLUE} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={BLUE} stopOpacity={0} />
+                    </linearGradient>
+                    {indicadores.some(d => d.ausentes > 0) && (
+                      <linearGradient id="gradAusentes" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={AMBER} stopOpacity={0.2} />
+                        <stop offset="95%" stopColor={AMBER} stopOpacity={0} />
+                      </linearGradient>
+                    )}
+                  </defs>
+                  <CartesianGrid {...grid} />
                   <XAxis dataKey="label" tick={tick} />
                   <YAxis tick={tick} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#A1A1AA' }} />
-                  <Bar dataKey="efetivo" name="Efetivo" fill="#3B82F6" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="efetivo" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
-                  </Bar>
+                  <Area type="monotone" dataKey="efetivo" name="Efetivo" stroke={BLUE} strokeWidth={2}
+                    fill="url(#gradEfetivo)" dot={{ fill: BLUE, r: 3 }} activeDot={{ r: 5 }} />
                   {indicadores.some(d => d.ausentes > 0) && (
-                    <Bar dataKey="ausentes" name="Ausentes" fill="#F59E0B" radius={[3, 3, 0, 0]} />
+                    <Area type="monotone" dataKey="ausentes" name="Ausentes" stroke={AMBER} strokeWidth={2}
+                      fill="url(#gradAusentes)" dot={false} />
                   )}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Gauges + Donut */}
+            <div className="flex flex-col gap-4">
+              {/* Gauges row */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-around">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">HHT Sem.</span>
+                  <Gauge value={ultimaSemana?.hht ?? 0}
+                    max={Math.max(5, (ultimaSemana?.hht ?? 0) * 1.5 || 5)}
+                    label="Homem Hora Treinamento" color={BLUE} size={100} />
+                </div>
+                <div className="w-px h-16 bg-zinc-800" />
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Acidentes</span>
+                  <Gauge value={ultimaSemana?.acidentes ?? 0} max={5}
+                    label="Qtd. de Acidentes" color={RED} size={100} />
+                </div>
+              </div>
+
+              {/* Donut — taxa de solução */}
+              <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col">
+                <p className="text-sm font-bold text-zinc-200 mb-1">Taxa de Solução</p>
+                <p className="text-xs text-zinc-500 mb-3">Desvios solucionados vs ocorridos</p>
+                <div className="flex-1 flex items-center justify-center">
+                  <DonutChart ocorridos={totais.desvOcorridos} solucionados={totais.desvSolucionados} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── APR×PT + Desvios ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* APR × PT — Grouped bars */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <p className="text-sm font-bold text-zinc-200 mb-0.5">APR × PT</p>
+              <p className="text-xs text-zinc-500 mb-4">Análises preliminares de risco e permissões de trabalho</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={chartData} barGap={2} margin={{ top: 16, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradAPR" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={BLUE} />
+                      <stop offset="100%" stopColor="#1D4ED8" />
+                    </linearGradient>
+                    <linearGradient id="gradPT" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CYAN} />
+                      <stop offset="100%" stopColor="#0E7490" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...grid} />
+                  <XAxis dataKey="label" tick={tick} />
+                  <YAxis tick={tick} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: '#71717A', paddingTop: 8 }} />
+                  <Bar dataKey="apr" name="APR / ABRA" fill="url(#gradAPR)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="apr" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
+                  </Bar>
+                  <Bar dataKey="pt" name="PT / Stop Take Five" fill="url(#gradPT)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="pt" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* APR x PT */}
+            {/* Desvios — bars + taxa line */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">APR x PT</p>
+              <p className="text-sm font-bold text-zinc-200 mb-0.5">Desvios Ocorridos × Solucionados</p>
+              <p className="text-xs text-zinc-500 mb-4">Com linha de taxa de solução (%)</p>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData} barGap={2}>
-                  <CartesianGrid {...gridProps} />
+                <BarChart data={chartDataComTaxa} barGap={2} margin={{ top: 16, right: 30, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradOcorridos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={BLUE} />
+                      <stop offset="100%" stopColor="#1D4ED8" />
+                    </linearGradient>
+                    <linearGradient id="gradSolucionados" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={GREEN} />
+                      <stop offset="100%" stopColor="#15803D" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...grid} />
                   <XAxis dataKey="label" tick={tick} />
-                  <YAxis tick={tick} />
+                  <YAxis yAxisId="left" tick={tick} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ ...tick, fontSize: 9 }} unit="%" domain={[0, 100]} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#A1A1AA' }} />
-                  <Bar dataKey="apr" name="APR / ABRA" fill="#3B82F6" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="apr" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: '#71717A', paddingTop: 8 }} />
+                  <Bar yAxisId="left" dataKey="desvOcorridos" name="Ocorridos" fill="url(#gradOcorridos)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="desvOcorridos" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
                   </Bar>
-                  <Bar dataKey="pt" name="PT / Stop Take Five" fill="#06B6D4" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="pt" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
+                  <Bar yAxisId="left" dataKey="desvSolucionados" name="Solucionados" fill="url(#gradSolucionados)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="desvSolucionados" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
                   </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Desvios */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Desvios Ocorridos × Solucionados</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData} barGap={2}>
-                  <CartesianGrid {...gridProps} />
-                  <XAxis dataKey="label" tick={tick} />
-                  <YAxis tick={tick} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#A1A1AA' }} />
-                  <Bar dataKey="desvOcorridos" name="Ocorridos" fill="#3B82F6" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="desvOcorridos" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
-                  </Bar>
-                  <Bar dataKey="desvSolucionados" name="Solucionados" fill="#06B6D4" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="desvSolucionados" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Alojamentos */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Alojamentos</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData} barGap={2}>
-                  <CartesianGrid {...gridProps} />
-                  <XAxis dataKey="label" tick={tick} />
-                  <YAxis tick={tick} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#A1A1AA' }} />
-                  <Bar dataKey="aloConformes" name="Conformes" fill="#22C55E" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="aloConformes" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
-                  </Bar>
-                  <Bar dataKey="aloNaoConformes" name="Não conformes" fill="#EF4444" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="aloNaoConformes" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
-                  </Bar>
-                  <Bar dataKey="aloTotais" name="Totais" fill="#3B82F6" radius={[3, 3, 0, 0]}>
-                    <LabelList dataKey="aloTotais" position="top" style={{ fill: '#A1A1AA', fontSize: 10 }} />
-                  </Bar>
+                  <Line yAxisId="right" type="monotone" dataKey="taxaSolucao" name="Taxa solução %" stroke={AMBER}
+                    strokeWidth={2} dot={{ r: 3, fill: AMBER }} activeDot={{ r: 5 }} strokeDasharray="4 2" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* ── Entries Table ── */}
+          {/* ── Alojamentos + HHT semanal ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Alojamentos */}
+            <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <p className="text-sm font-bold text-zinc-200 mb-0.5">Alojamentos</p>
+              <p className="text-xs text-zinc-500 mb-4">Conformes, não conformes e total</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={chartData} barGap={2} margin={{ top: 16, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradConformes" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={GREEN} />
+                      <stop offset="100%" stopColor="#15803D" />
+                    </linearGradient>
+                    <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={BLUE} />
+                      <stop offset="100%" stopColor="#1D4ED8" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...grid} />
+                  <XAxis dataKey="label" tick={tick} />
+                  <YAxis tick={tick} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: '#71717A', paddingTop: 8 }} />
+                  <Bar dataKey="aloConformes" name="Conformes" fill="url(#gradConformes)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="aloConformes" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
+                  </Bar>
+                  <Bar dataKey="aloNaoConformes" name="Não conformes" fill={RED} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="aloTotais" name="Totais" fill="url(#gradTotal)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="aloTotais" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* HHT semanal area */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <p className="text-sm font-bold text-zinc-200 mb-0.5">HHT Semanal</p>
+              <p className="text-xs text-zinc-500 mb-4">Homem Hora de Treinamento</p>
+              <div className="text-2xl font-black mb-3" style={{ color: BLUE }}>
+                {fmt(Math.round(totais.hht))}
+                <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+              </div>
+              <ResponsiveContainer width="100%" height={120}>
+                <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradHHT" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={PURPLE} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={PURPLE} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="label" tick={{ ...tick, fontSize: 8 }} />
+                  <YAxis tick={{ ...tick, fontSize: 8 }} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Area type="monotone" dataKey="hht" name="HHT" stroke={PURPLE} strokeWidth={2}
+                    fill="url(#gradHHT)" dot={{ fill: PURPLE, r: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* ── Tabela ── */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <p className="text-sm font-bold text-zinc-200">
-                Lançamentos ({entradas.length})
-              </p>
-              <button
-                onClick={carregarDados}
-                className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-all"
-              >
+              <div>
+                <p className="text-sm font-bold text-zinc-200">Lançamentos</p>
+                <p className="text-xs text-zinc-500">{entradas.length} registros</p>
+              </div>
+              <button onClick={carregarDados}
+                className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-all">
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
@@ -621,23 +657,17 @@ export default function IndicadoresPage() {
                 <thead>
                   <tr className="border-b border-zinc-800">
                     {['Obra', 'Semana', 'Efetivo', 'APR', 'PT', 'Desv. Oc.', 'Desv. Sol.', 'HHT', 'Acid.', 'DDS', ''].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">
-                        {h}
-                      </th>
+                      <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/50">
+                <tbody className="divide-y divide-zinc-800/40">
                   {entradas.map(item => {
                     const obra = obras.find(o => o.id === item.obra_id)
                     return (
                       <tr key={item.id} className="hover:bg-zinc-800/30 transition-colors group">
-                        <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap max-w-[160px] truncate">
-                          {obra?.nome ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">
-                          {semLabel(item.semana, item.ano)}
-                        </td>
+                        <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap max-w-[150px] truncate">{obra?.nome ?? '—'}</td>
+                        <td className="px-4 py-3 text-zinc-400 whitespace-nowrap font-mono text-xs">{semLabel(item.semana, item.ano)}</td>
                         <td className="px-4 py-3 text-zinc-300">{fmt(item.efetivo)}</td>
                         <td className="px-4 py-3 text-zinc-300">{item.apr_realizadas}</td>
                         <td className="px-4 py-3 text-zinc-300">{item.pt_realizadas}</td>
@@ -645,19 +675,14 @@ export default function IndicadoresPage() {
                         <td className="px-4 py-3 text-zinc-300">{item.desvios_solucionados}</td>
                         <td className="px-4 py-3 text-zinc-300">{Number(item.hht_semanal).toFixed(1)}</td>
                         <td className="px-4 py-3">
-                          <span className={cn(
-                            'font-bold',
-                            item.acidentes > 0 ? 'text-red-400' : 'text-zinc-300',
-                          )}>
+                          <span className={cn('font-bold', item.acidentes > 0 ? 'text-red-400' : 'text-zinc-300')}>
                             {item.acidentes}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-zinc-300">{item.dds}</td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => router.push(`/indicadores/${item.id}`)}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-all"
-                          >
+                          <button onClick={() => router.push(`/indicadores/${item.id}`)}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-all">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                         </td>
@@ -671,155 +696,117 @@ export default function IndicadoresPage() {
         </>
       )}
 
-      {/* ── Hidden PDF Export Div (light theme) ── */}
-      <div
-        ref={exportRef}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: 1122,
-          background: '#ffffff',
-          padding: '24px 28px',
-          fontFamily: 'Arial, Helvetica, sans-serif',
-          visibility: 'hidden',
-          pointerEvents: 'none',
-          zIndex: -1,
-        }}
-      >
+      {/* ── Export div (oculto, tema claro) ── */}
+      <div ref={exportRef} style={{
+        position: 'absolute', left: 0, top: 0, width: 1122, background: '#fff',
+        padding: '24px 28px', fontFamily: 'Arial, sans-serif',
+        visibility: 'hidden', pointerEvents: 'none', zIndex: -1,
+      }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, borderBottom: '2px solid #E8291C', paddingBottom: 12 }}>
-          <span style={{ fontSize: 26, fontWeight: 900, color: '#E8291C', letterSpacing: -1 }}>mse</span>
-          <span style={{ fontSize: 18, fontWeight: 800, color: '#111', letterSpacing: 0.5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, borderBottom: '2px solid #3B82F6', paddingBottom: 12 }}>
+          <span style={{ fontSize: 24, fontWeight: 900, color: '#E8291C' }}>mse</span>
+          <span style={{ fontSize: 17, fontWeight: 800, color: '#111' }}>
             INDICADORES HSE{obraAtual ? ` — ${obraAtual.nome.toUpperCase()}` : ' — CONSOLIDADO'}
           </span>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: '#666' }}>Data de emissão:</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>
-              {new Date().toLocaleDateString('pt-BR')}
-            </div>
+            <div style={{ fontSize: 10, color: '#999' }}>Data de emissão:</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>{new Date().toLocaleDateString('pt-BR')}</div>
           </div>
         </div>
 
-        {/* Main row: 3 charts + KPI column */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 170px', gap: 12, marginBottom: 12 }}>
-          {/* Efetivo */}
+        {/* Row 1: Efetivo + APR×PT + Desvios + KPIs */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 160px', gap: 10, marginBottom: 10 }}>
           <div>
-            <p style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#333', marginBottom: 4 }}>EFETIVO MSE</p>
-            <BarChart width={240} height={170} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 8 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 8 }} />
-              <Bar dataKey="efetivo" fill="#3B82F6" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="efetivo" position="top" style={{ fill: '#333', fontSize: 7 }} />
+            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>EFETIVO MSE</p>
+            <AreaChart width={230} height={160} data={chartData}>
+              <defs>
+                <linearGradient id="expGradEf" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={BLUE} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={BLUE} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
+              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
+              <Area type="monotone" dataKey="efetivo" name="Efetivo" stroke={BLUE} strokeWidth={2} fill="url(#expGradEf)" dot={{ fill: BLUE, r: 2 }} />
+            </AreaChart>
+          </div>
+          <div>
+            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>APR × PT</p>
+            <BarChart width={230} height={160} data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
+              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
+              <Legend wrapperStyle={{ fontSize: 7 }} />
+              <Bar dataKey="apr" name="APR" fill={BLUE} radius={[2,2,0,0]}>
+                <LabelList dataKey="apr" position="top" style={{ fill: '#333', fontSize: 6 }} />
+              </Bar>
+              <Bar dataKey="pt" name="PT" fill={CYAN} radius={[2,2,0,0]}>
+                <LabelList dataKey="pt" position="top" style={{ fill: '#333', fontSize: 6 }} />
               </Bar>
             </BarChart>
           </div>
-
-          {/* APR x PT */}
           <div>
-            <p style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#333', marginBottom: 4 }}>APR x PT</p>
-            <BarChart width={240} height={170} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 8 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 8 }} />
-              <Legend wrapperStyle={{ fontSize: 8 }} />
-              <Bar dataKey="apr" name="APR" fill="#3B82F6" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="apr" position="top" style={{ fill: '#333', fontSize: 7 }} />
+            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>DESVIOS</p>
+            <BarChart width={230} height={160} data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
+              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
+              <Legend wrapperStyle={{ fontSize: 7 }} />
+              <Bar dataKey="desvOcorridos" name="Ocorridos" fill={BLUE} radius={[2,2,0,0]}>
+                <LabelList dataKey="desvOcorridos" position="top" style={{ fill: '#333', fontSize: 6 }} />
               </Bar>
-              <Bar dataKey="pt" name="PT" fill="#06B6D4" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="pt" position="top" style={{ fill: '#333', fontSize: 7 }} />
+              <Bar dataKey="desvSolucionados" name="Solucionados" fill={GREEN} radius={[2,2,0,0]}>
+                <LabelList dataKey="desvSolucionados" position="top" style={{ fill: '#333', fontSize: 6 }} />
               </Bar>
             </BarChart>
           </div>
-
-          {/* Desvios */}
-          <div>
-            <p style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#333', marginBottom: 4 }}>DESVIOS OCORRIDOS × SOLUCIONADOS</p>
-            <BarChart width={240} height={170} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 8 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 8 }} />
-              <Legend wrapperStyle={{ fontSize: 8 }} />
-              <Bar dataKey="desvOcorridos" name="Ocorridos" fill="#3B82F6" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="desvOcorridos" position="top" style={{ fill: '#333', fontSize: 7 }} />
-              </Bar>
-              <Bar dataKey="desvSolucionados" name="Solucionados" fill="#06B6D4" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="desvSolucionados" position="top" style={{ fill: '#333', fontSize: 7 }} />
-              </Bar>
-            </BarChart>
-          </div>
-
-          {/* KPI Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {/* KPI column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {[
-              { label: 'DDS', value: fmt(totais.dds) },
-              { label: 'Campanhas', value: totais.campanhas },
-              { label: 'Primeiros Socorros', value: totais.primeirosSocorros },
-              { label: 'Pessoas Treinadas', value: fmt(totais.pessoasTreinadas) },
-              { label: 'Quase Acidentes', value: totais.quaseAcidentes },
-              { label: 'HHT Acumulado', value: fmt(Math.round(totais.hht)) },
+              { l: 'DDS', v: fmt(totais.dds) },
+              { l: 'Campanhas', v: totais.campanhas },
+              { l: 'Primeiros Socorros', v: totais.primeirosSocorros },
+              { l: 'Pessoas Treinadas', v: fmt(totais.pessoasTreinadas) },
+              { l: 'Quase Acidentes', v: totais.quaseAcidentes },
+              { l: 'HHT Acumulado', v: fmt(Math.round(totais.hht)) },
             ].map(k => (
-              <div key={k.label} style={{
-                background: '#F5F5F5', borderRadius: 8, padding: '6px 8px',
-                textAlign: 'center', border: '1px solid #E5E5E5',
-              }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#111', lineHeight: 1.2 }}>{k.value}</div>
-                <div style={{ fontSize: 8, color: '#666', marginTop: 2 }}>{k.label}</div>
+              <div key={k.l} style={{ background: '#F5F5F5', borderRadius: 6, padding: '5px 8px', textAlign: 'center', border: '1px solid #E5E5E5' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#111', lineHeight: 1.2 }}>{k.v}</div>
+                <div style={{ fontSize: 8, color: '#666' }}>{k.l}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Bottom row: Gauges + Alojamentos */}
-        <div style={{ display: 'grid', gridTemplateColumns: '170px 170px 1fr', gap: 12 }}>
-          {/* HHT Gauge */}
-          <div style={{ textAlign: 'center', background: '#F9F9F9', borderRadius: 12, padding: 8, border: '1px solid #E5E5E5' }}>
-            <GaugeSVGLight
-              value={ultimaSemana?.hht ?? 0}
-              max={Math.max(5, (ultimaSemana?.hht ?? 0) * 1.5)}
-              label="Hora Homem de Treinamento"
-              color="#3B82F6"
-              size={140}
-            />
+        {/* Row 2: Gauges + Alojamentos */}
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 160px 1fr', gap: 10 }}>
+          <div style={{ background: '#F9F9F9', borderRadius: 10, padding: 8, border: '1px solid #E5E5E5', textAlign: 'center' }}>
+            <GaugeLight value={ultimaSemana?.hht ?? 0} max={Math.max(5, (ultimaSemana?.hht ?? 0) * 1.5 || 5)} label="Hora Homem de Treinamento" color={BLUE} />
           </div>
-
-          {/* Acidentes Gauge */}
-          <div style={{ textAlign: 'center', background: '#F9F9F9', borderRadius: 12, padding: 8, border: '1px solid #E5E5E5' }}>
-            <GaugeSVGLight
-              value={ultimaSemana?.acidentes ?? 0}
-              max={5}
-              label="Quantidade de Acidentes"
-              color="#EF4444"
-              size={140}
-            />
+          <div style={{ background: '#F9F9F9', borderRadius: 10, padding: 8, border: '1px solid #E5E5E5', textAlign: 'center' }}>
+            <GaugeLight value={ultimaSemana?.acidentes ?? 0} max={5} label="Quantidade de Acidentes" color={RED} />
           </div>
-
-          {/* Alojamentos */}
           <div>
-            <p style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#333', marginBottom: 4 }}>ALOJAMENTOS</p>
-            <BarChart width={680} height={180} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 8 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 8 }} />
-              <Legend wrapperStyle={{ fontSize: 8 }} />
-              <Bar dataKey="aloConformes" name="Conformes" fill="#22C55E" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="aloConformes" position="top" style={{ fill: '#333', fontSize: 7 }} />
+            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>ALOJAMENTOS</p>
+            <BarChart width={700} height={170} data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
+              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
+              <Legend wrapperStyle={{ fontSize: 7 }} />
+              <Bar dataKey="aloConformes" name="Conformes" fill={GREEN} radius={[2,2,0,0]}>
+                <LabelList dataKey="aloConformes" position="top" style={{ fill: '#333', fontSize: 6 }} />
               </Bar>
-              <Bar dataKey="aloNaoConformes" name="Não conformes" fill="#EF4444" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="aloNaoConformes" position="top" style={{ fill: '#333', fontSize: 7 }} />
-              </Bar>
-              <Bar dataKey="aloTotais" name="Totais" fill="#3B82F6" radius={[2, 2, 0, 0]}>
-                <LabelList dataKey="aloTotais" position="top" style={{ fill: '#333', fontSize: 7 }} />
+              <Bar dataKey="aloNaoConformes" name="Não conformes" fill={RED} radius={[2,2,0,0]} />
+              <Bar dataKey="aloTotais" name="Totais" fill={BLUE} radius={[2,2,0,0]}>
+                <LabelList dataKey="aloTotais" position="top" style={{ fill: '#333', fontSize: 6 }} />
               </Bar>
             </BarChart>
           </div>
         </div>
-
-        {/* Period info */}
-        <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid #E5E5E5', fontSize: 9, color: '#999', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #E5E5E5', fontSize: 8, color: '#999', display: 'flex', justifyContent: 'space-between' }}>
           <span>Período: {semanaLabel}</span>
-          <span>Gerado por MSE Desvios HSE</span>
+          <span>Gerado por MSE Gestão HSE</span>
         </div>
       </div>
     </div>
