@@ -198,10 +198,12 @@ export default function IndicadoresPage() {
   const { obras, loaded } = useApp()
   const contentRef = useRef<HTMLDivElement>(null)
 
-  const [indicadores, setIndicadores] = useState<IndicadorSemanal[]>([])
-  const [loadingData, setLoadingData] = useState(true)
-  const [exportando, setExportando] = useState(false)
-  const [showFiltros, setShowFiltros] = useState(false)
+  const [indicadores,  setIndicadores]  = useState<IndicadorSemanal[]>([])
+  const [loadingData,  setLoadingData]  = useState(true)
+  const [exportando,   setExportando]   = useState(false)
+  const [showFiltros,  setShowFiltros]  = useState(false)
+  const [pdfMode,      setPdfMode]      = useState(false)
+  const [emissaoData,  setEmissaoData]  = useState('')
 
   const [filtroObra, setFiltroObra] = useState('todas')
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear())
@@ -298,15 +300,25 @@ export default function IndicadoresPage() {
   const gerarPDF = useCallback(async () => {
     if (!contentRef.current) return
     setExportando(true)
+
+    // Formata data/hora de emissão
+    const agora = new Date()
+    const dataFormatada = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    setEmissaoData(`${dataFormatada} ${horaFormatada}`)
+
+    // Ativa modo PDF: troca botões por data/hora e adiciona obra no título
+    setPdfMode(true)
+    await new Promise(r => setTimeout(r, 350)) // aguarda re-render
+
     try {
-      // Sobe ao topo para garantir captura completa
       window.scrollTo({ top: 0 })
-      await new Promise(r => setTimeout(r, 300))
+      await new Promise(r => setTimeout(r, 100))
 
       const html2canvas = (await import('html2canvas')).default
       const canvas = await html2canvas(contentRef.current, {
         scale: 1.5,
-        backgroundColor: '#09090b',   // zinc-950 (fundo do dashboard)
+        backgroundColor: '#09090b',
         logging: false,
         useCORS: true,
         allowTaint: true,
@@ -340,6 +352,7 @@ export default function IndicadoresPage() {
       console.error(e)
       alert('Erro ao gerar PDF. Tente novamente.')
     } finally {
+      setPdfMode(false)
       setExportando(false)
     }
   }, [contentRef, obraAtual, filtroAno])
@@ -365,33 +378,47 @@ export default function IndicadoresPage() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: BLUE + '20' }}>
               <TrendingUp className="w-4 h-4" style={{ color: BLUE }} />
             </div>
-            <h1 className="text-xl font-black text-zinc-100">Indicadores HSE</h1>
+            <h1 className="text-xl font-black text-zinc-100">
+              Indicadores HSE
+              {obraAtual && (
+                <span className="text-zinc-400 font-semibold"> — {obraAtual.nome}</span>
+              )}
+            </h1>
           </div>
           <p className="text-sm text-zinc-500 ml-9">{semanaLabel} · {indicadores.length} lançamentos</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowFiltros(v => !v)}
-            className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2 h-9">
-            <Filter className="w-4 h-4" />
-            Filtros
-            {showFiltros ? <X className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </Button>
-          <Button variant="outline" onClick={gerarPDF}
-            disabled={exportando || !indicadores.length}
-            className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2 h-9">
-            {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-            PDF
-          </Button>
-          <Link href={`/indicadores/novo${filtroObra !== 'todas' ? `?obra_id=${filtroObra}` : ''}`}>
-            <Button className="text-white font-semibold gap-2 h-9" style={{ background: BLUE }}>
-              <Plus className="w-4 h-4" /> Lançar
+
+        {/* Botões normais ou data/hora (modo PDF) */}
+        {pdfMode ? (
+          <div className="text-right">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold">Emissão</p>
+            <p className="text-sm font-bold text-zinc-200">{emissaoData}</p>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowFiltros(v => !v)}
+              className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2 h-9">
+              <Filter className="w-4 h-4" />
+              Filtros
+              {showFiltros ? <X className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </Button>
-          </Link>
-        </div>
+            <Button variant="outline" onClick={gerarPDF}
+              disabled={exportando || !indicadores.length}
+              className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2 h-9">
+              {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              PDF
+            </Button>
+            <Link href={`/indicadores/novo${filtroObra !== 'todas' ? `?obra_id=${filtroObra}` : ''}`}>
+              <Button className="text-white font-semibold gap-2 h-9" style={{ background: BLUE }}>
+                <Plus className="w-4 h-4" /> Lançar
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
-      {/* ── Filtros ── */}
-      {showFiltros && (
+      {/* ── Filtros (escondido no modo PDF) ── */}
+      {showFiltros && !pdfMode && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="col-span-2 sm:col-span-1 flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Obra</label>
