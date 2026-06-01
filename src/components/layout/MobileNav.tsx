@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
-  TrendingUp, Plus, ClipboardList,
+  TrendingUp, Plus, History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -19,8 +19,8 @@ const TABS_DESVIOS = [
 ]
 
 const TABS_INDICADORES = [
-  { href: '/indicadores',      icon: LayoutDashboard, label: 'Dashboard'   },
-  { href: '/indicadores/novo', icon: ClipboardList,   label: 'Lançamentos' },
+  { href: '/indicadores',           icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/indicadores/historico', icon: History,         label: 'Histórico' },
 ]
 
 function getSistema(pathname: string) {
@@ -83,28 +83,32 @@ function DesviosNav({ pathname }: { pathname: string }) {
   )
 }
 
-// ── Nav Indicadores (2 tabs + FAB + switch) ───────────────────────────────────
+// ── Nav Indicadores (Dashboard | Histórico | FAB | Desvios) ──────────────────
 
 function IndicadoresNav({ pathname }: { pathname: string }) {
   const router = useRouter()
   const cor = '#3B82F6'
 
+  const tabs = [
+    { href: '/indicadores',           icon: LayoutDashboard, label: 'Dashboard', exact: true },
+    { href: '/indicadores/historico', icon: History,         label: 'Histórico', exact: false },
+  ]
+
   return (
     <div className="flex items-center h-16">
-      {TABS_INDICADORES.map(tab => {
-        const isActive =
-          tab.href === '/indicadores'
-            ? pathname === '/indicadores'
-            : pathname === tab.href || pathname.startsWith(tab.href + '/')
+      {tabs.map(tab => {
+        const isActive = tab.exact
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(tab.href + '/')
         return (
           <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
             {isActive && (
-              <motion.div layoutId="mob-indicator-ind" className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+              <motion.div layoutId="mob-ind-tab" className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
                 style={{ background: cor }} transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
             )}
             <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
               style={isActive ? { color: cor } : {}} />
-            <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+            <span className={cn('text-[10px] font-medium', isActive ? '' : 'text-zinc-600')}
               style={isActive ? { color: cor } : {}}>
               {tab.label}
             </span>
@@ -112,7 +116,7 @@ function IndicadoresNav({ pathname }: { pathname: string }) {
         )
       })}
 
-      {/* FAB */}
+      {/* FAB — Lançar */}
       <div className="flex-shrink-0 px-2">
         <button onClick={() => router.push('/indicadores/novo')}
           className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95"
@@ -122,17 +126,17 @@ function IndicadoresNav({ pathname }: { pathname: string }) {
       </div>
 
       {/* Switch to Desvios */}
-      <Link href="/dashboard" className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+      <Link href="/dashboard" className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full">
         <AlertTriangle className="w-5 h-5 text-zinc-600" />
         <span className="text-[10px] font-medium text-zinc-600">Desvios</span>
       </Link>
 
-      {/* Switch indicator */}
-      <Link href="/dashboard" className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
-        <TrendingUp className="w-5 h-5" style={{ color: cor }} />
-        <span className="text-[10px] font-medium" style={{ color: cor }}>Indicadores</span>
+      {/* Indicadores (active system indicator) */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full" style={{ background: cor }} />
-      </Link>
+        <TrendingUp className="w-5 h-5" style={{ color: cor }} />
+        <span className="text-[10px] font-medium" style={{ color: cor }}>HSE</span>
+      </div>
     </div>
   )
 }

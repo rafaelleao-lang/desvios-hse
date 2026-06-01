@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
-  TrendingUp, X, Plus, ClipboardList, ChevronRight,
+  TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -44,8 +44,9 @@ const MENUS = [
     homeHref:   '/indicadores',
     acao:       { label: 'Lançar Indicadores', href: '/indicadores/novo' },
     subnav: [
-      { href: '/indicadores',      icon: LayoutDashboard, label: 'Dashboard'   },
-      { href: '/indicadores/novo', icon: ClipboardList,   label: 'Lançamentos' },
+      { href: '/indicadores',           icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/indicadores/novo',      icon: Plus,            label: 'Lançar'    },
+      { href: '/indicadores/historico', icon: History,         label: 'Histórico' },
     ],
   },
 ]

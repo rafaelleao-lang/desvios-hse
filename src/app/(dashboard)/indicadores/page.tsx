@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, LabelList, RadialBarChart, RadialBar,
@@ -10,14 +9,13 @@ import {
 } from 'recharts'
 import {
   Plus, FileDown, Loader2, TrendingUp, Users, AlertTriangle,
-  BookOpen, ShieldCheck, Filter, Pencil, RefreshCw,
-  ChevronDown, X, Home, Activity,
+  BookOpen, ShieldCheck, Filter, History,
+  ChevronDown, X, Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useApp } from '@/contexts/AppContext'
 import { indicadoresDB } from '@/lib/db'
 import type { IndicadorSemanal } from '@/types'
-import { cn } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -198,7 +196,6 @@ function GaugeLight({ value, max = 5, label, color }: { value: number; max: numb
 
 export default function IndicadoresPage() {
   const { obras, loaded } = useApp()
-  const router = useRouter()
   const exportRef = useRef<HTMLDivElement>(null)
 
   const [indicadores, setIndicadores] = useState<IndicadorSemanal[]>([])
@@ -640,59 +637,6 @@ export default function IndicadoresPage() {
             </div>
           </div>
 
-          {/* ── Tabela ── */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-zinc-200">Lançamentos</p>
-                <p className="text-xs text-zinc-500">{entradas.length} registros</p>
-              </div>
-              <button onClick={carregarDados}
-                className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-all">
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800">
-                    {['Obra', 'Semana', 'Efetivo', 'APR', 'PT', 'Desv. Oc.', 'Desv. Sol.', 'HHT', 'Acid.', 'DDS', ''].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/40">
-                  {entradas.map(item => {
-                    const obra = obras.find(o => o.id === item.obra_id)
-                    return (
-                      <tr key={item.id} className="hover:bg-zinc-800/30 transition-colors group">
-                        <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap max-w-[150px] truncate">{obra?.nome ?? '—'}</td>
-                        <td className="px-4 py-3 text-zinc-400 whitespace-nowrap font-mono text-xs">{semLabel(item.semana, item.ano)}</td>
-                        <td className="px-4 py-3 text-zinc-300">{fmt(item.efetivo)}</td>
-                        <td className="px-4 py-3 text-zinc-300">{item.apr_realizadas}</td>
-                        <td className="px-4 py-3 text-zinc-300">{item.pt_realizadas}</td>
-                        <td className="px-4 py-3 text-zinc-300">{item.desvios_ocorridos}</td>
-                        <td className="px-4 py-3 text-zinc-300">{item.desvios_solucionados}</td>
-                        <td className="px-4 py-3 text-zinc-300">{Number(item.hht_semanal).toFixed(1)}</td>
-                        <td className="px-4 py-3">
-                          <span className={cn('font-bold', item.acidentes > 0 ? 'text-red-400' : 'text-zinc-300')}>
-                            {item.acidentes}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-zinc-300">{item.dds}</td>
-                        <td className="px-4 py-3">
-                          <button onClick={() => router.push(`/indicadores/${item.id}`)}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-all">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </>
       )}
 

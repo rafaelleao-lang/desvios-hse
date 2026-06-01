@@ -103,7 +103,10 @@ function NovoIndicadorPage() {
   // Treinamento
   const [hhtTreinamento,   setHhtTreinamento]   = useState('0')
   const [pessoasTreinadas, setPessoasTreinadas] = useState('0')
-  const [dds,              setDds]              = useState('0')
+
+  // Ações
+  const [dds,       setDds]       = useState('0')
+  const [campanhas, setCampanhas] = useState('0')
 
   // Acidentes e Incidentes
   const [acidentes,              setAcidentes]              = useState('0')
@@ -111,8 +114,6 @@ function NovoIndicadorPage() {
   const [primeirosSocorros,      setPrimeirosSocorros]      = useState('0')
   const [quaseAcidentes,         setQuaseAcidentes]         = useState('0')
   const [danosMateriais,         setDanosMateriais]         = useState('0')
-  const [campanhas,              setCampanhas]              = useState('0')
-  const [inspecoes,              setInspecoes]              = useState('0')
 
   const [observacoes, setObservacoes] = useState('')
 
@@ -141,14 +142,14 @@ function NovoIndicadorPage() {
         alojamentos_totais:       parseInt(aloTotais)          || 0,
         hht_semanal:              parseFloat(hhtTreinamento)   || 0,
         pessoas_treinadas:        parseInt(pessoasTreinadas)   || 0,
-        dds:                      parseInt(dds)                || 0,
-        acidentes:                parseInt(acidentes)          || 0,
+        dds:                      parseInt(dds)                    || 0,
+        campanhas:                parseInt(campanhas)              || 0,
+        acidentes:                parseInt(acidentes)              || 0,
         acidente_sem_afastamento: parseInt(acidenteSemAfastamento) || 0,
-        primeiros_socorros:       parseInt(primeirosSocorros)  || 0,
-        quase_acidentes:          parseInt(quaseAcidentes)     || 0,
-        danos_materiais:          parseInt(danosMateriais)     || 0,
-        campanhas:                parseInt(campanhas)          || 0,
-        inspecoes_semanais:       parseInt(inspecoes)          || 0,
+        primeiros_socorros:       parseInt(primeirosSocorros)      || 0,
+        quase_acidentes:          parseInt(quaseAcidentes)         || 0,
+        danos_materiais:          parseInt(danosMateriais)         || 0,
+        inspecoes_semanais:       0,
         observacoes:              observacoes || undefined,
       })
       router.push('/indicadores')
@@ -264,21 +265,24 @@ function NovoIndicadorPage() {
       </Section>
 
       {/* ── Treinamento ── */}
-      <Section title="Treinamento" cols={3}>
+      <Section title="Treinamento" cols={2}>
         <Field label="Hora Homem Treinado" value={hhtTreinamento}   onChange={setHhtTreinamento}   step="0.1" />
         <Field label="Pessoas treinadas"   value={pessoasTreinadas} onChange={setPessoasTreinadas} />
-        <Field label="DDS realizados"      value={dds}              onChange={setDds}              />
+      </Section>
+
+      {/* ── Ações ── */}
+      <Section title="Ações" cols={2}>
+        <Field label="DDS realizados" value={dds}       onChange={setDds}       />
+        <Field label="Campanhas HSE"  value={campanhas} onChange={setCampanhas} />
       </Section>
 
       {/* ── Acidentes e Incidentes ── */}
-      <Section title="Acidentes e Incidentes" cols={4}>
-        <Field label="Acidentes com afastamento"    value={acidentes}              onChange={setAcidentes}              />
-        <Field label="Acidentes sem afastamento"    value={acidenteSemAfastamento} onChange={setAcidenteSemAfastamento} />
-        <Field label="Primeiros socorros"           value={primeirosSocorros}      onChange={setPrimeirosSocorros}      />
-        <Field label="Quase acidentes"              value={quaseAcidentes}         onChange={setQuaseAcidentes}         />
-        <Field label="Danos materiais"              value={danosMateriais}         onChange={setDanosMateriais}         />
-        <Field label="Campanhas HSE"                value={campanhas}              onChange={setCampanhas}              />
-        <Field label="Inspeções semanais"           value={inspecoes}              onChange={setInspecoes}              />
+      <Section title="Acidentes e Incidentes" cols={3}>
+        <Field label="Acidentes com afastamento" value={acidentes}              onChange={setAcidentes}              />
+        <Field label="Acidentes sem afastamento" value={acidenteSemAfastamento} onChange={setAcidenteSemAfastamento} />
+        <Field label="Primeiros socorros"        value={primeirosSocorros}      onChange={setPrimeirosSocorros}      />
+        <Field label="Quase acidentes"           value={quaseAcidentes}         onChange={setQuaseAcidentes}         />
+        <Field label="Danos materiais"           value={danosMateriais}         onChange={setDanosMateriais}         />
       </Section>
 
       {/* ── Observações ── */}
