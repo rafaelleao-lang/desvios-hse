@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -196,7 +196,7 @@ function GaugeLight({ value, max = 5, label, color }: { value: number; max: numb
 
 export default function IndicadoresPage() {
   const { obras, loaded } = useApp()
-  const exportRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   const [indicadores, setIndicadores] = useState<IndicadorSemanal[]>([])
   const [loadingData, setLoadingData] = useState(true)
@@ -293,37 +293,56 @@ export default function IndicadoresPage() {
     ? `Ano ${filtroAno}`
     : `Se${String(filtroSemIni).padStart(2,'0')}–Se${String(filtroSemFim).padStart(2,'0')}/${filtroAno}`
 
-  const entradas = useMemo(() =>
-    [...indicadores].sort((a, b) => b.ano - a.ano || b.semana - a.semana),
-  [indicadores])
+  // ── PDF — captura o dashboard real (fundo escuro, 100% fiel) ────────────────
 
-  // ── PDF ────────────────────────────────────────────────────────────────────
-
-  const gerarPDF = async () => {
-    if (!exportRef.current) return
+  const gerarPDF = useCallback(async () => {
+    if (!contentRef.current) return
     setExportando(true)
     try {
-      const el = exportRef.current
-      el.style.visibility = 'visible'
-      await new Promise(r => setTimeout(r, 900))
+      // Sobe ao topo para garantir captura completa
+      window.scrollTo({ top: 0 })
+      await new Promise(r => setTimeout(r, 300))
 
       const html2canvas = (await import('html2canvas')).default
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true })
-      el.style.visibility = 'hidden'
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 1.5,
+        backgroundColor: '#09090b',   // zinc-950 (fundo do dashboard)
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        imageTimeout: 0,
+      })
 
       const { jsPDF } = await import('jspdf')
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-      const pW = pdf.internal.pageSize.getWidth()
-      const pH = pdf.internal.pageSize.getHeight()
-      const ratio = canvas.height / canvas.width
-      const iH = pW * ratio
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, iH <= pH ? pW : pH / ratio, iH <= pH ? iH : pH)
-      pdf.save(`indicadores_${(obraAtual?.nome ?? 'consolidado').replace(/\s+/g, '_')}_${filtroAno}.pdf`)
+
+      // Tamanho do PDF baseado nas dimensões reais do conteúdo capturado
+      const PX_TO_MM = 0.264583          // 1px a 96dpi = 0.264583mm
+      const scale    = 1.5               // mesmo scale passado ao html2canvas
+      const pdfW     = (canvas.width  / scale) * PX_TO_MM
+      const pdfH     = (canvas.height / scale) * PX_TO_MM
+
+      const pdf = new jsPDF({
+        orientation: pdfW > pdfH ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: [pdfW, pdfH],
+        compress: true,
+      })
+
+      pdf.addImage(
+        canvas.toDataURL('image/jpeg', 0.92),
+        'JPEG', 0, 0, pdfW, pdfH,
+        undefined, 'FAST'
+      )
+
+      const nomeObra = obraAtual?.nome ?? 'consolidado'
+      pdf.save(`indicadores_${nomeObra.replace(/\s+/g, '_')}_${filtroAno}.pdf`)
     } catch (e) {
       console.error(e)
-      alert('Erro ao gerar PDF.')
-    } finally { setExportando(false) }
-  }
+      alert('Erro ao gerar PDF. Tente novamente.')
+    } finally {
+      setExportando(false)
+    }
+  }, [contentRef, obraAtual, filtroAno])
 
   // ── Shared chart props ────────────────────────────────────────────────────
 
@@ -337,7 +356,7 @@ export default function IndicadoresPage() {
   )
 
   return (
-    <div className="space-y-5">
+    <div ref={contentRef} className="space-y-5">
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -639,120 +658,8 @@ export default function IndicadoresPage() {
 
         </>
       )}
-
-      {/* ── Export div (oculto, tema claro) ── */}
-      <div ref={exportRef} style={{
-        position: 'absolute', left: 0, top: 0, width: 1122, background: '#fff',
-        padding: '24px 28px', fontFamily: 'Arial, sans-serif',
-        visibility: 'hidden', pointerEvents: 'none', zIndex: -1,
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, borderBottom: '2px solid #3B82F6', paddingBottom: 12 }}>
-          <span style={{ fontSize: 24, fontWeight: 900, color: '#E8291C' }}>mse</span>
-          <span style={{ fontSize: 17, fontWeight: 800, color: '#111' }}>
-            INDICADORES HSE{obraAtual ? ` — ${obraAtual.nome.toUpperCase()}` : ' — CONSOLIDADO'}
-          </span>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 10, color: '#999' }}>Data de emissão:</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>{new Date().toLocaleDateString('pt-BR')}</div>
-          </div>
-        </div>
-
-        {/* Row 1: Efetivo + APR×PT + Desvios + KPIs */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 160px', gap: 10, marginBottom: 10 }}>
-          <div>
-            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>EFETIVO MSE</p>
-            <AreaChart width={230} height={160} data={chartData}>
-              <defs>
-                <linearGradient id="expGradEf" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={BLUE} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={BLUE} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
-              <Area type="monotone" dataKey="efetivo" name="Efetivo" stroke={BLUE} strokeWidth={2} fill="url(#expGradEf)" dot={{ fill: BLUE, r: 2 }} />
-            </AreaChart>
-          </div>
-          <div>
-            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>APR × PT</p>
-            <BarChart width={230} height={160} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
-              <Legend wrapperStyle={{ fontSize: 7 }} />
-              <Bar dataKey="apr" name="APR" fill={BLUE} radius={[2,2,0,0]}>
-                <LabelList dataKey="apr" position="top" style={{ fill: '#333', fontSize: 6 }} />
-              </Bar>
-              <Bar dataKey="pt" name="PT" fill={CYAN} radius={[2,2,0,0]}>
-                <LabelList dataKey="pt" position="top" style={{ fill: '#333', fontSize: 6 }} />
-              </Bar>
-            </BarChart>
-          </div>
-          <div>
-            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>DESVIOS</p>
-            <BarChart width={230} height={160} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
-              <Legend wrapperStyle={{ fontSize: 7 }} />
-              <Bar dataKey="desvOcorridos" name="Ocorridos" fill={BLUE} radius={[2,2,0,0]}>
-                <LabelList dataKey="desvOcorridos" position="top" style={{ fill: '#333', fontSize: 6 }} />
-              </Bar>
-              <Bar dataKey="desvSolucionados" name="Solucionados" fill={GREEN} radius={[2,2,0,0]}>
-                <LabelList dataKey="desvSolucionados" position="top" style={{ fill: '#333', fontSize: 6 }} />
-              </Bar>
-            </BarChart>
-          </div>
-          {/* KPI column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {[
-              { l: 'DDS', v: fmt(totais.dds) },
-              { l: 'Campanhas', v: totais.campanhas },
-              { l: 'Primeiros Socorros', v: totais.primeirosSocorros },
-              { l: 'Pessoas Treinadas', v: fmt(totais.pessoasTreinadas) },
-              { l: 'Quase Acidentes', v: totais.quaseAcidentes },
-              { l: 'HHT Acumulado', v: fmt(Math.round(totais.hht)) },
-            ].map(k => (
-              <div key={k.l} style={{ background: '#F5F5F5', borderRadius: 6, padding: '5px 8px', textAlign: 'center', border: '1px solid #E5E5E5' }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#111', lineHeight: 1.2 }}>{k.v}</div>
-                <div style={{ fontSize: 8, color: '#666' }}>{k.l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2: Gauges + Alojamentos */}
-        <div style={{ display: 'grid', gridTemplateColumns: '160px 160px 1fr', gap: 10 }}>
-          <div style={{ background: '#F9F9F9', borderRadius: 10, padding: 8, border: '1px solid #E5E5E5', textAlign: 'center' }}>
-            <GaugeLight value={ultimaSemana?.hht ?? 0} max={Math.max(5, (ultimaSemana?.hht ?? 0) * 1.5 || 5)} label="Hora Homem de Treinamento" color={BLUE} />
-          </div>
-          <div style={{ background: '#F9F9F9', borderRadius: 10, padding: 8, border: '1px solid #E5E5E5', textAlign: 'center' }}>
-            <GaugeLight value={ultimaSemana?.acidentes ?? 0} max={5} label="Quantidade de Acidentes" color={RED} />
-          </div>
-          <div>
-            <p style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#333', marginBottom: 3 }}>ALOJAMENTOS</p>
-            <BarChart width={700} height={170} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#666', fontSize: 7 }} />
-              <YAxis tick={{ fill: '#666', fontSize: 7 }} />
-              <Legend wrapperStyle={{ fontSize: 7 }} />
-              <Bar dataKey="aloConformes" name="Conformes" fill={GREEN} radius={[2,2,0,0]}>
-                <LabelList dataKey="aloConformes" position="top" style={{ fill: '#333', fontSize: 6 }} />
-              </Bar>
-              <Bar dataKey="aloNaoConformes" name="Não conformes" fill={RED} radius={[2,2,0,0]} />
-              <Bar dataKey="aloTotais" name="Totais" fill={BLUE} radius={[2,2,0,0]}>
-                <LabelList dataKey="aloTotais" position="top" style={{ fill: '#333', fontSize: 6 }} />
-              </Bar>
-            </BarChart>
-          </div>
-        </div>
-        <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #E5E5E5', fontSize: 8, color: '#999', display: 'flex', justifyContent: 'space-between' }}>
-          <span>Período: {semanaLabel}</span>
-          <span>Gerado por MSE Gestão HSE</span>
-        </div>
-      </div>
     </div>
   )
 }
+
+
