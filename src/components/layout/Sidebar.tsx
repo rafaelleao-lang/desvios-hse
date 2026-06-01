@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
-  TrendingUp, X, Plus, FileBarChart2, ClipboardList,
+  TrendingUp, X, Plus, ClipboardList, ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -17,48 +17,55 @@ function getSistema(pathname: string): Sistema {
   return pathname.startsWith('/indicadores') ? 'indicadores' : 'desvios'
 }
 
-// ── Configuração dos sistemas ─────────────────────────────────────────────────
+// ── Configuração dos menus ────────────────────────────────────────────────────
 
-const SISTEMAS = {
-  desvios: {
-    cor:       '#E8291C',
-    corHover:  '#C9200F',
-    label:     'Desvios',
-    icon:      AlertTriangle,
-    acao:      { label: 'Novo Desvio', href: '/desvios/novo' },
-    nav: [
+const MENUS = [
+  {
+    key:        'desvios' as Sistema,
+    label:      'Desvios',
+    icon:       AlertTriangle,
+    cor:        '#E8291C',
+    corHover:   '#C9200F',
+    homeHref:   '/dashboard',
+    acao:       { label: 'Novo Desvio', href: '/desvios/novo' },
+    subnav: [
       { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
       { href: '/desvios',    icon: AlertTriangle,   label: 'Desvios'    },
       { href: '/obras',      icon: Building2,       label: 'Obras'      },
       { href: '/relatorios', icon: BarChart3,       label: 'Relatórios' },
     ],
   },
-  indicadores: {
-    cor:       '#3B82F6',
-    corHover:  '#2563EB',
-    label:     'Indicadores',
-    icon:      TrendingUp,
-    acao:      { label: 'Lançar Indicadores', href: '/indicadores/novo' },
-    nav: [
+  {
+    key:        'indicadores' as Sistema,
+    label:      'Indicadores HSE',
+    icon:       TrendingUp,
+    cor:        '#3B82F6',
+    corHover:   '#2563EB',
+    homeHref:   '/indicadores',
+    acao:       { label: 'Lançar Indicadores', href: '/indicadores/novo' },
+    subnav: [
       { href: '/indicadores',      icon: LayoutDashboard, label: 'Dashboard'   },
       { href: '/indicadores/novo', icon: ClipboardList,   label: 'Lançamentos' },
     ],
   },
-} as const
+]
 
 // ── Sidebar content ───────────────────────────────────────────────────────────
 
 function SidebarContent({ onClose }: { onClose: () => void }) {
-  const pathname  = usePathname()
-  const sistema   = getSistema(pathname)
-  const cfg       = SISTEMAS[sistema]
+  const pathname = usePathname()
+  const sistema  = getSistema(pathname)
+  const cfg      = MENUS.find(m => m.key === sistema)!
 
   return (
     <div className="flex flex-col h-full">
 
       {/* ── Logo ── */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-zinc-800 flex-shrink-0">
-        <span className="text-2xl font-black leading-none tracking-tight select-none" style={{ color: '#E8291C' }}>
+        <span
+          className="text-2xl font-black leading-none tracking-tight select-none"
+          style={{ color: '#E8291C' }}
+        >
           mse
         </span>
         <div className="w-px h-6 bg-zinc-700" />
@@ -74,93 +81,99 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      {/* ── Switcher de sistemas ── */}
-      <div className="px-3 pt-4 pb-3 border-b border-zinc-800/60">
-        <p className="px-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-2">
-          Sistema
-        </p>
-        <div className="flex gap-1.5">
-          {(Object.keys(SISTEMAS) as Sistema[]).map(sys => {
-            const s      = SISTEMAS[sys]
-            const ativo  = sistema === sys
-            const Icon   = s.icon
-            return (
+      {/* ── Menu principal com submenus ── */}
+      <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+        {MENUS.map(menu => {
+          const aberto = menu.key === sistema
+          const Icon   = menu.icon
+
+          return (
+            <div key={menu.key}>
+              {/* Item principal */}
               <Link
-                key={sys}
-                href={sys === 'desvios' ? '/dashboard' : '/indicadores'}
+                href={menu.homeHref}
                 onClick={onClose}
                 className={cn(
-                  'flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all duration-200',
-                  ativo ? 'text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300 bg-zinc-800/50 hover:bg-zinc-800',
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 w-full border',
+                  aberto
+                    ? 'border'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border-transparent',
                 )}
-                style={ativo ? { background: s.cor } : {}}
+                style={aberto ? {
+                  background:   menu.cor + '15',
+                  borderColor:  menu.cor + '40',
+                  color:        menu.cor,
+                } : {}}
               >
-                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="truncate">{s.label}</span>
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{menu.label}</span>
+                <motion.div
+                  animate={{ rotate: aberto ? 90 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </motion.div>
               </Link>
-            )
-          })}
-        </div>
-      </div>
 
-      {/* ── Navegação do sistema ativo (animada) ── */}
-      <nav className="flex-1 overflow-y-auto py-3 px-3">
-        <p className="px-3 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1.5">
-          {cfg.label}
-        </p>
-
-        <AnimatePresence mode="wait">
-          <motion.ul
-            key={sistema}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="space-y-0.5"
-          >
-            {cfg.nav.map(item => {
-              const active =
-                item.href === '/indicadores'
-                  ? pathname === '/indicadores'
-                  : pathname === item.href || pathname.startsWith(item.href + '/')
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 border',
-                      active
-                        ? 'border'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border-transparent',
-                    )}
-                    style={active ? {
-                      background: cfg.cor + '14',
-                      borderColor: cfg.cor + '35',
-                      color: cfg.cor,
-                    } : {}}
+              {/* Submenus animados */}
+              <AnimatePresence initial={false}>
+                {aberto && (
+                  <motion.ul
+                    key="sub"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeInOut' }}
+                    className="overflow-hidden"
                   >
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    <span>{item.label}</span>
-                    {active && (
-                      <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: cfg.cor }} />
-                    )}
-                  </Link>
-                </li>
-              )
-            })}
-          </motion.ul>
-        </AnimatePresence>
+                    <div className="ml-3 pl-3 border-l border-zinc-800 mt-1 mb-1 space-y-0.5">
+                      {menu.subnav.map(item => {
+                        const active =
+                          item.href === '/indicadores'
+                            ? pathname === '/indicadores'
+                            : pathname === item.href || pathname.startsWith(item.href + '/')
+                        return (
+                          <li key={item.href}>
+                            <Link
+                              href={item.href}
+                              onClick={onClose}
+                              className={cn(
+                                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150',
+                                active
+                                  ? 'font-semibold'
+                                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/70 font-medium',
+                              )}
+                              style={active ? { color: menu.cor } : {}}
+                            >
+                              <item.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                              {item.label}
+                              {active && (
+                                <div
+                                  className="ml-auto w-1 h-1 rounded-full"
+                                  style={{ background: menu.cor }}
+                                />
+                              )}
+                            </Link>
+                          </li>
+                        )
+                      })}
+                    </div>
+                  </motion.ul>
+                )}
+              </AnimatePresence>
+            </div>
+          )
+        })}
       </nav>
 
-      {/* ── Ação rápida ── */}
-      <div className="px-3 pb-3 border-t border-zinc-800 pt-3">
+      {/* ── Ação rápida contextual ── */}
+      <div className="px-3 pb-3 pt-3 border-t border-zinc-800">
         <AnimatePresence mode="wait">
           <motion.div
             key={`acao-${sistema}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
           >
             <Link
@@ -200,12 +213,10 @@ interface SidebarProps {
 export function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <>
-      {/* Desktop */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 z-40 w-[260px] bg-zinc-950 border-r border-zinc-800 flex-col">
         <SidebarContent onClose={() => {}} />
       </aside>
 
-      {/* Mobile drawer */}
       <AnimatePresence>
         {open && (
           <>

@@ -163,6 +163,7 @@ export interface IndicadorSemanal {
   // Efetivo
   efetivo: number
   ausentes: number
+  hht_trabalhada: number
   // Documentos de segurança
   apr_realizadas: number
   pt_realizadas: number
