@@ -2,91 +2,167 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, AlertTriangle, Building2, BarChart3, Plus } from 'lucide-react'
+import {
+  LayoutDashboard, AlertTriangle, Building2, BarChart3,
+  TrendingUp, Plus, History,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
-const tabs = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/desvios',   icon: AlertTriangle,   label: 'Desvios'   },
-  { href: '/obras',     icon: Building2,       label: 'Obras'     },
-  { href: '/relatorios',icon: BarChart3,       label: 'Relatórios'},
+// ── Tabs por sistema ──────────────────────────────────────────────────────────
+
+const TABS_DESVIOS = [
+  { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
+  { href: '/desvios',    icon: AlertTriangle,   label: 'Desvios'    },
+  { href: '/obras',      icon: Building2,       label: 'Obras'      },
+  { href: '/relatorios', icon: BarChart3,       label: 'Relatórios' },
 ]
+
+const TABS_INDICADORES = [
+  { href: '/indicadores',           icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/indicadores/historico', icon: History,         label: 'Histórico' },
+]
+
+function getSistema(pathname: string) {
+  return pathname.startsWith('/indicadores') ? 'indicadores' : 'desvios'
+}
+
+// ── Nav Desvios (4 tabs + FAB) ────────────────────────────────────────────────
+
+function DesviosNav({ pathname }: { pathname: string }) {
+  const router = useRouter()
+  const cor = '#E8291C'
+
+  return (
+    <div className="flex items-center h-16">
+      {TABS_DESVIOS.slice(0, 2).map(tab => {
+        const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+            {isActive && (
+              <motion.div layoutId="mob-indicator" className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                style={{ background: cor }} transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+            )}
+            <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}} />
+            <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}}>
+              {tab.label}
+            </span>
+          </Link>
+        )
+      })}
+
+      {/* FAB */}
+      <div className="flex-shrink-0 px-2">
+        <button onClick={() => router.push('/desvios/novo')}
+          className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95"
+          style={{ background: cor }}>
+          <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {TABS_DESVIOS.slice(2).map(tab => {
+        const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+            {isActive && (
+              <motion.div layoutId="mob-indicator" className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                style={{ background: cor }} transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+            )}
+            <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}} />
+            <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}}>
+              {tab.label}
+            </span>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Nav Indicadores (Dashboard | Histórico | FAB | Desvios) ──────────────────
+
+function IndicadoresNav({ pathname }: { pathname: string }) {
+  const router = useRouter()
+  const cor = '#3B82F6'
+
+  const tabs = [
+    { href: '/indicadores',           icon: LayoutDashboard, label: 'Dashboard', exact: true },
+    { href: '/indicadores/historico', icon: History,         label: 'Histórico', exact: false },
+  ]
+
+  return (
+    <div className="flex items-center h-16">
+      {tabs.map(tab => {
+        const isActive = tab.exact
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(tab.href + '/')
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+            {isActive && (
+              <motion.div layoutId="mob-ind-tab" className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                style={{ background: cor }} transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+            )}
+            <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}} />
+            <span className={cn('text-[10px] font-medium', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}}>
+              {tab.label}
+            </span>
+          </Link>
+        )
+      })}
+
+      {/* FAB — Lançar */}
+      <div className="flex-shrink-0 px-2">
+        <button onClick={() => router.push('/indicadores/novo')}
+          className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95"
+          style={{ background: cor }}>
+          <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {/* Switch to Desvios */}
+      <Link href="/dashboard" className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full">
+        <AlertTriangle className="w-5 h-5 text-zinc-600" />
+        <span className="text-[10px] font-medium text-zinc-600">Desvios</span>
+      </Link>
+
+      {/* Indicadores (active system indicator) */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full" style={{ background: cor }} />
+        <TrendingUp className="w-5 h-5" style={{ color: cor }} />
+        <span className="text-[10px] font-medium" style={{ color: cor }}>HSE</span>
+      </div>
+    </div>
+  )
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
 
 export function MobileNav() {
   const pathname = usePathname()
-  const router = useRouter()
+  const sistema  = getSistema(pathname)
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 mobile-safe-bottom">
-      <div className="flex items-center h-16">
-        {tabs.slice(0, 2).map((tab) => {
-          const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
-          return (
-            <Link key={tab.href} href={tab.href}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
-              {isActive && (
-                <motion.div
-                  layoutId="mobile-tab-indicator"
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
-                  style={{ background: '#E8291C' }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                />
-              )}
-              <tab.icon
-                className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
-                style={isActive ? { color: '#E8291C' } : {}}
-              />
-              <span
-                className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
-                style={isActive ? { color: '#E8291C' } : {}}
-              >
-                {tab.label}
-              </span>
-            </Link>
-          )
-        })}
-
-        {/* Center FAB */}
-        <div className="flex-shrink-0 px-2">
-          <button
-            onClick={() => router.push('/desvios/novo')}
-            className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-glow-mse transition-all active:scale-95"
-            style={{ background: '#E8291C' }}
-            onTouchStart={e => (e.currentTarget.style.background = '#C9200F')}
-            onTouchEnd={e => (e.currentTarget.style.background = '#E8291C')}
-          >
-            <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
-          </button>
-        </div>
-
-        {tabs.slice(2).map((tab) => {
-          const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
-          return (
-            <Link key={tab.href} href={tab.href}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
-              {isActive && (
-                <motion.div
-                  layoutId="mobile-tab-indicator"
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
-                  style={{ background: '#E8291C' }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                />
-              )}
-              <tab.icon
-                className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
-                style={isActive ? { color: '#E8291C' } : {}}
-              />
-              <span
-                className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
-                style={isActive ? { color: '#E8291C' } : {}}
-              >
-                {tab.label}
-              </span>
-            </Link>
-          )
-        })}
-      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={sistema}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+        >
+          {sistema === 'desvios'
+            ? <DesviosNav pathname={pathname} />
+            : <IndicadoresNav pathname={pathname} />
+          }
+        </motion.div>
+      </AnimatePresence>
     </nav>
   )
 }
