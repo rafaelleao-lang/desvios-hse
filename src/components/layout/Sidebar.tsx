@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, AlertTriangle, Building2,
-  BarChart3, ChevronRight, X, Plus,
+  BarChart3, ChevronRight, X, Plus, TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +26,7 @@ const NAV = [
   {
     group: 'Análise',
     items: [
+      { href: '/indicadores', icon: TrendingUp, label: 'Indicadores HSE' },
       { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
     ],
   },

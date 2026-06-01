@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, AlertTriangle, Building2, BarChart3, Plus } from 'lucide-react'
+import { LayoutDashboard, AlertTriangle, TrendingUp, BarChart3, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
 const tabs = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/desvios',   icon: AlertTriangle,   label: 'Desvios'   },
-  { href: '/obras',     icon: Building2,       label: 'Obras'     },
-  { href: '/relatorios',icon: BarChart3,       label: 'Relatórios'},
+  { href: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard'  },
+  { href: '/desvios',      icon: AlertTriangle,   label: 'Desvios'    },
+  { href: '/indicadores',  icon: TrendingUp,      label: 'Indicadores'},
+  { href: '/relatorios',   icon: BarChart3,       label: 'Relatórios' },
 ]
 
 export function MobileNav() {

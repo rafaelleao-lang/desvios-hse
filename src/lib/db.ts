@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Obra, TST, Encarregado, Coordenador, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa } from '@/types'
+import type { Obra, TST, Encarregado, Coordenador, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa, IndicadorSemanal } from '@/types'
 import { parseCategoria } from '@/types'
 
 const supabase = createClient(
@@ -439,6 +439,71 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+// ── Indicadores Semanais ──────────────────────────────────────────────────────
+export const indicadoresDB = {
+  list: async (filters?: {
+    obra_id?: string
+    ano?: number
+    semana_ini?: number
+    semana_fim?: number
+  }): Promise<IndicadorSemanal[]> => {
+    let q = supabase
+      .from('indicadores_semanais')
+      .select('*')
+      .order('ano', { ascending: true })
+      .order('semana', { ascending: true })
+
+    if (filters?.obra_id) q = q.eq('obra_id', filters.obra_id)
+    if (filters?.ano) q = q.eq('ano', filters.ano)
+    if (filters?.semana_ini) q = q.gte('semana', filters.semana_ini)
+    if (filters?.semana_fim) q = q.lte('semana', filters.semana_fim)
+
+    const { data, error } = await q
+    if (error) throw error
+    return (data ?? []) as IndicadorSemanal[]
+  },
+
+  find: async (id: string): Promise<IndicadorSemanal | undefined> => {
+    const { data } = await supabase
+      .from('indicadores_semanais')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    return data as IndicadorSemanal | undefined
+  },
+
+  create: async (
+    data: Omit<IndicadorSemanal, 'id' | 'criado_em' | 'atualizado_em'>
+  ): Promise<IndicadorSemanal> => {
+    const row = { ...data, id: uid(), criado_em: now(), atualizado_em: now() }
+    const { error } = await supabase.from('indicadores_semanais').insert(row)
+    if (error) throw error
+    return row as IndicadorSemanal
+  },
+
+  update: async (
+    id: string,
+    data: Partial<Omit<IndicadorSemanal, 'id' | 'criado_em'>>
+  ): Promise<IndicadorSemanal | undefined> => {
+    const { data: updated, error } = await supabase
+      .from('indicadores_semanais')
+      .update({ ...data, atualizado_em: now() })
+      .eq('id', id)
+      .select()
+      .maybeSingle()
+    if (error) throw error
+    return updated as IndicadorSemanal | undefined
+  },
+
+  delete: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('indicadores_semanais')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+  },
 }
 
 // ── Image upload to Supabase Storage ─────────────────────────────────────────
