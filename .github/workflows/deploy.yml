@@ -1,0 +1,68 @@
+name: Deploy para produção
+
+# Dispara automaticamente em push na main e permite execução manual.
+# Observação: enquanto a 'main' não contiver a versão MySQL/RDS (atualmente
+# na branch 'damasio'), use o disparo manual (workflow_dispatch) informando
+# a branch desejada, ou consolide as branches antes de ativar o push->main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch a ser deployada no servidor"
+        required: true
+        default: "main"
+
+concurrency:
+  group: producao-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Definir branch alvo
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "branch=${{ github.event.inputs.branch }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy via SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          TARGET_BRANCH: ${{ steps.vars.outputs.branch }}
+        run: |
+          set -e
+          # Usuario fixo (nao e sensivel). O secret SSH_USER estava com valor
+          # incorreto e corrigi-lo exige admin do repo; por isso fixamos aqui.
+          SSH_USER="ubuntu"
+          # Valida secrets necessarios (sem expor valores)
+          [ -n "$SSH_HOST" ] || { echo "::error::Secret SSH_HOST ausente ou vazio"; exit 1; }
+          [ -n "$SSH_KEY" ]  || { echo "::error::Secret SSH_KEY ausente ou vazio"; exit 1; }
+          echo "Secrets presentes. User=$SSH_USER Branch=$TARGET_BRANCH"
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Valida o formato da chave privada (deriva a publica; nao expoe a privada)
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub 2>/tmp/keyerr; then
+            echo "::error::SSH_KEY com formato invalido. Cole a chave PRIVADA inteira (linhas BEGIN/END). Detalhe:"
+            cat /tmp/keyerr
+            exit 1
+          fi
+          echo "Chave carregada OK. Publica derivada:"; cat ~/.ssh/deploy_key.pub
+
+          # Sem ssh-keyscan: accept-new adiciona o host key na primeira conexao.
+          # ConnectTimeout garante erro claro (sem set -e mascarando via keyscan).
+          echo "Conectando em $SSH_USER@$SSH_HOST (porta 22)..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 \
+            "$SSH_USER@$SSH_HOST" \
+            "/var/www/desvios-hse/deploy.sh '$TARGET_BRANCH'"

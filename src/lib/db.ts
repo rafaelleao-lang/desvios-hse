@@ -1,285 +1,88 @@
-import { createClient } from '@supabase/supabase-js'
 import type { Obra, TST, Encarregado, Coordenador, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa, IndicadorSemanal } from '@/types'
 import { parseCategoria } from '@/types'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-function uid(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2)
-}
-
-function now(): string {
-  return new Date().toISOString()
-}
-
-async function nextNum(): Promise<number> {
-  const { data } = await supabase
-    .from('desvios')
-    .select('numero')
-    .order('numero', { ascending: false })
-    .limit(1)
-  return ((data?.[0]?.numero as number) ?? 0) + 1
+// ── Cliente RPC para o backend MySQL ────────────────────────────────────────────
+// Conexões MySQL só existem no servidor; toda operação de dados passa pela rota
+// /api/db, que executa o repositório server-side (src/lib/server/repo.ts).
+async function rpc<T>(resource: string, action: string, ...args: unknown[]): Promise<T> {
+  const res = await fetch('/api/db', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resource, action, args }),
+  })
+  const json = await res.json().catch(() => null)
+  if (!res.ok || !json?.ok) {
+    throw new Error(json?.error || `Falha na operação ${resource}.${action}`)
+  }
+  return json.data as T
 }
 
 // ── Obras ─────────────────────────────────────────────────────────────────────
 export const obrasDB = {
-  list: async (): Promise<Obra[]> => {
-    const { data, error } = await supabase
-      .from('obras').select('*').order('criado_em', { ascending: true })
-    if (error) throw error
-    return (data ?? []) as Obra[]
-  },
-
-  find: async (id: string): Promise<Obra | undefined> => {
-    const { data } = await supabase.from('obras').select('*').eq('id', id).maybeSingle()
-    return data as Obra | undefined
-  },
-
-  create: async (data: Omit<Obra, 'id' | 'criado_em'>): Promise<Obra> => {
-    const obra: Obra = { ...data, id: uid(), criado_em: now() }
-    const { error } = await supabase.from('obras').insert(obra)
-    if (error) throw error
-    return obra
-  },
-
-  update: async (id: string, data: Partial<Obra>): Promise<Obra | undefined> => {
-    const { data: updated, error } = await supabase
-      .from('obras').update(data).eq('id', id).select().maybeSingle()
-    if (error) throw error
-    return updated as Obra | undefined
-  },
-
-  delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from('obras').delete().eq('id', id)
-    if (error) throw error
-    // tsts and encarregados are cascade-deleted via FK constraint
-  },
+  list: (): Promise<Obra[]> => rpc('obras', 'list'),
+  find: (id: string): Promise<Obra | undefined> => rpc('obras', 'find', id),
+  create: (data: Omit<Obra, 'id' | 'criado_em'>): Promise<Obra> => rpc('obras', 'create', data),
+  update: (id: string, data: Partial<Obra>): Promise<Obra | undefined> => rpc('obras', 'update', id, data),
+  delete: (id: string): Promise<void> => rpc('obras', 'delete', id),
 }
 
 // ── TSTs ──────────────────────────────────────────────────────────────────────
 export const tstsDB = {
-  list: async (): Promise<TST[]> => {
-    const { data, error } = await supabase
-      .from('tsts').select('*').order('criado_em', { ascending: true })
-    if (error) throw error
-    return (data ?? []) as TST[]
-  },
-
-  byObra: async (obraId: string): Promise<TST[]> => {
-    const { data } = await supabase.from('tsts').select('*').eq('obra_id', obraId)
-    return (data ?? []) as TST[]
-  },
-
-  activeByObra: async (obraId: string): Promise<TST[]> => {
-    const { data } = await supabase.from('tsts').select('*').eq('obra_id', obraId).eq('ativo', true)
-    return (data ?? []) as TST[]
-  },
-
-  find: async (id: string): Promise<TST | undefined> => {
-    const { data } = await supabase.from('tsts').select('*').eq('id', id).maybeSingle()
-    return data as TST | undefined
-  },
-
-  create: async (data: Omit<TST, 'id' | 'criado_em'>): Promise<TST> => {
-    const tst: TST = { ...data, id: uid(), criado_em: now() }
-    const { error } = await supabase.from('tsts').insert(tst)
-    if (error) throw error
-    return tst
-  },
-
-  update: async (id: string, data: Partial<Pick<TST, 'nome' | 'crea' | 'telefone'>>): Promise<void> => {
-    const { error } = await supabase.from('tsts').update(data).eq('id', id)
-    if (error) throw error
-  },
-
-  toggleAtivo: async (id: string): Promise<void> => {
-    const { data: current } = await supabase.from('tsts').select('ativo').eq('id', id).maybeSingle()
-    const { error } = await supabase.from('tsts').update({ ativo: !current?.ativo }).eq('id', id)
-    if (error) throw error
-  },
-
-  delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from('tsts').delete().eq('id', id)
-    if (error) throw error
-  },
+  list: (): Promise<TST[]> => rpc('tsts', 'list'),
+  byObra: (obraId: string): Promise<TST[]> => rpc('tsts', 'byObra', obraId),
+  activeByObra: (obraId: string): Promise<TST[]> => rpc('tsts', 'activeByObra', obraId),
+  find: (id: string): Promise<TST | undefined> => rpc('tsts', 'find', id),
+  create: (data: Omit<TST, 'id' | 'criado_em'>): Promise<TST> => rpc('tsts', 'create', data),
+  update: (id: string, data: Partial<Pick<TST, 'nome' | 'crea' | 'telefone'>>): Promise<void> =>
+    rpc('tsts', 'update', id, data),
+  toggleAtivo: (id: string): Promise<void> => rpc('tsts', 'toggleAtivo', id),
+  delete: (id: string): Promise<void> => rpc('tsts', 'delete', id),
 }
 
 // ── Encarregados ──────────────────────────────────────────────────────────────
 export const encarregadosDB = {
-  list: async (): Promise<Encarregado[]> => {
-    const { data, error } = await supabase
-      .from('encarregados').select('*').order('criado_em', { ascending: true })
-    if (error) throw error
-    return (data ?? []) as Encarregado[]
-  },
-
-  byObra: async (obraId: string): Promise<Encarregado[]> => {
-    const { data } = await supabase.from('encarregados').select('*').eq('obra_id', obraId)
-    return (data ?? []) as Encarregado[]
-  },
-
-  activeByObra: async (obraId: string): Promise<Encarregado[]> => {
-    const { data } = await supabase.from('encarregados').select('*').eq('obra_id', obraId).eq('ativo', true)
-    return (data ?? []) as Encarregado[]
-  },
-
-  find: async (id: string): Promise<Encarregado | undefined> => {
-    const { data } = await supabase.from('encarregados').select('*').eq('id', id).maybeSingle()
-    return data as Encarregado | undefined
-  },
-
-  create: async (data: Omit<Encarregado, 'id' | 'criado_em'>): Promise<Encarregado> => {
-    const enc: Encarregado = { ...data, id: uid(), criado_em: now() }
-    const { error } = await supabase.from('encarregados').insert(enc)
-    if (error) throw error
-    return enc
-  },
-
-  update: async (id: string, data: Partial<Pick<Encarregado, 'nome' | 'setor' | 'telefone'>>): Promise<void> => {
-    const { error } = await supabase.from('encarregados').update(data).eq('id', id)
-    if (error) throw error
-  },
-
-  toggleAtivo: async (id: string): Promise<void> => {
-    const { data: current } = await supabase.from('encarregados').select('ativo').eq('id', id).maybeSingle()
-    const { error } = await supabase.from('encarregados').update({ ativo: !current?.ativo }).eq('id', id)
-    if (error) throw error
-  },
-
-  delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from('encarregados').delete().eq('id', id)
-    if (error) throw error
-  },
+  list: (): Promise<Encarregado[]> => rpc('encarregados', 'list'),
+  byObra: (obraId: string): Promise<Encarregado[]> => rpc('encarregados', 'byObra', obraId),
+  activeByObra: (obraId: string): Promise<Encarregado[]> => rpc('encarregados', 'activeByObra', obraId),
+  find: (id: string): Promise<Encarregado | undefined> => rpc('encarregados', 'find', id),
+  create: (data: Omit<Encarregado, 'id' | 'criado_em'>): Promise<Encarregado> =>
+    rpc('encarregados', 'create', data),
+  update: (id: string, data: Partial<Pick<Encarregado, 'nome' | 'setor' | 'telefone'>>): Promise<void> =>
+    rpc('encarregados', 'update', id, data),
+  toggleAtivo: (id: string): Promise<void> => rpc('encarregados', 'toggleAtivo', id),
+  delete: (id: string): Promise<void> => rpc('encarregados', 'delete', id),
 }
 
 // ── Coordenadores ─────────────────────────────────────────────────────────────
 export const coordenadoresDB = {
-  list: async (): Promise<Coordenador[]> => {
-    const { data, error } = await supabase
-      .from('coordenadores').select('*').order('criado_em', { ascending: true })
-    if (error) throw error
-    return (data ?? []) as Coordenador[]
-  },
-
-  byObra: async (obraId: string): Promise<Coordenador[]> => {
-    const { data } = await supabase.from('coordenadores').select('*').eq('obra_id', obraId)
-    return (data ?? []) as Coordenador[]
-  },
-
-  activeByObra: async (obraId: string): Promise<Coordenador[]> => {
-    const { data } = await supabase.from('coordenadores').select('*').eq('obra_id', obraId).eq('ativo', true)
-    return (data ?? []) as Coordenador[]
-  },
-
-  find: async (id: string): Promise<Coordenador | undefined> => {
-    const { data } = await supabase.from('coordenadores').select('*').eq('id', id).maybeSingle()
-    return data as Coordenador | undefined
-  },
-
-  create: async (data: Omit<Coordenador, 'id' | 'criado_em'>): Promise<Coordenador> => {
-    const coord: Coordenador = { ...data, id: uid(), criado_em: now() }
-    const { error } = await supabase.from('coordenadores').insert(coord)
-    if (error) throw error
-    return coord
-  },
-
-  update: async (id: string, data: Partial<Pick<Coordenador, 'nome' | 'email' | 'telefone'>>): Promise<void> => {
-    const { error } = await supabase.from('coordenadores').update(data).eq('id', id)
-    if (error) throw error
-  },
-
-  toggleAtivo: async (id: string): Promise<void> => {
-    const { data: current } = await supabase.from('coordenadores').select('ativo').eq('id', id).maybeSingle()
-    const { error } = await supabase.from('coordenadores').update({ ativo: !current?.ativo }).eq('id', id)
-    if (error) throw error
-  },
-
-  delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from('coordenadores').delete().eq('id', id)
-    if (error) throw error
-  },
+  list: (): Promise<Coordenador[]> => rpc('coordenadores', 'list'),
+  byObra: (obraId: string): Promise<Coordenador[]> => rpc('coordenadores', 'byObra', obraId),
+  activeByObra: (obraId: string): Promise<Coordenador[]> => rpc('coordenadores', 'activeByObra', obraId),
+  find: (id: string): Promise<Coordenador | undefined> => rpc('coordenadores', 'find', id),
+  create: (data: Omit<Coordenador, 'id' | 'criado_em'>): Promise<Coordenador> =>
+    rpc('coordenadores', 'create', data),
+  update: (id: string, data: Partial<Pick<Coordenador, 'nome' | 'email' | 'telefone'>>): Promise<void> =>
+    rpc('coordenadores', 'update', id, data),
+  toggleAtivo: (id: string): Promise<void> => rpc('coordenadores', 'toggleAtivo', id),
+  delete: (id: string): Promise<void> => rpc('coordenadores', 'delete', id),
 }
 
 // ── Desvios ───────────────────────────────────────────────────────────────────
 export const desviosDB = {
-  list: async (): Promise<Desvio[]> => {
-    const { data, error } = await supabase
-      .from('desvios').select('*').order('numero', { ascending: false })
-    if (error) throw error
-    return (data ?? []) as Desvio[]
-  },
-
-  find: async (id: string): Promise<Desvio | undefined> => {
-    const { data } = await supabase.from('desvios').select('*').eq('id', id).maybeSingle()
-    return data as Desvio | undefined
-  },
-
-  create: async (
+  list: (): Promise<Desvio[]> => rpc('desvios', 'list'),
+  find: (id: string): Promise<Desvio | undefined> => rpc('desvios', 'find', id),
+  create: (
     data: Omit<Desvio, 'id' | 'numero' | 'criado_em' | 'atualizado_em' | 'historico_status'>
-  ): Promise<Desvio> => {
-    const num = await nextNum()
-    const d: Desvio = {
-      ...data,
-      id: uid(),
-      numero: num,
-      historico_status: [{ id: uid(), status_novo: 'aberto', por: data.aberto_por, criado_em: now() }],
-      criado_em: now(),
-      atualizado_em: now(),
-    }
-    const { error } = await supabase.from('desvios').insert(d)
-    if (error) throw error
-    return d
-  },
-
-  update: async (id: string, data: Partial<Desvio>): Promise<Desvio | undefined> => {
-    const { data: updated, error } = await supabase
-      .from('desvios').update({ ...data, atualizado_em: now() }).eq('id', id).select().maybeSingle()
-    if (error) throw error
-    return updated as Desvio | undefined
-  },
-
-  updateStatus: async (
+  ): Promise<Desvio> => rpc('desvios', 'create', data),
+  update: (id: string, data: Partial<Desvio>): Promise<Desvio | undefined> =>
+    rpc('desvios', 'update', id, data),
+  updateStatus: (
     id: string, status: StatusDesvio, por: string, observacao?: string
-  ): Promise<Desvio | undefined> => {
-    const { data: current } = await supabase.from('desvios').select('*').eq('id', id).maybeSingle()
-    if (!current) return undefined
-    const hist = {
-      id: uid(),
-      status_anterior: current.status,
-      status_novo: status,
-      por,
-      observacao,
-      criado_em: now(),
-    }
-    const { data: updated, error } = await supabase
-      .from('desvios')
-      .update({ status, atualizado_em: now(), historico_status: [...(current.historico_status ?? []), hist] })
-      .eq('id', id).select().maybeSingle()
-    if (error) throw error
-    return updated as Desvio | undefined
-  },
-
-  addTratativa: async (
+  ): Promise<Desvio | undefined> => rpc('desvios', 'updateStatus', id, status, por, observacao),
+  addTratativa: (
     id: string, tratativa: Omit<Tratativa, 'id' | 'criado_em'>
-  ): Promise<Desvio | undefined> => {
-    const { data: current } = await supabase.from('desvios').select('*').eq('id', id).maybeSingle()
-    if (!current) return undefined
-    const t: Tratativa = { ...tratativa, id: uid(), criado_em: now() }
-    const { data: updated, error } = await supabase
-      .from('desvios')
-      .update({ tratativas: [...(current.tratativas ?? []), t], atualizado_em: now() })
-      .eq('id', id).select().maybeSingle()
-    if (error) throw error
-    return updated as Desvio | undefined
-  },
-
-  delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from('desvios').delete().eq('id', id)
-    if (error) throw error
-  },
+  ): Promise<Desvio | undefined> => rpc('desvios', 'addTratativa', id, tratativa),
+  delete: (id: string): Promise<void> => rpc('desvios', 'delete', id),
 }
 
 // ── Computed / Analytics ──────────────────────────────────────────────────────
@@ -443,83 +246,32 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
 
 // ── Indicadores Semanais ──────────────────────────────────────────────────────
 export const indicadoresDB = {
-  list: async (filters?: {
+  list: (filters?: {
     obra_id?: string
     ano?: number
     semana_ini?: number
     semana_fim?: number
-  }): Promise<IndicadorSemanal[]> => {
-    let q = supabase
-      .from('indicadores_semanais')
-      .select('*')
-      .order('ano', { ascending: true })
-      .order('semana', { ascending: true })
-
-    if (filters?.obra_id) q = q.eq('obra_id', filters.obra_id)
-    if (filters?.ano) q = q.eq('ano', filters.ano)
-    if (filters?.semana_ini) q = q.gte('semana', filters.semana_ini)
-    if (filters?.semana_fim) q = q.lte('semana', filters.semana_fim)
-
-    const { data, error } = await q
-    if (error) throw error
-    return (data ?? []) as IndicadorSemanal[]
-  },
-
-  find: async (id: string): Promise<IndicadorSemanal | undefined> => {
-    const { data } = await supabase
-      .from('indicadores_semanais')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()
-    return data as IndicadorSemanal | undefined
-  },
-
-  create: async (
+  }): Promise<IndicadorSemanal[]> => rpc('indicadores', 'list', filters),
+  find: (id: string): Promise<IndicadorSemanal | undefined> => rpc('indicadores', 'find', id),
+  create: (
     data: Omit<IndicadorSemanal, 'id' | 'criado_em' | 'atualizado_em'>
-  ): Promise<IndicadorSemanal> => {
-    const row = { ...data, id: uid(), criado_em: now(), atualizado_em: now() }
-    const { error } = await supabase.from('indicadores_semanais').insert(row)
-    if (error) throw error
-    return row as IndicadorSemanal
-  },
-
-  update: async (
+  ): Promise<IndicadorSemanal> => rpc('indicadores', 'create', data),
+  update: (
     id: string,
     data: Partial<Omit<IndicadorSemanal, 'id' | 'criado_em'>>
-  ): Promise<IndicadorSemanal | undefined> => {
-    const { data: updated, error } = await supabase
-      .from('indicadores_semanais')
-      .update({ ...data, atualizado_em: now() })
-      .eq('id', id)
-      .select()
-      .maybeSingle()
-    if (error) throw error
-    return updated as IndicadorSemanal | undefined
-  },
-
-  delete: async (id: string): Promise<void> => {
-    const { error } = await supabase
-      .from('indicadores_semanais')
-      .delete()
-      .eq('id', id)
-    if (error) throw error
-  },
+  ): Promise<IndicadorSemanal | undefined> => rpc('indicadores', 'update', id, data),
+  delete: (id: string): Promise<void> => rpc('indicadores', 'delete', id),
 }
 
-// ── Image upload to Supabase Storage ─────────────────────────────────────────
+// ── Image upload (storage local via /api/upload) ──────────────────────────────
 export async function uploadFotoToStorage(file: File): Promise<string> {
-  const month = new Date().toISOString().slice(0, 7)
-  const path = `fotos/${month}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+  const form = new FormData()
+  form.append('file', file)
 
-  const { data, error } = await supabase.storage
-    .from('desvios')
-    .upload(path, file, { contentType: 'image/jpeg', cacheControl: '31536000' })
-
-  if (error) throw error
-
-  const { data: urlData } = supabase.storage
-    .from('desvios')
-    .getPublicUrl(data.path)
-
-  return urlData.publicUrl
+  const res = await fetch('/api/upload', { method: 'POST', body: form })
+  const json = await res.json().catch(() => null)
+  if (!res.ok || !json?.ok) {
+    throw new Error(json?.error || 'Falha ao enviar a foto')
+  }
+  return json.url as string
 }
