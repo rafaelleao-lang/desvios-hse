@@ -38,10 +38,26 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           TARGET_BRANCH: ${{ steps.vars.outputs.branch }}
         run: |
+          set -e
+          # Valida secrets (sem expor valores)
+          [ -n "$SSH_HOST" ] || { echo "::error::Secret SSH_HOST ausente ou vazio"; exit 1; }
+          [ -n "$SSH_USER" ] || { echo "::error::Secret SSH_USER ausente ou vazio"; exit 1; }
+          [ -n "$SSH_KEY" ]  || { echo "::error::Secret SSH_KEY ausente ou vazio"; exit 1; }
+          echo "Secrets presentes. Host=$SSH_HOST User=$SSH_USER Branch=$TARGET_BRANCH"
+
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
+          # Valida o formato da chave privada (deriva a publica; nao expoe a privada)
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub 2>/tmp/keyerr; then
+            echo "::error::SSH_KEY com formato invalido. Cole a chave PRIVADA inteira (linhas BEGIN/END). Detalhe:"
+            cat /tmp/keyerr
+            exit 1
+          fi
+          echo "Chave carregada OK. Publica derivada:"; cat ~/.ssh/deploy_key.pub
+
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
             "$SSH_USER@$SSH_HOST" \
             "/var/www/desvios-hse/deploy.sh '$TARGET_BRANCH'"
