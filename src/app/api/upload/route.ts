@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-    const url = await saveBuffer(buffer, { ext })
+    const url = await saveBuffer(buffer, { ext, contentType: file.type || undefined })
 
     return NextResponse.json({ ok: true, url })
   } catch (err) {
