@@ -9,26 +9,27 @@ import {
   Phone, Hash, MapPin, Pencil,
 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
-import { obrasDB, tstsDB, encarregadosDB } from '@/lib/db'
+import { obrasDB, tstsDB, encarregadosDB, coordenadoresDB } from '@/lib/db'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { TST, Encarregado } from '@/types'
+import type { TST, Encarregado, Coordenador } from '@/types'
 
-type Tab = 'info' | 'tsts' | 'encarregados'
+type Tab = 'info' | 'tsts' | 'encarregados' | 'coordenadores'
 
 export default function ObraDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { obras, tsts, encarregados, desvios, refresh } = useApp()
+  const { obras, tsts, encarregados, coordenadores, desvios, refresh } = useApp()
 
   const obra = obras.find(o => o.id === id)
   const obraTSTs = tsts.filter(t => t.obra_id === id)
   const obraEncarregados = encarregados.filter(e => e.obra_id === id)
+  const obraCoordenadores = coordenadores.filter(c => c.obra_id === id)
   const obraDesvios = desvios.filter(d => d.obra_id === id)
 
-  const [tab, setTab] = useState<Tab>('tsts')
+  const [tab, setTab] = useState<Tab>('coordenadores')
   const [editingObra, setEditingObra] = useState(false)
   const [obraForm, setObraForm] = useState<Partial<typeof obra>>({})
 
@@ -43,6 +44,12 @@ export default function ObraDetailPage() {
   const [encForm, setEncForm] = useState({ nome: '', setor: '', telefone: '' })
   const [editingEncId, setEditingEncId] = useState<string | null>(null)
   const [encEditForm, setEncEditForm] = useState({ nome: '', setor: '', telefone: '' })
+
+  // Coordenador form
+  const [addingCoord, setAddingCoord] = useState(false)
+  const [coordForm, setCoordForm] = useState({ nome: '', email: '', telefone: '' })
+  const [editingCoordId, setEditingCoordId] = useState<string | null>(null)
+  const [coordEditForm, setCoordEditForm] = useState({ nome: '', email: '', telefone: '' })
 
   if (!obra) {
     return (
@@ -123,7 +130,36 @@ export default function ObraDetailPage() {
     await refresh()
   }
 
+  // ── Coordenador ──
+  async function addCoord() {
+    if (!coordForm.nome.trim() || !coordForm.email.trim()) return
+    await coordenadoresDB.create({ obra_id: id, nome: coordForm.nome.trim(), email: coordForm.email.trim(), telefone: coordForm.telefone, ativo: true })
+    await refresh()
+    setCoordForm({ nome: '', email: '', telefone: '' })
+    setAddingCoord(false)
+  }
+  function startEditCoord(coord: Coordenador) {
+    setEditingCoordId(coord.id)
+    setCoordEditForm({ nome: coord.nome, email: coord.email || '', telefone: coord.telefone || '' })
+  }
+  async function saveCoord() {
+    if (!editingCoordId || !coordEditForm.nome.trim() || !coordEditForm.email.trim()) return
+    await coordenadoresDB.update(editingCoordId, { nome: coordEditForm.nome.trim(), email: coordEditForm.email.trim(), telefone: coordEditForm.telefone })
+    await refresh()
+    setEditingCoordId(null)
+  }
+  async function toggleCoord(coordId: string) {
+    await coordenadoresDB.toggleAtivo(coordId)
+    await refresh()
+  }
+  async function deleteCoord(coordId: string, nome: string) {
+    if (!confirm(`Remover o coordenador "${nome}" desta obra?`)) return
+    await coordenadoresDB.delete(coordId)
+    await refresh()
+  }
+
   const TABS: { id: Tab; label: string; count?: number }[] = [
+    { id: 'coordenadores', label: 'Coordenadores', count: obraCoordenadores.length },
     { id: 'tsts', label: 'TSTs', count: obraTSTs.length },
     { id: 'encarregados', label: 'Encarregados', count: obraEncarregados.length },
     { id: 'info', label: 'Dados da Obra' },
@@ -150,10 +186,11 @@ export default function ObraDetailPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         {[
           { label: 'Desvios', value: obraDesvios.length, color: 'text-zinc-100' },
           { label: 'Abertos', value: obraDesvios.filter(d => ['aberto','em_tratativa','pendente'].includes(d.status)).length, color: 'text-amber-400' },
+          { label: 'Coord.', value: obraCoordenadores.filter(c => c.ativo).length, color: 'text-green-400' },
           { label: 'TSTs ativos', value: obraTSTs.filter(t => t.ativo).length, color: 'text-blue-400' },
           { label: 'Enc. ativos', value: obraEncarregados.filter(e => e.ativo).length, color: 'text-purple-400' },
         ].map(s => (
@@ -180,6 +217,114 @@ export default function ObraDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* ── Coordenadores tab ── */}
+      {tab === 'coordenadores' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-zinc-300">Coordenadores</p>
+            <button onClick={() => setAddingCoord(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-colors active:scale-95">
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar Coordenador
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {addingCoord && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+                <p className="text-xs font-semibold text-amber-400">Novo Coordenador</p>
+                <Input value={coordForm.nome} onChange={e => setCoordForm(f => ({ ...f, nome: e.target.value }))}
+                  placeholder="Nome completo *" autoFocus />
+                <Input value={coordForm.email} onChange={e => setCoordForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="E-mail *" type="email" />
+                <Input value={coordForm.telefone} onChange={e => setCoordForm(f => ({ ...f, telefone: e.target.value }))}
+                  placeholder="Telefone" type="tel" />
+                <div className="flex gap-2">
+                  <Button onClick={addCoord} size="sm" disabled={!coordForm.nome.trim() || !coordForm.email.trim()} className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" />Confirmar
+                  </Button>
+                  <Button onClick={() => { setAddingCoord(false); setCoordForm({ nome: '', email: '', telefone: '' }) }}
+                    variant="ghost" size="sm">
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {obraCoordenadores.length === 0 ? (
+            <div className="text-center py-10 text-zinc-600">
+              <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Nenhum coordenador cadastrado nesta obra</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {obraCoordenadores.map((coord) => (
+                <div key={coord.id}>
+                  {editingCoordId === coord.id ? (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      className="rounded-xl border border-green-500/20 bg-green-500/5 p-4 space-y-3">
+                      <p className="text-xs font-semibold text-green-400">Editar Coordenador</p>
+                      <Input value={coordEditForm.nome} onChange={e => setCoordEditForm(f => ({ ...f, nome: e.target.value }))}
+                        placeholder="Nome completo *" autoFocus />
+                      <Input value={coordEditForm.email} onChange={e => setCoordEditForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="E-mail *" type="email" />
+                      <Input value={coordEditForm.telefone} onChange={e => setCoordEditForm(f => ({ ...f, telefone: e.target.value }))}
+                        placeholder="Telefone" type="tel" />
+                      <div className="flex gap-2">
+                        <Button onClick={saveCoord} size="sm" disabled={!coordEditForm.nome.trim() || !coordEditForm.email.trim()} className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" />Salvar
+                        </Button>
+                        <Button onClick={() => setEditingCoordId(null)} variant="ghost" size="sm">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <div className={cn('flex items-center gap-3 p-3.5 rounded-xl border transition-colors',
+                      coord.ativo ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-800/50 bg-zinc-900/40 opacity-60')}>
+                      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+                        coord.ativo ? 'bg-green-500/10' : 'bg-zinc-800')}>
+                        <Users className={cn('w-4 h-4', coord.ativo ? 'text-green-400' : 'text-zinc-600')} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-zinc-200">{coord.nome}</p>
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
+                            coord.ativo ? 'bg-green-500/10 text-green-400' : 'bg-zinc-700 text-zinc-500')}>
+                            {coord.ativo ? 'Ativo' : 'Afastado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500 flex-wrap">
+                          {coord.email && <span className="flex items-center gap-1 truncate">{coord.email}</span>}
+                          {coord.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{coord.telefone}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => startEditCoord(coord)} title="Editar"
+                          className="p-1.5 rounded-lg hover:bg-green-500/10 text-zinc-500 hover:text-green-400 transition-colors">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => toggleCoord(coord.id)} title={coord.ativo ? 'Afastar' : 'Retorno'}
+                          className={cn('p-1.5 rounded-lg transition-colors',
+                            coord.ativo ? 'hover:bg-orange-500/10 text-zinc-500 hover:text-orange-400' : 'hover:bg-green-500/10 text-zinc-500 hover:text-green-400')}>
+                          {coord.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => deleteCoord(coord.id, coord.nome)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── TSTs tab ── */}
       {tab === 'tsts' && (

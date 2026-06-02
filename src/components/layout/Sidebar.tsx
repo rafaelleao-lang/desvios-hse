@@ -4,119 +4,195 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  LayoutDashboard, AlertTriangle, Building2,
-  BarChart3, ChevronRight, X, Plus,
+  LayoutDashboard, AlertTriangle, Building2, BarChart3,
+  TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const NAV = [
+// ── Sistema detectado pelo pathname ──────────────────────────────────────────
+
+type Sistema = 'desvios' | 'indicadores'
+
+function getSistema(pathname: string): Sistema {
+  return pathname.startsWith('/indicadores') ? 'indicadores' : 'desvios'
+}
+
+// ── Configuração dos menus ────────────────────────────────────────────────────
+
+const MENUS = [
   {
-    group: 'Principal',
-    items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { href: '/desvios', icon: AlertTriangle, label: 'Desvios' },
+    key:        'desvios' as Sistema,
+    label:      'Desvios',
+    icon:       AlertTriangle,
+    cor:        '#E8291C',
+    corHover:   '#C9200F',
+    homeHref:   '/dashboard',
+    acao:       { label: 'Novo Desvio', href: '/desvios/novo' },
+    subnav: [
+      { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
+      { href: '/desvios',    icon: AlertTriangle,   label: 'Desvios'    },
+      { href: '/obras',      icon: Building2,       label: 'Obras'      },
+      { href: '/relatorios', icon: BarChart3,       label: 'Relatórios' },
     ],
   },
   {
-    group: 'Gestão',
-    items: [
-      { href: '/obras', icon: Building2, label: 'Obras' },
-    ],
-  },
-  {
-    group: 'Análise',
-    items: [
-      { href: '/relatorios', icon: BarChart3, label: 'Relatórios' },
+    key:        'indicadores' as Sistema,
+    label:      'Indicadores HSE',
+    icon:       TrendingUp,
+    cor:        '#3B82F6',
+    corHover:   '#2563EB',
+    homeHref:   '/indicadores',
+    acao:       { label: 'Lançar Indicadores', href: '/indicadores/novo' },
+    subnav: [
+      { href: '/indicadores',           icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/indicadores/novo',      icon: Plus,            label: 'Lançar'    },
+      { href: '/indicadores/historico', icon: History,         label: 'Histórico' },
     ],
   },
 ]
 
-interface SidebarProps {
-  open: boolean
-  onClose: () => void
-}
+// ── Sidebar content ───────────────────────────────────────────────────────────
 
 function SidebarContent({ onClose }: { onClose: () => void }) {
   const pathname = usePathname()
+  const sistema  = getSistema(pathname)
+  const cfg      = MENUS.find(m => m.key === sistema)!
 
   return (
     <div className="flex flex-col h-full">
-      {/* Logo MSE */}
+
+      {/* ── Logo ── */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-zinc-800 flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          {/* MSE logotype */}
-          <span
-            className="text-2xl font-black leading-none tracking-tight select-none"
-            style={{ color: '#E8291C', fontFamily: 'Inter, system-ui, sans-serif' }}
-          >
-            mse
-          </span>
-          <div className="w-px h-6 bg-zinc-700" />
-          <div>
-            <p className="text-xs font-bold text-zinc-200 leading-none">Desvios HSE</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Gestão de Segurança</p>
-          </div>
+        <span
+          className="text-2xl font-black leading-none tracking-tight select-none"
+          style={{ color: '#E8291C' }}
+        >
+          mse
+        </span>
+        <div className="w-px h-6 bg-zinc-700" />
+        <div>
+          <p className="text-xs font-bold text-zinc-200 leading-none">Gestão HSE</p>
+          <p className="text-[10px] text-zinc-500 mt-0.5">MSE Engenharia</p>
         </div>
-        <button onClick={onClose} className="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500">
+        <button
+          onClick={onClose}
+          className="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500"
+        >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* New desvio shortcut */}
-      <div className="px-3 pt-4 pb-2">
-        <Link
-          href="/desvios/novo"
-          onClick={onClose}
-          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 text-white"
-          style={{ background: '#E8291C' }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#C9200F')}
-          onMouseLeave={e => (e.currentTarget.style.background = '#E8291C')}
-        >
-          <Plus className="w-4 h-4" />
-          Novo Desvio
-        </Link>
-      </div>
+      {/* ── Menu principal com submenus ── */}
+      <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+        {MENUS.map(menu => {
+          const aberto = menu.key === sistema
+          const Icon   = menu.icon
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-5">
-        {NAV.map((group) => (
-          <div key={group.group}>
-            <p className="px-3 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mb-1">
-              {group.group}
-            </p>
-            <ul className="space-y-0.5">
-              {group.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + '/')
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onClose}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-                        active
-                          ? 'border'
-                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-transparent',
-                      )}
-                      style={active ? {
-                        background: 'rgba(232, 41, 28, 0.08)',
-                        borderColor: 'rgba(232, 41, 28, 0.20)',
-                        color: '#E8291C',
-                      } : {}}
-                    >
-                      <item.icon className="w-4 h-4 flex-shrink-0" />
-                      {item.label}
-                      {active && <ChevronRight className="w-3 h-3 ml-auto" style={{ color: '#E8291C' }} />}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
+          return (
+            <div key={menu.key}>
+              {/* Item principal */}
+              <Link
+                href={menu.homeHref}
+                onClick={onClose}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 w-full border',
+                  aberto
+                    ? 'border'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border-transparent',
+                )}
+                style={aberto ? {
+                  background:   menu.cor + '15',
+                  borderColor:  menu.cor + '40',
+                  color:        menu.cor,
+                } : {}}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{menu.label}</span>
+                <motion.div
+                  animate={{ rotate: aberto ? 90 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </motion.div>
+              </Link>
+
+              {/* Submenus animados */}
+              <AnimatePresence initial={false}>
+                {aberto && (
+                  <motion.ul
+                    key="sub"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="ml-3 pl-3 border-l border-zinc-800 mt-1 mb-1 space-y-0.5">
+                      {menu.subnav.map(item => {
+                        const active =
+                          item.href === '/indicadores'
+                            ? pathname === '/indicadores'
+                            : pathname === item.href || pathname.startsWith(item.href + '/')
+                        return (
+                          <li key={item.href}>
+                            <Link
+                              href={item.href}
+                              onClick={onClose}
+                              className={cn(
+                                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150',
+                                active
+                                  ? 'font-semibold'
+                                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/70 font-medium',
+                              )}
+                              style={active ? { color: menu.cor } : {}}
+                            >
+                              <item.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                              {item.label}
+                              {active && (
+                                <div
+                                  className="ml-auto w-1 h-1 rounded-full"
+                                  style={{ background: menu.cor }}
+                                />
+                              )}
+                            </Link>
+                          </li>
+                        )
+                      })}
+                    </div>
+                  </motion.ul>
+                )}
+              </AnimatePresence>
+            </div>
+          )
+        })}
       </nav>
 
-      {/* Footer */}
+      {/* ── Ação rápida contextual ── */}
+      <div className="px-3 pb-3 pt-3 border-t border-zinc-800">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`acao-${sistema}`}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Link
+              href={cfg.acao.href}
+              onClick={onClose}
+              className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 text-white"
+              style={{ background: cfg.cor }}
+              onMouseEnter={e => (e.currentTarget.style.background = cfg.corHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = cfg.cor)}
+            >
+              <Plus className="w-4 h-4" />
+              {cfg.acao.label}
+            </Link>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* ── Footer ── */}
       <div className="p-3 border-t border-zinc-800">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/5 border border-green-500/10">
           <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
@@ -126,6 +202,13 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   )
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+interface SidebarProps {
+  open: boolean
+  onClose: () => void
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {

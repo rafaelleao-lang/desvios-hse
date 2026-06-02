@@ -1,7 +1,9 @@
 import 'server-only'
 import type { ResultSetHeader, RowDataPacket } from 'mysql2'
 import { query } from '@/lib/mysql'
-import type { Obra, TST, Encarregado, Desvio, StatusDesvio, Tratativa } from '@/types'
+import type {
+  Obra, TST, Encarregado, Coordenador, Desvio, StatusDesvio, Tratativa, IndicadorSemanal,
+} from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid(): string {
@@ -63,6 +65,51 @@ function mapEncarregado(r: RowDataPacket): Encarregado {
   }
 }
 
+function mapCoordenador(r: RowDataPacket): Coordenador {
+  return {
+    id: r.id,
+    obra_id: r.obra_id,
+    nome: r.nome,
+    email: r.email ?? '',
+    telefone: r.telefone ?? undefined,
+    ativo: toBool(r.ativo),
+    criado_em: r.criado_em,
+  }
+}
+
+function mapIndicador(r: RowDataPacket): IndicadorSemanal {
+  const n = (v: unknown): number => Number(v ?? 0)
+  return {
+    id: r.id,
+    obra_id: r.obra_id,
+    semana: n(r.semana),
+    ano: n(r.ano),
+    efetivo: n(r.efetivo),
+    ausentes: n(r.ausentes),
+    hht_trabalhada: n(r.hht_trabalhada),
+    apr_realizadas: n(r.apr_realizadas),
+    pt_realizadas: n(r.pt_realizadas),
+    desvios_ocorridos: n(r.desvios_ocorridos),
+    desvios_solucionados: n(r.desvios_solucionados),
+    alojamentos_conformes: n(r.alojamentos_conformes),
+    alojamentos_nao_conformes: n(r.alojamentos_nao_conformes),
+    alojamentos_totais: n(r.alojamentos_totais),
+    hht_semanal: n(r.hht_semanal),
+    pessoas_treinadas: n(r.pessoas_treinadas),
+    dds: n(r.dds),
+    acidentes: n(r.acidentes),
+    acidente_sem_afastamento: n(r.acidente_sem_afastamento),
+    primeiros_socorros: n(r.primeiros_socorros),
+    quase_acidentes: n(r.quase_acidentes),
+    danos_materiais: n(r.danos_materiais),
+    campanhas: n(r.campanhas),
+    inspecoes_semanais: n(r.inspecoes_semanais),
+    observacoes: r.observacoes ?? undefined,
+    criado_em: r.criado_em,
+    atualizado_em: r.atualizado_em,
+  }
+}
+
 function mapDesvio(r: RowDataPacket): Desvio {
   return {
     id: r.id,
@@ -82,6 +129,8 @@ function mapDesvio(r: RowDataPacket): Desvio {
     encarregado_nome: r.encarregado_nome ?? undefined,
     tst_id: r.tst_id ?? undefined,
     tst_nome: r.tst_nome ?? undefined,
+    coordenador_id: r.coordenador_id ?? undefined,
+    coordenador_nome: r.coordenador_nome ?? undefined,
     data_ocorrencia: r.data_ocorrencia,
     hora_ocorrencia: r.hora_ocorrencia ?? undefined,
     prazo_correcao: r.prazo_correcao ?? undefined,
@@ -249,6 +298,58 @@ export const encarregadosRepo = {
   },
 }
 
+// ── Coordenadores ───────────────────────────────────────────────────────────────
+export const coordenadoresRepo = {
+  async list(): Promise<Coordenador[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM coordenadores ORDER BY criado_em ASC')
+    return rows.map(mapCoordenador)
+  },
+
+  async byObra(obraId: string): Promise<Coordenador[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM coordenadores WHERE obra_id = ?', [obraId])
+    return rows.map(mapCoordenador)
+  },
+
+  async activeByObra(obraId: string): Promise<Coordenador[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM coordenadores WHERE obra_id = ? AND ativo = 1', [obraId])
+    return rows.map(mapCoordenador)
+  },
+
+  async find(id: string): Promise<Coordenador | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM coordenadores WHERE id = ? LIMIT 1', [id])
+    return rows[0] ? mapCoordenador(rows[0]) : undefined
+  },
+
+  async create(data: Omit<Coordenador, 'id' | 'criado_em'>): Promise<Coordenador> {
+    const coord: Coordenador = { ...data, id: uid(), criado_em: now() }
+    await query(
+      `INSERT INTO coordenadores (id, obra_id, nome, email, telefone, ativo, criado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [coord.id, coord.obra_id, coord.nome, coord.email ?? '', coord.telefone ?? null, coord.ativo ? 1 : 0, coord.criado_em],
+    )
+    return coord
+  },
+
+  async update(id: string, data: Partial<Pick<Coordenador, 'nome' | 'email' | 'telefone'>>): Promise<void> {
+    const cols: string[] = []
+    const vals: unknown[] = []
+    for (const key of ['nome', 'email', 'telefone'] as const) {
+      if (key in data) { cols.push(`${key} = ?`); vals.push(data[key] ?? null) }
+    }
+    if (!cols.length) return
+    vals.push(id)
+    await query(`UPDATE coordenadores SET ${cols.join(', ')} WHERE id = ?`, vals)
+  },
+
+  async toggleAtivo(id: string): Promise<void> {
+    await query('UPDATE coordenadores SET ativo = 1 - ativo WHERE id = ?', [id])
+  },
+
+  async delete(id: string): Promise<void> {
+    await query('DELETE FROM coordenadores WHERE id = ?', [id])
+  },
+}
+
 // ── Desvios ─────────────────────────────────────────────────────────────────────
 async function nextNum(): Promise<number> {
   const rows = await query<RowDataPacket[]>('SELECT MAX(numero) AS max FROM desvios')
@@ -260,7 +361,8 @@ const DESVIO_BOOL_FIELDS = new Set(['reincidente'])
 const DESVIO_UPDATABLE: (keyof Desvio)[] = [
   'obra_id', 'obra_nome', 'categoria', 'categoria_outro', 'setor', 'local_exato',
   'gravidade', 'status', 'descricao', 'aberto_por', 'colaborador_nome',
-  'encarregado_id', 'encarregado_nome', 'tst_id', 'tst_nome', 'data_ocorrencia',
+  'encarregado_id', 'encarregado_nome', 'tst_id', 'tst_nome',
+  'coordenador_id', 'coordenador_nome', 'data_ocorrencia',
   'hora_ocorrencia', 'prazo_correcao', 'acao_corretiva', 'acao_preventiva',
   'reincidente', 'fotos', 'tratativas', 'historico_status', 'atualizado_em',
 ]
@@ -299,14 +401,15 @@ export const desviosRepo = {
       `INSERT INTO desvios (
         id, numero, obra_id, obra_nome, categoria, categoria_outro, setor, local_exato,
         gravidade, status, descricao, aberto_por, colaborador_nome, encarregado_id, encarregado_nome,
-        tst_id, tst_nome, data_ocorrencia, hora_ocorrencia, prazo_correcao, acao_corretiva, acao_preventiva,
-        reincidente, fotos, tratativas, historico_status, criado_em, atualizado_em
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        tst_id, tst_nome, coordenador_id, coordenador_nome, data_ocorrencia, hora_ocorrencia, prazo_correcao,
+        acao_corretiva, acao_preventiva, reincidente, fotos, tratativas, historico_status, criado_em, atualizado_em
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         d.id, d.numero, d.obra_id, d.obra_nome ?? null, d.categoria, d.categoria_outro ?? null,
         d.setor ?? null, d.local_exato, d.gravidade, d.status, d.descricao, d.aberto_por,
         d.colaborador_nome ?? null, d.encarregado_id, d.encarregado_nome ?? null,
-        d.tst_id ?? null, d.tst_nome ?? null, d.data_ocorrencia, d.hora_ocorrencia ?? null,
+        d.tst_id ?? null, d.tst_nome ?? null, d.coordenador_id ?? null, d.coordenador_nome ?? null,
+        d.data_ocorrencia, d.hora_ocorrencia ?? null,
         d.prazo_correcao ?? null, d.acao_corretiva ?? null, d.acao_preventiva ?? null,
         d.reincidente ? 1 : 0, JSON.stringify(d.fotos ?? []),
         JSON.stringify(d.tratativas ?? []), JSON.stringify(d.historico_status ?? []),
@@ -371,12 +474,96 @@ export const desviosRepo = {
   },
 }
 
+// ── Indicadores Semanais ──────────────────────────────────────────────────────
+const INDICADOR_NUM_FIELDS: (keyof IndicadorSemanal)[] = [
+  'semana', 'ano', 'efetivo', 'ausentes', 'hht_trabalhada', 'apr_realizadas', 'pt_realizadas',
+  'desvios_ocorridos', 'desvios_solucionados', 'alojamentos_conformes', 'alojamentos_nao_conformes',
+  'alojamentos_totais', 'hht_semanal', 'pessoas_treinadas', 'dds', 'acidentes',
+  'acidente_sem_afastamento', 'primeiros_socorros', 'quase_acidentes', 'danos_materiais',
+  'campanhas', 'inspecoes_semanais',
+]
+const INDICADOR_UPDATABLE: (keyof IndicadorSemanal)[] = [
+  'obra_id', ...INDICADOR_NUM_FIELDS, 'observacoes',
+]
+
+export const indicadoresRepo = {
+  async list(filters?: {
+    obra_id?: string
+    ano?: number
+    semana_ini?: number
+    semana_fim?: number
+  }): Promise<IndicadorSemanal[]> {
+    const where: string[] = []
+    const vals: unknown[] = []
+    if (filters?.obra_id) { where.push('obra_id = ?'); vals.push(filters.obra_id) }
+    if (filters?.ano) { where.push('ano = ?'); vals.push(filters.ano) }
+    if (filters?.semana_ini) { where.push('semana >= ?'); vals.push(filters.semana_ini) }
+    if (filters?.semana_fim) { where.push('semana <= ?'); vals.push(filters.semana_fim) }
+    const sql = `SELECT * FROM indicadores_semanais${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ano ASC, semana ASC`
+    const rows = await query<RowDataPacket[]>(sql, vals)
+    return rows.map(mapIndicador)
+  },
+
+  async find(id: string): Promise<IndicadorSemanal | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM indicadores_semanais WHERE id = ? LIMIT 1', [id])
+    return rows[0] ? mapIndicador(rows[0]) : undefined
+  },
+
+  async create(data: Omit<IndicadorSemanal, 'id' | 'criado_em' | 'atualizado_em'>): Promise<IndicadorSemanal> {
+    const row: IndicadorSemanal = { ...data, id: uid(), criado_em: now(), atualizado_em: now() }
+    await query(
+      `INSERT INTO indicadores_semanais (
+        id, obra_id, semana, ano, efetivo, ausentes, hht_trabalhada, apr_realizadas, pt_realizadas,
+        desvios_ocorridos, desvios_solucionados, alojamentos_conformes, alojamentos_nao_conformes,
+        alojamentos_totais, hht_semanal, pessoas_treinadas, dds, acidentes, acidente_sem_afastamento,
+        primeiros_socorros, quase_acidentes, danos_materiais, campanhas, inspecoes_semanais,
+        observacoes, criado_em, atualizado_em
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        row.id, row.obra_id, row.semana, row.ano, row.efetivo, row.ausentes, row.hht_trabalhada,
+        row.apr_realizadas, row.pt_realizadas, row.desvios_ocorridos, row.desvios_solucionados,
+        row.alojamentos_conformes, row.alojamentos_nao_conformes, row.alojamentos_totais,
+        row.hht_semanal, row.pessoas_treinadas, row.dds, row.acidentes, row.acidente_sem_afastamento,
+        row.primeiros_socorros, row.quase_acidentes, row.danos_materiais, row.campanhas,
+        row.inspecoes_semanais, row.observacoes ?? null, row.criado_em, row.atualizado_em,
+      ],
+    )
+    return row
+  },
+
+  async update(
+    id: string,
+    data: Partial<Omit<IndicadorSemanal, 'id' | 'criado_em'>>,
+  ): Promise<IndicadorSemanal | undefined> {
+    const cols: string[] = []
+    const vals: unknown[] = []
+    for (const key of INDICADOR_UPDATABLE) {
+      if (key in data) {
+        cols.push(`${key} = ?`)
+        const v = (data as Record<string, unknown>)[key]
+        vals.push(v ?? (key === 'observacoes' ? null : 0))
+      }
+    }
+    cols.push('atualizado_em = ?')
+    vals.push(now())
+    vals.push(id)
+    await query(`UPDATE indicadores_semanais SET ${cols.join(', ')} WHERE id = ?`, vals)
+    return indicadoresRepo.find(id)
+  },
+
+  async delete(id: string): Promise<void> {
+    await query('DELETE FROM indicadores_semanais WHERE id = ?', [id])
+  },
+}
+
 // ── Dispatcher (usado pela rota /api/db) ────────────────────────────────────────
 export const repos = {
   obras: obrasRepo,
   tsts: tstsRepo,
   encarregados: encarregadosRepo,
+  coordenadores: coordenadoresRepo,
   desvios: desviosRepo,
+  indicadores: indicadoresRepo,
 } as const
 
 export type ResourceName = keyof typeof repos

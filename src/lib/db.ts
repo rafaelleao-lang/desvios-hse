@@ -1,4 +1,4 @@
-import type { Obra, TST, Encarregado, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa } from '@/types'
+import type { Obra, TST, Encarregado, Coordenador, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa, IndicadorSemanal } from '@/types'
 import { parseCategoria } from '@/types'
 
 // ── Cliente RPC para o backend MySQL ────────────────────────────────────────────
@@ -53,6 +53,20 @@ export const encarregadosDB = {
   delete: (id: string): Promise<void> => rpc('encarregados', 'delete', id),
 }
 
+// ── Coordenadores ─────────────────────────────────────────────────────────────
+export const coordenadoresDB = {
+  list: (): Promise<Coordenador[]> => rpc('coordenadores', 'list'),
+  byObra: (obraId: string): Promise<Coordenador[]> => rpc('coordenadores', 'byObra', obraId),
+  activeByObra: (obraId: string): Promise<Coordenador[]> => rpc('coordenadores', 'activeByObra', obraId),
+  find: (id: string): Promise<Coordenador | undefined> => rpc('coordenadores', 'find', id),
+  create: (data: Omit<Coordenador, 'id' | 'criado_em'>): Promise<Coordenador> =>
+    rpc('coordenadores', 'create', data),
+  update: (id: string, data: Partial<Pick<Coordenador, 'nome' | 'email' | 'telefone'>>): Promise<void> =>
+    rpc('coordenadores', 'update', id, data),
+  toggleAtivo: (id: string): Promise<void> => rpc('coordenadores', 'toggleAtivo', id),
+  delete: (id: string): Promise<void> => rpc('coordenadores', 'delete', id),
+}
+
 // ── Desvios ───────────────────────────────────────────────────────────────────
 export const desviosDB = {
   list: (): Promise<Desvio[]> => rpc('desvios', 'list'),
@@ -72,7 +86,7 @@ export const desviosDB = {
 }
 
 // ── Computed / Analytics ──────────────────────────────────────────────────────
-export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregados: Encarregado[]): DesvioComputado {
+export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregados: Encarregado[], coordenadores: Coordenador[]): DesvioComputado {
   const hoje = new Date()
   const criado = new Date(d.criado_em)
   const dias_aberto = Math.floor((hoje.getTime() - criado.getTime()) / 86400000)
@@ -94,6 +108,7 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   const obra = obras.find(o => o.id === d.obra_id)
   const enc = encarregados.find(e => e.id === d.encarregado_id)
   const tst = tsts.find(t => t.id === d.tst_id)
+  const coord = coordenadores.find(c => c.id === d.coordenador_id)
 
   return {
     ...d,
@@ -103,12 +118,13 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
     obra_nome_computado: obra?.nome || d.obra_nome || '—',
     encarregado_nome_computado: enc?.nome || d.encarregado_nome || '—',
     tst_nome_computado: tst?.nome || d.tst_nome || '—',
+    coordenador_nome_computado: coord?.nome || d.coordenador_nome || '—',
     categorias: parseCategoria(d.categoria),
   }
 }
 
-export function computeStats(desvios: Desvio[], obras: Obra[], tsts: TST[], encarregados: Encarregado[]) {
-  const computed = desvios.map(d => computeDesvio(d, obras, tsts, encarregados))
+export function computeStats(desvios: Desvio[], obras: Obra[], tsts: TST[], encarregados: Encarregado[], coordenadores: Coordenador[] = []) {
+  const computed = desvios.map(d => computeDesvio(d, obras, tsts, encarregados, coordenadores))
   const total = computed.length
   const abertos = computed.filter(d => d.status === 'aberto').length
   const em_tratativa = computed.filter(d => d.status === 'em_tratativa').length
@@ -140,6 +156,7 @@ export interface FiltrosRelatorio {
   obra_id?: string
   tst_id?: string
   encarregado_id?: string
+  coordenador_id?: string
   gravidade?: GravidadeDesvio
   status?: StatusDesvio
   categoria?: string
@@ -154,6 +171,7 @@ export function filtrarDesvios(desvios: DesvioComputado[], f: FiltrosRelatorio):
     if (f.obra_id && d.obra_id !== f.obra_id) return false
     if (f.tst_id && d.tst_id !== f.tst_id) return false
     if (f.encarregado_id && d.encarregado_id !== f.encarregado_id) return false
+    if (f.coordenador_id && d.coordenador_id !== f.coordenador_id) return false
     if (f.gravidade && d.gravidade !== f.gravidade) return false
     if (f.status && d.status !== f.status) return false
     if (f.categoria && !d.categorias.includes(f.categoria)) return false
@@ -168,6 +186,7 @@ export function filtrarDesvios(desvios: DesvioComputado[], f: FiltrosRelatorio):
         d.obra_nome_computado.toLowerCase().includes(q) ||
         d.encarregado_nome_computado.toLowerCase().includes(q) ||
         d.tst_nome_computado.toLowerCase().includes(q) ||
+        d.coordenador_nome_computado.toLowerCase().includes(q) ||
         d.aberto_por.toLowerCase().includes(q) ||
         String(d.numero).includes(q)
       if (!match) return false
@@ -181,7 +200,7 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
   const SEP = ';'
   const headers = [
     'Número', 'Data', 'Hora', 'Obra', 'Categoria', 'Setor', 'Local Exato',
-    'Gravidade', 'Status', 'Aberto Por', 'Encarregado', 'TST',
+    'Gravidade', 'Status', 'Aberto Por', 'Coordenador', 'Encarregado', 'TST',
     'Prazo', 'SLA', 'Descrição', 'Ação Corretiva',
   ]
 
@@ -204,6 +223,7 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
     GRAV_PT[d.gravidade] || d.gravidade,
     STATUS_PT[d.status] || d.status,
     d.aberto_por,
+    d.coordenador_nome_computado,
     d.encarregado_nome_computado,
     d.tst_nome_computado,
     d.prazo_correcao || '',
@@ -222,6 +242,25 @@ export function exportarCSV(desvios: DesvioComputado[]): void {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+// ── Indicadores Semanais ──────────────────────────────────────────────────────
+export const indicadoresDB = {
+  list: (filters?: {
+    obra_id?: string
+    ano?: number
+    semana_ini?: number
+    semana_fim?: number
+  }): Promise<IndicadorSemanal[]> => rpc('indicadores', 'list', filters),
+  find: (id: string): Promise<IndicadorSemanal | undefined> => rpc('indicadores', 'find', id),
+  create: (
+    data: Omit<IndicadorSemanal, 'id' | 'criado_em' | 'atualizado_em'>
+  ): Promise<IndicadorSemanal> => rpc('indicadores', 'create', data),
+  update: (
+    id: string,
+    data: Partial<Omit<IndicadorSemanal, 'id' | 'criado_em'>>
+  ): Promise<IndicadorSemanal | undefined> => rpc('indicadores', 'update', id, data),
+  delete: (id: string): Promise<void> => rpc('indicadores', 'delete', id),
 }
 
 // ── Image upload (storage local via /api/upload) ──────────────────────────────

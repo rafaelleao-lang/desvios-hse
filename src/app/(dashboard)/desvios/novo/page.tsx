@@ -29,7 +29,7 @@ const STEP_LABELS = ['Obra & Pessoas', 'Desvio', 'Fotos']
 
 export default function NovoDesvioPage() {
   const router = useRouter()
-  const { obras, tsts, encarregados, desviosComputados, refresh } = useApp()
+  const { obras, tsts, encarregados, coordenadores, desviosComputados, refresh } = useApp()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep] = useState(0)
@@ -39,6 +39,7 @@ export default function NovoDesvioPage() {
   const [obraId, setObraId] = useState('')
   const [tstId, setTstId] = useState('')
   const [encarregadoId, setEncarregadoId] = useState('')
+  const [coordenadorId, setCoordenadorId] = useState('')
   const [colaboradorNome, setColaboradorNome] = useState('')
   const [setor, setSetor] = useState('')
   const [localExato, setLocalExato] = useState('')
@@ -63,11 +64,13 @@ export default function NovoDesvioPage() {
   const obraAtiva = obras.find(o => o.id === obraId)
   const tstsDaObra = obraId ? tsts.filter(t => t.obra_id === obraId && t.ativo) : []
   const encsDaObra = obraId ? encarregados.filter(e => e.obra_id === obraId && e.ativo) : []
+  const coordsDaObra = obraId ? coordenadores.filter(c => c.obra_id === obraId && c.ativo) : []
 
   function validateStep(s: number): boolean {
     const e: Record<string, string> = {}
     if (s === 0) {
       if (!obraId) e.obraId = 'Selecione a obra'
+      if (!coordenadorId) e.coordenadorId = 'Selecione o coordenador responsável'
       if (!tstId) e.tstId = 'Selecione o TST responsável (quem está abrindo)'
       if (!colaboradorNome.trim()) e.colaboradorNome = 'Informe o nome do colaborador'
       if (!encarregadoId) e.encarregadoId = 'Selecione o encarregado responsável'
@@ -126,6 +129,7 @@ export default function NovoDesvioPage() {
       const obraObj = obras.find(o => o.id === obraId)
       const encObj = encsDaObra.find(e => e.id === encarregadoId)
       const tstObj = tstsDaObra.find(t => t.id === tstId)
+      const coordObj = coordsDaObra.find(c => c.id === coordenadorId)
 
       await desviosDB.create({
         obra_id: obraId,
@@ -143,6 +147,8 @@ export default function NovoDesvioPage() {
         encarregado_nome: encObj?.nome,
         tst_id: tstId || undefined,
         tst_nome: tstObj?.nome,
+        coordenador_id: coordenadorId || undefined,
+        coordenador_nome: coordObj?.nome,
         data_ocorrencia: agora.toISOString().split('T')[0],
         hora_ocorrencia: agora.toTimeString().slice(0, 5),
         prazo_correcao: prazoCorrecao || undefined,
@@ -195,7 +201,7 @@ export default function NovoDesvioPage() {
               {/* Obra */}
               <div className="space-y-1.5">
                 <Label>Obra <span className="text-red-400">*</span></Label>
-                <select value={obraId} onChange={e => { setObraId(e.target.value); setTstId(''); setEncarregadoId('') }}
+                <select value={obraId} onChange={e => { setObraId(e.target.value); setTstId(''); setEncarregadoId(''); setCoordenadorId('') }}
                   className="w-full h-11 px-4 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50">
                   <option value="">Selecione a obra...</option>
                   {obras.filter(o => o.ativa).map(o => (
@@ -207,6 +213,23 @@ export default function NovoDesvioPage() {
                   <p className="text-xs text-amber-400">
                     Nenhuma obra ativa. <a href="/obras/nova" className="underline">Cadastre uma obra</a> primeiro.
                   </p>
+                )}
+              </div>
+
+              {/* Coordenador (obrigatório) */}
+              <div className="space-y-1.5">
+                <Label>Coordenador Responsável <span className="text-red-400">*</span></Label>
+                <select value={coordenadorId} onChange={e => setCoordenadorId(e.target.value)}
+                  disabled={!obraId}
+                  className="w-full h-11 px-4 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/50 disabled:opacity-50">
+                  <option value="">Selecionar coordenador...</option>
+                  {coordsDaObra.map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+                {errors.coordenadorId && <p className="text-xs text-red-400">{errors.coordenadorId}</p>}
+                {obraId && coordsDaObra.length === 0 && (
+                  <p className="text-xs text-zinc-500">Nenhum coordenador ativo nesta obra. <a href={`/obras/${obraId}`} className="text-amber-400 underline">Adicionar coordenador</a></p>
                 )}
               </div>
 
@@ -494,6 +517,7 @@ export default function NovoDesvioPage() {
               <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Resumo do Desvio</p>
               {[
                 { label: 'Obra', value: obras.find(o => o.id === obraId)?.nome },
+                { label: 'Coordenador', value: coordsDaObra.find(c => c.id === coordenadorId)?.nome },
                 { label: 'TST (quem abre)', value: tstsDaObra.find(t => t.id === tstId)?.nome },
                 { label: 'Colaborador', value: colaboradorNome },
                 { label: 'Encarregado', value: encsDaObra.find(e => e.id === encarregadoId)?.nome },

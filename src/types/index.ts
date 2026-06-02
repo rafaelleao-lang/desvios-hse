@@ -40,6 +40,16 @@ export interface Encarregado {
   criado_em: string
 }
 
+export interface Coordenador {
+  id: string
+  obra_id: string
+  nome: string
+  email: string
+  telefone?: string
+  ativo: boolean
+  criado_em: string
+}
+
 export interface FotoDesvio {
   id: string
   tipo: 'antes' | 'depois'
@@ -83,6 +93,8 @@ export interface Desvio {
   encarregado_nome?: string
   tst_id?: string
   tst_nome?: string
+  coordenador_id?: string
+  coordenador_nome?: string
   data_ocorrencia: string
   hora_ocorrencia?: string
   prazo_correcao?: string
@@ -103,6 +115,7 @@ export interface DesvioComputado extends Desvio {
   obra_nome_computado: string
   encarregado_nome_computado: string
   tst_nome_computado: string
+  coordenador_nome_computado: string
   categorias: string[]
 }
 
@@ -141,6 +154,43 @@ export const CATEGORIAS_PADRAO = [
   'Ergonomia',
   'Outros',
 ] as const
+
+export interface IndicadorSemanal {
+  id: string
+  obra_id: string
+  semana: number
+  ano: number
+  // Efetivo
+  efetivo: number
+  ausentes: number
+  hht_trabalhada: number
+  // Documentos de segurança
+  apr_realizadas: number
+  pt_realizadas: number
+  // Desvios
+  desvios_ocorridos: number
+  desvios_solucionados: number
+  // Alojamentos
+  alojamentos_conformes: number
+  alojamentos_nao_conformes: number
+  alojamentos_totais: number
+  // Treinamento
+  hht_semanal: number
+  pessoas_treinadas: number
+  dds: number
+  // Incidentes
+  acidentes: number
+  acidente_sem_afastamento: number
+  primeiros_socorros: number
+  quase_acidentes: number
+  danos_materiais: number
+  // Outros
+  campanhas: number
+  inspecoes_semanais: number
+  observacoes?: string
+  criado_em: string
+  atualizado_em: string
+}
 
 export const CATEGORIAS_CORES: Record<string, string> = {
   'EPI/EPC':              '#EF4444',
