@@ -30,11 +30,6 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['localhost:3000'],
-    },
-  },
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
       // pptxgenjs imports node: prefixed built-ins — strip the prefix so

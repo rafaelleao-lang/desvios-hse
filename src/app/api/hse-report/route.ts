@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { RowDataPacket } from 'mysql2'
 import { query } from '@/lib/mysql'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 const TOKEN = process.env.HSE_REPORT_TOKEN ?? 'hse-mse-2026'
 
 function unauthorized() {
@@ -17,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (resource === 'obras') {
-      const rows = await query<RowDataPacket>(
+      const rows = await query<RowDataPacket[]>(
         'SELECT id, nome, codigo, destinatarios FROM obras WHERE ativa = 1 ORDER BY nome'
       )
       const data = rows.map((r) => ({
@@ -38,7 +41,7 @@ export async function GET(req: NextRequest) {
       }
       const dias = parseInt(searchParams.get('dias') ?? '30', 10)
 
-      const rows = await query<RowDataPacket>(
+      const rows = await query<RowDataPacket[]>(
         `SELECT id, numero, obra_id, obra_nome, categoria, categoria_outro,
                 gravidade, status, descricao, encarregado_nome, tst_nome,
                 data_ocorrencia, prazo_correcao, tratativas, criado_em, atualizado_em,
