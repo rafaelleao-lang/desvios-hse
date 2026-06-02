@@ -11,6 +11,7 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS desvios;
+DROP TABLE IF EXISTS coordenadores;
 DROP TABLE IF EXISTS encarregados;
 DROP TABLE IF EXISTS tsts;
 DROP TABLE IF EXISTS obras;
@@ -62,6 +63,21 @@ CREATE TABLE encarregados (
     REFERENCES obras (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ── Coordenadores ──────────────────────────────────────────────────────────
+CREATE TABLE coordenadores (
+  id        VARCHAR(64)  NOT NULL,
+  obra_id   VARCHAR(64)  NOT NULL,
+  nome      VARCHAR(255) NOT NULL,
+  telefone  VARCHAR(50)  DEFAULT NULL,
+  email     VARCHAR(255) DEFAULT NULL,
+  ativo     TINYINT(1)   NOT NULL DEFAULT 1,
+  criado_em VARCHAR(40)  NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_coordenadores_obra (obra_id),
+  CONSTRAINT fk_coordenadores_obra FOREIGN KEY (obra_id)
+    REFERENCES obras (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ── Desvios ────────────────────────────────────────────────────────────────
 CREATE TABLE desvios (
   id                VARCHAR(64)  NOT NULL,
@@ -81,6 +97,8 @@ CREATE TABLE desvios (
   encarregado_nome  VARCHAR(255) DEFAULT NULL,
   tst_id            VARCHAR(64)  DEFAULT NULL,
   tst_nome          VARCHAR(255) DEFAULT NULL,
+  coordenador_id    VARCHAR(64)  DEFAULT NULL,
+  coordenador_nome  VARCHAR(255) DEFAULT NULL,
   data_ocorrencia   VARCHAR(10)  NOT NULL,
   hora_ocorrencia   VARCHAR(8)   DEFAULT NULL,
   prazo_correcao    VARCHAR(10)  DEFAULT NULL,
@@ -98,5 +116,6 @@ CREATE TABLE desvios (
   KEY idx_desvios_status (status),
   KEY idx_desvios_gravidade (gravidade),
   KEY idx_desvios_encarregado (encarregado_id),
+  KEY idx_desvios_coordenador (coordenador_id),
   KEY idx_desvios_data (data_ocorrencia)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
