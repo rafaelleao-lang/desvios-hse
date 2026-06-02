@@ -35,15 +35,16 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
           TARGET_BRANCH: ${{ steps.vars.outputs.branch }}
         run: |
           set -e
-          # Valida secrets (sem expor valores)
+          # Usuario fixo (nao e sensivel). O secret SSH_USER estava com valor
+          # incorreto e corrigi-lo exige admin do repo; por isso fixamos aqui.
+          SSH_USER="ubuntu"
+          # Valida secrets necessarios (sem expor valores)
           [ -n "$SSH_HOST" ] || { echo "::error::Secret SSH_HOST ausente ou vazio"; exit 1; }
-          [ -n "$SSH_USER" ] || { echo "::error::Secret SSH_USER ausente ou vazio"; exit 1; }
           [ -n "$SSH_KEY" ]  || { echo "::error::Secret SSH_KEY ausente ou vazio"; exit 1; }
-          echo "Secrets presentes. Host=$SSH_HOST User=$SSH_USER Branch=$TARGET_BRANCH"
+          echo "Secrets presentes. User=$SSH_USER Branch=$TARGET_BRANCH"
 
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
