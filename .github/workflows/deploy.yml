@@ -57,7 +57,11 @@ jobs:
           fi
           echo "Chave carregada OK. Publica derivada:"; cat ~/.ssh/deploy_key.pub
 
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+          # Sem ssh-keyscan: accept-new adiciona o host key na primeira conexao.
+          # ConnectTimeout garante erro claro (sem set -e mascarando via keyscan).
+          echo "Conectando em $SSH_USER@$SSH_HOST (porta 22)..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 \
             "$SSH_USER@$SSH_HOST" \
             "/var/www/desvios-hse/deploy.sh '$TARGET_BRANCH'"
