@@ -97,7 +97,7 @@ export async function GET(req: NextRequest, { params }: { params: { path?: strin
   // ── WHERE (filtros col=op.valor) ──────────────────────────────────────────
   const where: string[] = []
   const values: unknown[] = []
-  for (const [key, raw] of sp.entries()) {
+  for (const [key, raw] of Array.from(sp.entries())) {
     if (RESERVED.has(key)) continue
     if (!IDENT.test(key)) return err(`Coluna de filtro inválida: ${key}`)
     const dot = raw.indexOf('.')
