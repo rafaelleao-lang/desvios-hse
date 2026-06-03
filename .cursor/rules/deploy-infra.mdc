@@ -7,9 +7,11 @@ alwaysApply: true
 
 App **Next.js 14 + MySQL (mysql2)**, dados via `/api/db`. **Fotos agora no S3** (bucket `hsemse`).
 
-## ⚠ Servidor (EC2) — IP MUDOU
-- **IP atual: `32.193.252.43`** (era `44.211.137.53`, que está MORTO). Mudou por falta de Elastic IP.
-- Acesso: `ssh -i "C:\Users\Manutenção\Documents\MSE\AWS-PEM\servert3medium.pem" ubuntu@32.193.252.43`
+## ✅ Servidor (EC2) — agora com ELASTIC IP (fixo, 2026-06-03)
+- **IP atual (Elastic IP, fixo): `35.168.67.97`** — AllocationId `eipalloc-086ac2f8b80908a86`, associado à instância `i-01507e35a9248fbcd` (us-east-1b). Histórico de IPs dinâmicos mortos: `44.211.137.53`, `32.193.252.43`.
+- Acesso: `ssh -i "C:\Users\Manutenção\Documents\MSE\AWS-PEM\servert3medium.pem" ubuntu@35.168.67.97`
+- ⚠ Ao associar o EIP, o IP dinâmico antigo (`32.193.252.43`) deixou de rotear. **DNS dos 3 subdomínios (desvios/residuos/alojamentos) e o secret `SSH_HOST` do GitHub Actions precisam apontar p/ `35.168.67.97`.**
+- AWS CLI: a máquina LOCAL tem AWS CLI configurada (user `raiz_portal_2026`, conta `654654230753`) com permissão de EC2 (allocate/associate address). Instância NÃO tem aws cli.
 - Hostname interno `ip-10-0-2-79`. ubuntu tem sudo sem senha.
 - PowerShell local: usar `;` (não `&&`); `Get-ChildItem` não renderiza saída aqui (usar `cmd /c dir`). `head`/`cat` não existem.
 - Node, PM2 (app `desvios-hse`, id 0), Nginx, Certbot, swap, ufw.
@@ -41,16 +43,25 @@ App **Next.js 14 + MySQL (mysql2)**, dados via `/api/db`. **Fotos agora no S3** 
 ## Branches
 - `main` = `cf298ce`, `damasio` = `3e0b454`. Ambas com código S3 + fix de build. `main` é merge da `damasio` + fix.
 
-## ⚠ CI/CD QUEBRADO — causa raiz identificada
-- Workflow `.github/workflows/deploy.yml` (push na main + workflow_dispatch) faz SSH e roda `deploy.sh`.
-- **Falha porque o secret `SSH_HOST` aponta p/ o IP velho `44.211.137.53`** → SSH timeout 20s. Secrets/chave estão OK (falha é de conexão).
-- Produção foi deployada MANUALMENTE ontem (ownership fix + reset main + npm ci + build + pm2 restart).
+## ✅ CI/CD FUNCIONANDO (resolvido em 2026-06-03)
+- Workflow `.github/workflows/deploy.yml` (push na main + workflow_dispatch) faz SSH e roda `deploy.sh`. Run #15 passou (success).
+- Sequência de causas resolvidas: (1) secret `SSH_HOST` estava no IP velho `44.211.137.53` → atualizado p/ `32.193.252.43`; (2) secret `SSH_KEY` recolado com a `gha_deploy` correta; (3) `deploy.sh` estava sem bit de execução → `chmod +x` (já corrigido).
+- `gha_deploy.pub` confirmada no `authorized_keys` da instância. Auth externo validado.
 
-## Pendências para amanhã (2026-06-03)
-1. **Atualizar secret `SSH_HOST`** no GitHub p/ `32.193.252.43` (precisa admin do repo `rafaelleao-lang/desvios-hse`).
-2. **Alocar Elastic IP** e anexar à instância (senão o IP muda de novo e quebra tudo); atualizar DNS + SSH_HOST p/ ele.
-3. Garantir SG libera porta 22 p/ runners do GitHub (0.0.0.0/0 ou faixas GH).
-4. Verificar se a deploy key `gha_deploy` ainda está no `authorized_keys` da instância ATUAL.
-5. (Opcional) Limpeza Supabase: remover `*.supabase.co` do `next.config.js` (app usa `<img>`, não é necessário), vars Supabase do `.env`. Usuário pediu p/ NÃO mexer na config por ora.
-6. **Rotacionar credenciais expostas no chat**: IAM_SECRET, senha RDS, chaves Supabase.
-7. `.env.local` LOCAL está apontando p/ RDS (valores XAMPP comentados) — reverter p/ rodar local.
+## ✅ Co-hospedados no MESMO EC2 (NOVO 2026-06-03): residuos + alojamentos (PHP)
+- Migrados do servidor antigo **`34.224.53.101`** (ainda vivo, Apache+mod_php7.4; chave `server_tg4medium.pem`, user ubuntu, hostname `ip-10-0-2-150`). DNS dos 2 subdomínios já aponta p/ o IP novo.
+- Servidor novo ganhou **PHP 8.5-FPM** (`php8.5-fpm php8.5-mysql php8.5-mbstring php8.5-curl php8.5-xml php8.5-gd`), socket `/run/php/php8.5-fpm.sock`. App roda em PHP 8.5 (origem era 7.4) sem ajustes.
+- **residuos** (`https://residuos.portalmse.com.br`): app PHP em `/var/www/residuos.portalmse.com.br/residuos`. Front-controller `index.php` (gateia TUDO por sessão SSO via iframe do `portalmse.com.br`; `auth.php` valida token HMAC; `inc/secret.php` tem a chave — copiada igual do antigo). Nginx: `auth.php` e `index.php` direto via fastcgi; `location / { rewrite ^ /index.php last; }` (NÃO usar try_files p/ estático, senão burla o gate). Conteúdo real em `SITE RESÍDUOS/` (com espaço+acento, servido só pelo front-controller).
+  - DB: **mesmo RDS** `inst-prod...` mas banco `gestaoresiduos` (user `admin`), já populado. S3: bucket `portalmseproducao` região `sa-east-1`, pasta `gestao-residuos/documentos` (NÃO é o hsemse — usuário mandou não alterar). `.env` em `residuos/.env` (DB+AWS).
+  - ⚠ `aws-sdk-php` NÃO vinha no repo (upload S3 estava quebrado no antigo). Instalado em `SITE RESÍDUOS/aws-sdk-php/` via `aws.zip` oficial. `s3_upload.php` usa ACL `public-read` (ok no portalmseproducao; NÃO usar bucket hsemse aqui pois é Object-Ownership enforced).
+- **alojamentos** (`https://alojamentos.portalmse.com.br`): site **estático** (HTML/jQuery/html2pdf, gera PDF no browser) em `/var/www/alojamentos.portalmse.com.br/alojamentos`. Nginx serve estático (`index index.html index.php`) + `\.php$` via fastcgi. Sem DB/SSO.
+- SSL: 1 cert Certbot cobrindo os 2 subdomínios (`certbot --nginx --redirect`), expira 2026-09-01, redirect 80→443.
+- Verificado: residuos `/`→302 SSO, asset sem sessão→302 (gate ok), DB conecta (obras=4, fornecedores=4), AWS SDK carrega; alojamentos→200.
+
+## Pendências
+1. ✅ Elastic IP alocado (`35.168.67.97`) e associado em 2026-06-03. **FALTA o usuário: (a) atualizar DNS dos 3 subdomínios p/ `35.168.67.97`; (b) atualizar secret `SSH_HOST` do GitHub Actions p/ `35.168.67.97`.** Até o DNS mudar, sites ficam fora (IP `32.193.252.43` não roteia mais).
+1b. Servidor antigo `34.224.53.101`: **residuos APAGADO** (vhost+app+cert, a pedido). Alojamentos ainda existe lá mas sem tráfego (DNS no IP novo). Login SSO do residuos validar pelo portal DEPOIS (pendente do usuário).
+2. (Opcional) Limpeza Supabase: remover `*.supabase.co` do `next.config.js` (app usa `<img>`, não é necessário), vars Supabase do `.env`. Usuário pediu p/ NÃO mexer na config por ora.
+3. **Rotacionar credenciais expostas no chat** (IAM_SECRET, senha RDS, chaves Supabase) — usuário pediu p/ NÃO rotacionar por ora.
+4. `.env.local` LOCAL está apontando p/ RDS (valores XAMPP comentados) — reverter p/ rodar local.
+5. Hábito: NÃO operar como `root` no servidor (quebra ownership/permissões; foi o que tirou o +x do deploy.sh e deixou .git como root).
