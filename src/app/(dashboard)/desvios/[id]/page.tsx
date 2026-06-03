@@ -62,7 +62,7 @@ export default function DesvioDetailPage() {
 
   const sc = STATUS_CONFIG[desvio.status]
   const gc = GRAVIDADE_CONFIG[desvio.gravidade]
-  const slaColor = getSlaColor(desvio.dias_para_vencer, desvio.vencido)
+  const slaColor = getSlaColor(desvio.dias_para_vencer, desvio.vencido, desvio.isClosed)
   const transitions = STATUS_TRANSITIONS.filter(t => t.from.includes(desvio.status))
 
   async function handleStatusChange(to: StatusDesvio) {
@@ -305,7 +305,7 @@ export default function DesvioDetailPage() {
             { icon: User, label: 'Coordenador', value: desvio.coordenador_nome_computado || '—' },
             { icon: User, label: 'Encarregado', value: desvio.encarregado_nome_computado },
             { icon: User, label: 'TST', value: desvio.tst_nome_computado || '—' },
-            { icon: Clock, label: 'SLA', value: desvio.prazo_correcao ? getSlaLabel(desvio.dias_para_vencer, desvio.vencido) : '—', valueClass: slaColor },
+            { icon: Clock, label: 'SLA', value: desvio.prazo_correcao ? getSlaLabel(desvio.dias_para_vencer, desvio.vencido, desvio.isClosed) : '—', valueClass: slaColor },
           ].map(row => (
             <div key={row.label} className="flex items-start gap-2">
               <row.icon className="w-3.5 h-3.5 text-zinc-600 mt-0.5 flex-shrink-0" />

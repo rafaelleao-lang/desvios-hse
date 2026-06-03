@@ -185,8 +185,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                             <p className="text-xs text-zinc-300 truncate">{d.descricao || d.categoria}</p>
                             <div className="flex items-center justify-between mt-1">
                               <p className="text-[10px] text-zinc-500 truncate">{d.obra_nome_computado}</p>
-                              <p className={cn('text-[10px] font-semibold ml-2 flex-shrink-0', getSlaColor(d.dias_para_vencer, d.vencido))}>
-                                {getSlaLabel(d.dias_para_vencer, d.vencido)}
+                              <p className={cn('text-[10px] font-semibold ml-2 flex-shrink-0', getSlaColor(d.dias_para_vencer, d.vencido, d.isClosed))}>
+                                {getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed)}
                               </p>
                             </div>
                           </div>

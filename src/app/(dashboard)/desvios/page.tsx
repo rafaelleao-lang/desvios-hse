@@ -297,8 +297,8 @@ export default function DesviosPage() {
                     <span className={cn('ml-auto font-semibold', gc.color)}>{gc.label}</span>
                   </div>
                   {d.prazo_correcao && (
-                    <p className={cn('text-[11px] font-semibold mt-0.5', getSlaColor(d.dias_para_vencer, d.vencido))}>
-                      {getSlaLabel(d.dias_para_vencer, d.vencido)}
+                    <p className={cn('text-[11px] font-semibold mt-0.5 text-center leading-tight', getSlaColor(d.dias_para_vencer, d.vencido, d.isClosed))}>
+                      {getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed)}
                     </p>
                   )}
                 </div>
@@ -324,7 +324,7 @@ export default function DesviosPage() {
                 const sc = STATUS_CONFIG[d.status]
                 const gc = GRAVIDADE_CONFIG[d.gravidade]
                 const foto = d.fotos?.[0]
-                const slaColor = getSlaColor(d.dias_para_vencer, d.vencido)
+                const slaColor = getSlaColor(d.dias_para_vencer, d.vencido, d.isClosed)
                 return (
                   <motion.tr key={d.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.02 }}
@@ -361,8 +361,8 @@ export default function DesviosPage() {
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <p className={cn('text-xs font-semibold', slaColor)}>
-                        {d.prazo_correcao ? getSlaLabel(d.dias_para_vencer, d.vencido) : '—'}
+                      <p className={cn('text-xs font-semibold text-center leading-tight max-w-[80px]', slaColor)}>
+                        {d.prazo_correcao ? getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed) : '—'}
                       </p>
                     </td>
                     <td className="px-3 py-3">

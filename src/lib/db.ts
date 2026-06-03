@@ -91,6 +91,9 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   const criado = new Date(d.criado_em)
   const dias_aberto = Math.floor((hoje.getTime() - criado.getTime()) / 86400000)
 
+  const CLOSED_STATUSES = ['concluido', 'fechado', 'reincidente'] as const
+  const isClosed = CLOSED_STATUSES.includes(d.status as typeof CLOSED_STATUSES[number])
+
   let vencido = false
   let dias_para_vencer: number | null = null
 
@@ -98,11 +101,24 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
     // Parse as local date to avoid UTC offset shifting the day (e.g. BRT = UTC-3)
     const [py, pm, pd] = d.prazo_correcao.split('T')[0].split('-').map(Number)
     const prazo = new Date(py, pm - 1, pd)
-    const hojeOnly = new Date(hoje)
-    hojeOnly.setHours(0, 0, 0, 0)
-    const diff = Math.round((prazo.getTime() - hojeOnly.getTime()) / 86400000)
+
+    // Para desvios fechados, congela o SLA na data em que foi fechado (não cresce mais)
+    let referencia: Date
+    if (isClosed) {
+      const entradaFechamento = [...(d.historico_status ?? [])]
+        .reverse()
+        .find(h => CLOSED_STATUSES.includes(h.status_novo as typeof CLOSED_STATUSES[number]))
+      const dataFechamento = entradaFechamento?.criado_em ?? d.atualizado_em
+      const [fy, fm, fd] = dataFechamento.split('T')[0].split('-').map(Number)
+      referencia = new Date(fy, fm - 1, fd)
+    } else {
+      referencia = new Date(hoje)
+      referencia.setHours(0, 0, 0, 0)
+    }
+
+    const diff = Math.round((prazo.getTime() - referencia.getTime()) / 86400000)
     dias_para_vencer = diff
-    vencido = diff < 0 && !['concluido', 'fechado', 'reincidente'].includes(d.status)
+    vencido = diff < 0 && !isClosed
   }
 
   const obra = obras.find(o => o.id === d.obra_id)
@@ -113,6 +129,7 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   return {
     ...d,
     vencido,
+    isClosed,
     dias_para_vencer,
     dias_aberto,
     obra_nome_computado: obra?.nome || d.obra_nome || '—',
