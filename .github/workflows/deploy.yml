@@ -58,8 +58,11 @@ jobs:
           # Sem ssh-keyscan: accept-new adiciona o host key na primeira conexao.
           # ConnectTimeout garante erro claro (sem set -e mascarando via keyscan).
           echo "Conectando em $SSH_USER@$SSH_HOST (porta 22)..."
+          # Invoca via "bash <script>" para nao depender do bit de execucao do
+          # deploy.sh, que ja se perdeu antes (operacoes como root no servidor
+          # zeram o +x apos git reset --hard).
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=20 \
             "$SSH_USER@$SSH_HOST" \
-            "/var/www/desvios-hse/deploy.sh '$TARGET_BRANCH'"
+            "bash /var/www/desvios-hse/deploy.sh '$TARGET_BRANCH'"
