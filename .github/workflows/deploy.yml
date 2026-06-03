@@ -30,17 +30,18 @@ jobs:
       - name: Deploy via SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
           TARGET_BRANCH: ${{ steps.vars.outputs.branch }}
         run: |
           set -e
-          # Usuario fixo (nao e sensivel). O secret SSH_USER estava com valor
-          # incorreto e corrigi-lo exige admin do repo; por isso fixamos aqui.
+          # Usuario e host fixos (nao sao sensiveis). Os secrets SSH_USER/SSH_HOST
+          # estavam incorretos (host no IP dinamico antigo, ja morto apos a troca
+          # pelo Elastic IP) e corrigi-los exige admin do repo; por isso fixamos
+          # aqui. Host = Elastic IP fixo da instancia EC2 (eipalloc-086ac2f8b80908a86).
           SSH_USER="ubuntu"
+          SSH_HOST="35.168.67.97"
           # Valida secrets necessarios (sem expor valores)
-          [ -n "$SSH_HOST" ] || { echo "::error::Secret SSH_HOST ausente ou vazio"; exit 1; }
           [ -n "$SSH_KEY" ]  || { echo "::error::Secret SSH_KEY ausente ou vazio"; exit 1; }
-          echo "Secrets presentes. User=$SSH_USER Branch=$TARGET_BRANCH"
+          echo "Secrets presentes. User=$SSH_USER Host=$SSH_HOST Branch=$TARGET_BRANCH"
 
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
