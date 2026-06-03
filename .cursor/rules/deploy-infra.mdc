@@ -43,10 +43,12 @@ App **Next.js 14 + MySQL (mysql2)**, dados via `/api/db`. **Fotos agora no S3** 
 ## Branches
 - `main` = `cf298ce`, `damasio` = `3e0b454`. Ambas com código S3 + fix de build. `main` é merge da `damasio` + fix.
 
-## ✅ CI/CD FUNCIONANDO (resolvido em 2026-06-03)
-- Workflow `.github/workflows/deploy.yml` (push na main + workflow_dispatch) faz SSH e roda `deploy.sh`. Run #15 passou (success).
-- Sequência de causas resolvidas: (1) secret `SSH_HOST` estava no IP velho `44.211.137.53` → atualizado p/ `32.193.252.43`; (2) secret `SSH_KEY` recolado com a `gha_deploy` correta; (3) `deploy.sh` estava sem bit de execução → `chmod +x` (já corrigido).
+## ✅ CI/CD FUNCIONANDO (re-resolvido em 2026-06-03 após o EIP)
+- Workflow `.github/workflows/deploy.yml` (push na main + workflow_dispatch) faz SSH e roda `deploy.sh`. Run `26894243186` passou (success): PM2 online + healthcheck `local HTTP 200`.
+- ⚠ Secrets `SSH_HOST`/`SSH_USER` estavam errados e corrigi-los exige admin do repo → **fixados direto no workflow**: `SSH_USER="ubuntu"`, `SSH_HOST="35.168.67.97"` (Elastic IP fixo). O secret `SSH_HOST` (IP dinâmico antigo, morto) NÃO é mais usado.
+- ⚠ `deploy.sh` era `100644` no git → todo `git reset --hard` zerava o `+x` → `Permission denied` (exit 126). Resolvido em dose dupla: workflow chama `bash /var/www/desvios-hse/deploy.sh` (independe do bit) E `deploy.sh` agora é `100755` no git.
 - `gha_deploy.pub` confirmada no `authorized_keys` da instância. Auth externo validado.
+- Histórico anterior: (1) secret `SSH_HOST` no IP velho `44.211.137.53` → `32.193.252.43`; (2) `SSH_KEY` recolado com a `gha_deploy` correta.
 
 ## ✅ Co-hospedados no MESMO EC2 (NOVO 2026-06-03): residuos + alojamentos (PHP)
 - Migrados do servidor antigo **`34.224.53.101`** (ainda vivo, Apache+mod_php7.4; chave `server_tg4medium.pem`, user ubuntu, hostname `ip-10-0-2-150`). DNS dos 2 subdomínios já aponta p/ o IP novo.
@@ -59,7 +61,7 @@ App **Next.js 14 + MySQL (mysql2)**, dados via `/api/db`. **Fotos agora no S3** 
 - Verificado: residuos `/`→302 SSO, asset sem sessão→302 (gate ok), DB conecta (obras=4, fornecedores=4), AWS SDK carrega; alojamentos→200.
 
 ## Pendências
-1. ✅ Elastic IP alocado (`35.168.67.97`) e associado em 2026-06-03. **FALTA o usuário: (a) atualizar DNS dos 3 subdomínios p/ `35.168.67.97`; (b) atualizar secret `SSH_HOST` do GitHub Actions p/ `35.168.67.97`.** Até o DNS mudar, sites ficam fora (IP `32.193.252.43` não roteia mais).
+1. ✅ Elastic IP alocado (`35.168.67.97`) e associado em 2026-06-03. CI/CD já não depende do secret `SSH_HOST` (host fixado no workflow). **FALTA o usuário: atualizar DNS dos 3 subdomínios p/ `35.168.67.97`.** Até o DNS mudar, sites ficam fora pelo domínio (IP `32.193.252.43` não roteia mais); o deploy via CI funciona por usar o IP direto.
 1b. Servidor antigo `34.224.53.101`: **residuos APAGADO** (vhost+app+cert, a pedido). Alojamentos ainda existe lá mas sem tráfego (DNS no IP novo). Login SSO do residuos validar pelo portal DEPOIS (pendente do usuário).
 2. (Opcional) Limpeza Supabase: remover `*.supabase.co` do `next.config.js` (app usa `<img>`, não é necessário), vars Supabase do `.env`. Usuário pediu p/ NÃO mexer na config por ora.
 3. **Rotacionar credenciais expostas no chat** (IAM_SECRET, senha RDS, chaves Supabase) — usuário pediu p/ NÃO rotacionar por ora.
