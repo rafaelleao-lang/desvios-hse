@@ -297,7 +297,7 @@ export default function DesviosPage() {
                     <span className={cn('ml-auto font-semibold', gc.color)}>{gc.label}</span>
                   </div>
                   {d.prazo_correcao && (
-                    <p className={cn('text-[11px] font-semibold mt-0.5', getSlaColor(d.dias_para_vencer, d.vencido, d.isClosed))}>
+                    <p className={cn('text-[11px] font-semibold mt-0.5 text-center leading-tight', getSlaColor(d.dias_para_vencer, d.vencido, d.isClosed))}>
                       {getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed)}
                     </p>
                   )}
@@ -361,7 +361,7 @@ export default function DesviosPage() {
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <p className={cn('text-xs font-semibold', slaColor)}>
+                      <p className={cn('text-xs font-semibold text-center leading-tight max-w-[80px]', slaColor)}>
                         {d.prazo_correcao ? getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed) : '—'}
                       </p>
                     </td>

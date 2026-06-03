@@ -203,7 +203,7 @@ export function getSlaColor(diasParaVencer: number | null, vencido: boolean, isC
 export function getSlaLabel(diasParaVencer: number | null, vencido: boolean, isClosed = false): string {
   if (isClosed) {
     if (diasParaVencer === null) return 'Sem prazo'
-    return diasParaVencer >= 0 ? 'Prazo atendido' : 'Prazo excedido'
+    return diasParaVencer >= 0 ? 'Prazo atendido' : 'Fechado fora do prazo'
   }
   if (vencido) return 'Vencido'
   if (diasParaVencer === null) return 'Sem prazo'
