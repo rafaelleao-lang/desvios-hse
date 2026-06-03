@@ -1,0 +1,56 @@
+---
+description: Deploy / Infra / Storage S3 — desvios-hse (estado e pendências)
+alwaysApply: true
+---
+
+# Deploy / Infra — desvios-hse (status em 2026-06-02)
+
+App **Next.js 14 + MySQL (mysql2)**, dados via `/api/db`. **Fotos agora no S3** (bucket `hsemse`).
+
+## ⚠ Servidor (EC2) — IP MUDOU
+- **IP atual: `32.193.252.43`** (era `44.211.137.53`, que está MORTO). Mudou por falta de Elastic IP.
+- Acesso: `ssh -i "C:\Users\Manutenção\Documents\MSE\AWS-PEM\servert3medium.pem" ubuntu@32.193.252.43`
+- Hostname interno `ip-10-0-2-79`. ubuntu tem sudo sem senha.
+- PowerShell local: usar `;` (não `&&`); `Get-ChildItem` não renderiza saída aqui (usar `cmd /c dir`). `head`/`cat` não existem.
+- Node, PM2 (app `desvios-hse`, id 0), Nginx, Certbot, swap, ufw.
+
+## App em produção — NO AR e JÁ EM S3
+- URL: **https://desvios.portalmse.com.br** (SSL, redirect 80→443). DNS aponta p/ o IP novo.
+- Dir: `/var/www/desvios-hse`. Servidor está na branch **`main`** (commit `cf298ce`).
+- `deploy.sh [branch]`: git fetch/reset --hard, npm ci, build, pm2 restart, com `set -e` (build falho NÃO derruba o site, mas também NÃO atualiza).
+- `.env.local` do servidor: tem RDS + AWS (AWS_REGION/S3_BUCKET/IAM_KEY/IAM_SECRET) configurados.
+- ⚠ NÃO rodar git/deploy como `root` (quebra ownership de `.git/objects`). Se quebrar: `sudo chown -R ubuntu:ubuntu /var/www/desvios-hse`.
+
+## Storage S3 (NOVO) — bucket `hsemse`
+- Região `us-east-1`. `src/lib/server/storage.ts` usa `@aws-sdk/client-s3` (padrão `uparArquivoSemConverter` do portalmse: nome único imutável, ContentMD5, ContentDisposition inline, ContentType auto).
+- Bucket tem **Object Ownership = enforced** → NÃO aceita ACL. Código não envia ACL (opcional via env `S3_ACL`).
+- Acesso público via **bucket policy** (s3:GetObject em `hsemse/desvios-hse/*`). URL: `https://hsemse.s3.us-east-1.amazonaws.com/<key>`. Prefixo `desvios-hse/fotos/AAAA-MM/`.
+- Uploads novos (`/api/upload`) e migrações já caem no S3. **Verificado em produção: upload retorna URL S3 + HTTP 200.**
+
+## Migração de fotos — CONCLUÍDA
+- Local (XAMPP): 733 fotos Supabase → S3. RDS (prod): 728 Supabase + 52 `/uploads` → S3. RDS hoje: 0 Supabase, 0 /uploads, ~780 no S3.
+- Scripts: `scripts/migrar-fotos-para-s3.mjs` (local), `scripts/migrar-fotos-rds.mjs` (RDS, reaproveita objetos S3 por foto.id), `scripts/migrar-uploads-rds.mjs` (baixa /uploads via URL pública de prod). Todos com `--dry-run`.
+
+## API `/api/supabase` (NOVO)
+- `src/app/api/supabase/[...path]/route.ts`: REST compatível com Supabase porém servido do **MySQL** (select/order/limit/offset/filtros col=eq.valor). Não toca mais no Supabase.
+- ⚠ Fix de build importante: usar `Array.from(sp.entries())` (sem isso `next build` falha por downlevelIteration → travava o deploy).
+
+## RDS — NÃO MEXER (só dados de fotos já atualizados)
+- MySQL 8, host `inst-prod.cfaiagcmibea.us-east-1.rds.amazonaws.com`, db/user `desvios`. Sem SSL.
+
+## Branches
+- `main` = `cf298ce`, `damasio` = `3e0b454`. Ambas com código S3 + fix de build. `main` é merge da `damasio` + fix.
+
+## ⚠ CI/CD QUEBRADO — causa raiz identificada
+- Workflow `.github/workflows/deploy.yml` (push na main + workflow_dispatch) faz SSH e roda `deploy.sh`.
+- **Falha porque o secret `SSH_HOST` aponta p/ o IP velho `44.211.137.53`** → SSH timeout 20s. Secrets/chave estão OK (falha é de conexão).
+- Produção foi deployada MANUALMENTE ontem (ownership fix + reset main + npm ci + build + pm2 restart).
+
+## Pendências para amanhã (2026-06-03)
+1. **Atualizar secret `SSH_HOST`** no GitHub p/ `32.193.252.43` (precisa admin do repo `rafaelleao-lang/desvios-hse`).
+2. **Alocar Elastic IP** e anexar à instância (senão o IP muda de novo e quebra tudo); atualizar DNS + SSH_HOST p/ ele.
+3. Garantir SG libera porta 22 p/ runners do GitHub (0.0.0.0/0 ou faixas GH).
+4. Verificar se a deploy key `gha_deploy` ainda está no `authorized_keys` da instância ATUAL.
+5. (Opcional) Limpeza Supabase: remover `*.supabase.co` do `next.config.js` (app usa `<img>`, não é necessário), vars Supabase do `.env`. Usuário pediu p/ NÃO mexer na config por ora.
+6. **Rotacionar credenciais expostas no chat**: IAM_SECRET, senha RDS, chaves Supabase.
+7. `.env.local` LOCAL está apontando p/ RDS (valores XAMPP comentados) — reverter p/ rodar local.
