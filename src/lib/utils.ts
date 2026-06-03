@@ -187,7 +187,11 @@ export function generateDesvioId(numero: number): string {
   return `DEV-${String(numero).padStart(5, '0')}`
 }
 
-export function getSlaColor(diasParaVencer: number | null, vencido: boolean): string {
+export function getSlaColor(diasParaVencer: number | null, vencido: boolean, isClosed = false): string {
+  if (isClosed) {
+    if (diasParaVencer === null) return 'text-zinc-400'
+    return diasParaVencer >= 0 ? 'text-green-400' : 'text-red-400'
+  }
   if (vencido) return 'text-red-400'
   if (diasParaVencer === null) return 'text-zinc-400'
   if (diasParaVencer <= 1) return 'text-red-400'
@@ -196,7 +200,11 @@ export function getSlaColor(diasParaVencer: number | null, vencido: boolean): st
   return 'text-green-400'
 }
 
-export function getSlaLabel(diasParaVencer: number | null, vencido: boolean): string {
+export function getSlaLabel(diasParaVencer: number | null, vencido: boolean, isClosed = false): string {
+  if (isClosed) {
+    if (diasParaVencer === null) return 'Sem prazo'
+    return diasParaVencer >= 0 ? 'Prazo atendido' : 'Prazo excedido'
+  }
   if (vencido) return 'Vencido'
   if (diasParaVencer === null) return 'Sem prazo'
   if (diasParaVencer === 0) return 'Vence hoje'

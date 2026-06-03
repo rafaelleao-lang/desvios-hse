@@ -91,6 +91,9 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   const criado = new Date(d.criado_em)
   const dias_aberto = Math.floor((hoje.getTime() - criado.getTime()) / 86400000)
 
+  const CLOSED_STATUSES = ['concluido', 'fechado', 'reincidente'] as const
+  const isClosed = CLOSED_STATUSES.includes(d.status as typeof CLOSED_STATUSES[number])
+
   let vencido = false
   let dias_para_vencer: number | null = null
 
@@ -99,15 +102,12 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
     const [py, pm, pd] = d.prazo_correcao.split('T')[0].split('-').map(Number)
     const prazo = new Date(py, pm - 1, pd)
 
-    const statusFechado = ['concluido', 'fechado', 'reincidente'] as const
-    const isClosed = statusFechado.includes(d.status as typeof statusFechado[number])
-
     // Para desvios fechados, congela o SLA na data em que foi fechado (não cresce mais)
     let referencia: Date
     if (isClosed) {
       const entradaFechamento = [...(d.historico_status ?? [])]
         .reverse()
-        .find(h => statusFechado.includes(h.status_novo as typeof statusFechado[number]))
+        .find(h => CLOSED_STATUSES.includes(h.status_novo as typeof CLOSED_STATUSES[number]))
       const dataFechamento = entradaFechamento?.criado_em ?? d.atualizado_em
       const [fy, fm, fd] = dataFechamento.split('T')[0].split('-').map(Number)
       referencia = new Date(fy, fm - 1, fd)
@@ -129,6 +129,7 @@ export function computeDesvio(d: Desvio, obras: Obra[], tsts: TST[], encarregado
   return {
     ...d,
     vencido,
+    isClosed,
     dias_para_vencer,
     dias_aberto,
     obra_nome_computado: obra?.nome || d.obra_nome || '—',

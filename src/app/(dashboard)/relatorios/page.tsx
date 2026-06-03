@@ -610,7 +610,7 @@ function gerarPDF(
         STATUS_CONFIG[d.status]?.label || d.status,
         (d.coordenador_nome_computado || '—').length > 14 ? (d.coordenador_nome_computado || '—').slice(0,13)+'…' : (d.coordenador_nome_computado || '—'),
         d.encarregado_nome_computado.length > 14 ? d.encarregado_nome_computado.slice(0,13)+'…' : d.encarregado_nome_computado,
-        getSlaLabel(d.dias_para_vencer, d.vencido),
+        getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed),
         d.descricao,
         tratativaTexto,
       ]
@@ -771,7 +771,7 @@ function gerarXLSX(
       d.coordenador_nome_computado || '',
       d.encarregado_nome_computado,
       d.tst_nome_computado || '',
-      getSlaLabel(d.dias_para_vencer, d.vencido),
+      getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed),
       d.descricao,
       tratativaTexto,
       d.aberto_por || '',
@@ -980,7 +980,7 @@ async function gerarPPT(
       { label: 'ENCARREGADO',   value: d.encarregado_nome_computado || '—' },
       { label: 'ABERTO POR',    value: d.aberto_por || '—' },
       { label: 'COLABORADOR',   value: d.colaborador_nome || '—' },
-      { label: 'SLA / PRAZO',   value: getSlaLabel(d.dias_para_vencer, d.vencido) },
+      { label: 'SLA / PRAZO',   value: getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed) },
     ]
 
     infoItems.forEach((item, i) => {
@@ -2005,7 +2005,7 @@ export default function RelatoriosPage() {
                                 </td>
                                 <td className="px-3 py-3 text-zinc-400 text-xs max-w-[100px]"><span className="truncate block">{d.coordenador_nome_computado || '—'}</span></td>
                                 <td className="px-3 py-3 text-zinc-400 text-xs max-w-[110px]"><span className="truncate block">{d.encarregado_nome_computado}</span></td>
-                                <td className={cn('px-3 py-3 text-xs font-semibold whitespace-nowrap', getSlaColor(d.dias_para_vencer, d.vencido))}>{getSlaLabel(d.dias_para_vencer, d.vencido)}</td>
+                                <td className={cn('px-3 py-3 text-xs font-semibold whitespace-nowrap', getSlaColor(d.dias_para_vencer, d.vencido, d.isClosed))}>{getSlaLabel(d.dias_para_vencer, d.vencido, d.isClosed)}</td>
                                 <td className="px-3 py-3 text-zinc-300 text-xs">
                                   <span className="block leading-relaxed">{d.descricao}</span>
                                 </td>

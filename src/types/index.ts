@@ -110,6 +110,7 @@ export interface Desvio {
 
 export interface DesvioComputado extends Desvio {
   vencido: boolean
+  isClosed: boolean
   dias_para_vencer: number | null
   dias_aberto: number
   obra_nome_computado: string
