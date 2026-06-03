@@ -1081,7 +1081,10 @@ async function gerarPPT(
         let imgDataUrl = foto.data_url
         if (imgDataUrl && imgDataUrl.startsWith('http')) {
           try {
-            const res = await fetch(imgDataUrl)
+            // Busca via proxy same-origin: o S3 não tem CORS configurado, então
+            // um fetch direto do navegador é bloqueado ao ler o corpo da resposta.
+            const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(imgDataUrl)}`)
+            if (!res.ok) throw new Error(`proxy HTTP ${res.status}`)
             const blob = await res.blob()
             imgDataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader()
