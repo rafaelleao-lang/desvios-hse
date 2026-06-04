@@ -76,7 +76,7 @@ interface DesvioModalProps {
   encarregado: Encarregado | null
   coordenador: Coordenador | null
   localPreFill: string
-  onSuccess: (desvio_id: string, numero: number) => void
+  onSuccess: (desvio_id: string, numero: number, descricao: string) => void
   onClose: () => void
 }
 
@@ -152,7 +152,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
         fotos: form.fotos,
         tratativas: [],
       })
-      onSuccess(desvio.id, desvio.numero)
+      onSuccess(desvio.id, desvio.numero, desvio.descricao)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao criar desvio')
     } finally {
@@ -397,8 +397,11 @@ export default function NovaInspecaoPage() {
   }
 
   const canLancar = evidencias.length > 0 &&
-    evidencias.every(e => e.local.trim().length > 0 && e.tipo !== null && e.descricao.trim().length > 0) &&
-    evidencias.every(e => e.tipo !== 'desvio' || e.desvio_id !== null)
+    evidencias.every(e => {
+      if (!e.tipo || !e.local.trim()) return false
+      if (e.tipo === 'desvio') return e.desvio_id !== null  // descrição vem do desvio
+      return e.descricao.trim().length > 0
+    })
 
   async function handleLancar() {
     if (!canLancar || !obraId) return
@@ -631,17 +634,25 @@ export default function NovaInspecaoPage() {
                     </div>
                   </div>
 
-                  {/* Description */}
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Descrição *</label>
-                    <textarea
-                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none"
-                      rows={2}
-                      placeholder="Descreva o que foi observado"
-                      value={ev.descricao}
-                      onChange={e => updateEvidencia(ev.id, { descricao: e.target.value })}
-                    />
-                  </div>
+                  {/* Description — oculto para desvio (auto-preenchido) */}
+                  {ev.tipo !== 'desvio' && (
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Descrição *</label>
+                      <textarea
+                        className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none"
+                        rows={2}
+                        placeholder="Descreva o que foi observado"
+                        value={ev.descricao}
+                        onChange={e => updateEvidencia(ev.id, { descricao: e.target.value })}
+                      />
+                    </div>
+                  )}
+                  {ev.tipo === 'desvio' && ev.descricao && (
+                    <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">Descrição (do desvio registrado)</p>
+                      <p className="text-sm text-zinc-300">{ev.descricao}</p>
+                    </div>
+                  )}
 
                   {/* Desvio action */}
                   {ev.tipo === 'desvio' && (
@@ -726,8 +737,8 @@ export default function NovaInspecaoPage() {
             encarregado={encarregado || null}
             coordenador={coordenador || null}
             localPreFill={desvioModal.localPreFill}
-            onSuccess={(desvio_id, numero) => {
-              updateEvidencia(desvioModal.evidenciaId, { desvio_id, desvio_numero: numero })
+            onSuccess={(desvio_id, numero, descricao) => {
+              updateEvidencia(desvioModal.evidenciaId, { desvio_id, desvio_numero: numero, descricao })
               setDesvioModal(null)
             }}
             onClose={() => setDesvioModal(null)}
