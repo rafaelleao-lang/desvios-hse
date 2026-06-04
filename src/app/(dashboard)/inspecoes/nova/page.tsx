@@ -94,6 +94,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const fotoRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   function toggleCategoria(cat: string) {
     setForm(f => ({
@@ -292,6 +293,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
 
               <div>
                 <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Fotos do Desvio * (mín. 1)</label>
+                <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => addFoto(e.target.files)} />
                 <input ref={fotoRef} type="file" accept="image/*" multiple className="hidden" onChange={e => addFoto(e.target.files)} />
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {form.fotos.map((foto, i) => (
@@ -306,13 +308,22 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
                     </div>
                   ))}
                   {form.fotos.length < 4 && (
-                    <button
-                      onClick={() => fotoRef.current?.click()}
-                      className="aspect-square bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-zinc-500 hover:bg-zinc-700 transition-all"
-                    >
-                      <Camera className="w-6 h-6 text-zinc-500" />
-                      <span className="text-[10px] text-zinc-600">+ Foto</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => cameraRef.current?.click()}
+                        className="aspect-square bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-red-500/40 transition-all"
+                      >
+                        <Camera className="w-5 h-5 text-zinc-500" />
+                        <span className="text-[10px] text-zinc-600">Câmera</span>
+                      </button>
+                      <button
+                        onClick={() => fotoRef.current?.click()}
+                        className="aspect-square bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-red-500/40 transition-all"
+                      >
+                        <Image className="w-5 h-5 text-zinc-500" />
+                        <span className="text-[10px] text-zinc-600">Galeria</span>
+                      </button>
+                    </>
                   )}
                 </div>
                 <p className="text-xs text-zinc-600">{form.fotos.length}/4 foto(s)</p>
@@ -359,6 +370,7 @@ export default function NovaInspecaoPage() {
   const [step, setStep] = useState<0 | 1>(0)
 
   const fotoRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const cameraRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const obra = obras.find(o => o.id === obraId)
   const tst = tsts.find(t => t.id === tstId)
@@ -571,6 +583,16 @@ export default function NovaInspecaoPage() {
                     <label className="text-xs font-semibold text-zinc-400 mb-1.5 block flex items-center gap-1.5">
                       <Camera className="w-3 h-3" /> Foto(s)
                     </label>
+                    {/* Câmera — abre direto a câmera no mobile */}
+                    <input
+                      ref={el => { cameraRefs.current[ev.id] = el }}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={e => addFotoToEvidencia(ev.id, e.target.files)}
+                    />
+                    {/* Galeria — abre galeria de fotos */}
                     <input
                       ref={el => { fotoRefs.current[ev.id] = el }}
                       type="file"
@@ -592,13 +614,22 @@ export default function NovaInspecaoPage() {
                         </div>
                       ))}
                       {ev.fotos.length < 4 && (
-                        <button
-                          onClick={() => fotoRefs.current[ev.id]?.click()}
-                          className="w-16 h-16 bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1 hover:border-zinc-500 transition-all"
-                        >
-                          <Image className="w-5 h-5 text-zinc-600" />
-                          <span className="text-[9px] text-zinc-600">Foto</span>
-                        </button>
+                        <>
+                          <button
+                            onClick={() => cameraRefs.current[ev.id]?.click()}
+                            className="w-16 h-16 bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
+                          >
+                            <Camera className="w-5 h-5 text-zinc-500" />
+                            <span className="text-[9px] text-zinc-500">Câmera</span>
+                          </button>
+                          <button
+                            onClick={() => fotoRefs.current[ev.id]?.click()}
+                            className="w-16 h-16 bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
+                          >
+                            <Image className="w-5 h-5 text-zinc-500" />
+                            <span className="text-[9px] text-zinc-500">Galeria</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
