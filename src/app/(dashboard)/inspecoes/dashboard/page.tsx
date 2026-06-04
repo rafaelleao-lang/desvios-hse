@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useApp } from '@/contexts/AppContext'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
+  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area, LabelList,
 } from 'recharts'
 import {
   ClipboardCheck, AlertCircle, CheckCircle2, TrendingUp,
@@ -114,7 +114,7 @@ export default function InspDashboardPage() {
     return encList.map(enc => {
       const encInsp = filtered.filter(i => i.encarregado_id === enc.id)
       return {
-        nome: enc.nome.split(' ')[0],
+        nome: enc.nome.length > 22 ? enc.nome.slice(0, 21) + '…' : enc.nome,
         nomeCompleto: enc.nome,
         desvios: encInsp.reduce((a, i) => a + i.total_desvios, 0),
         reconhecimentos: encInsp.reduce((a, i) => a + i.total_reconhecimentos, 0),
@@ -129,7 +129,7 @@ export default function InspDashboardPage() {
     return coordList.map(coord => {
       const cInsp = filtered.filter(i => i.coordenador_id === coord.id)
       return {
-        nome: coord.nome.split(' ')[0],
+        nome: coord.nome.length > 22 ? coord.nome.slice(0, 21) + '…' : coord.nome,
         nomeCompleto: coord.nome,
         desvios: cInsp.reduce((a, i) => a + i.total_desvios, 0),
         reconhecimentos: cInsp.reduce((a, i) => a + i.total_reconhecimentos, 0),
@@ -142,7 +142,7 @@ export default function InspDashboardPage() {
   const porTst = useMemo(() => {
     const tstList = obraFiltro ? tsts.filter(t => t.obra_id === obraFiltro) : tsts
     return tstList.map(tst => ({
-      nome: tst.nome.split(' ')[0],
+      nome: tst.nome.length > 22 ? tst.nome.slice(0, 21) + '…' : tst.nome,
       nomeCompleto: tst.nome,
       inspecoes: filtered.filter(i => i.tst_id === tst.id).length,
       desvios: filtered.filter(i => i.tst_id === tst.id).reduce((a, i) => a + i.total_desvios, 0),
@@ -311,7 +311,8 @@ export default function InspDashboardPage() {
           <p className="text-xs text-zinc-500 mb-4">Distribuição total das evidências</p>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+              <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value"
+                label={({ name, value }) => `${value}`} labelLine={false}>
                 {donutData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip content={<ChartTip />} />
@@ -327,14 +328,18 @@ export default function InspDashboardPage() {
           {porObra.length === 0 ? (
             <div className="flex items-center justify-center h-[200px] text-zinc-600 text-sm">Sem dados</div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={porObra} layout="vertical" margin={{ left: 0, right: 20 }}>
+            <ResponsiveContainer width="100%" height={Math.max(200, porObra.length * 36 + 40)}>
+              <BarChart data={porObra} layout="vertical" margin={{ left: 0, right: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
                 <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={80} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={110} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTip />} />
-                <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14} />
-                <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14} />
+                <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                  <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+                </Bar>
+                <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14}>
+                  <LabelList dataKey="reconhecimentos" position="right" style={{ fill: INSP_GREEN, fontSize: 10, fontWeight: 'bold' }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -346,15 +351,19 @@ export default function InspDashboardPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h3 className="text-sm font-semibold text-zinc-200 mb-1">Encarregado × Desvios × Reconhecimentos</h3>
           <p className="text-xs text-zinc-500 mb-4">Comparativo por responsável</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={porEncarregado}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <ResponsiveContainer width="100%" height={Math.max(200, porEncarregado.length * 40 + 50)}>
+            <BarChart data={porEncarregado} layout="vertical" margin={{ left: 0, right: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+              <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTip />} />
               <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-              <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[3, 3, 0, 0]} maxBarSize={28} />
-              <Bar dataKey="reconhecimentos" name="Reconhecimentos" fill={INSP_GREEN} radius={[3, 3, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+              </Bar>
+              <Bar dataKey="reconhecimentos" name="Reconhecimentos" fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14}>
+                <LabelList dataKey="reconhecimentos" position="right" style={{ fill: INSP_GREEN, fontSize: 10, fontWeight: 'bold' }} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -398,10 +407,14 @@ export default function InspDashboardPage() {
               <BarChart data={porTst} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
                 <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={80} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTip />} />
-                <Bar dataKey="inspecoes" name="Inspeções" fill="#06B6D4" radius={[0, 3, 3, 0]} maxBarSize={16} />
-                <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={16} />
+                <Bar dataKey="inspecoes" name="Inspeções" fill="#06B6D4" radius={[0, 3, 3, 0]} maxBarSize={16}>
+                  <LabelList dataKey="inspecoes" position="right" style={{ fill: '#06B6D4', fontSize: 10, fontWeight: 'bold' }} />
+                </Bar>
+                <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={16}>
+                  <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -412,16 +425,22 @@ export default function InspDashboardPage() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
             <h3 className="text-sm font-semibold text-zinc-200 mb-1">Coordenador × Desvios × Reconhecimentos</h3>
             <p className="text-xs text-zinc-500 mb-4">Visão por coordenador responsável</p>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={porCoordenador}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <ResponsiveContainer width="100%" height={Math.max(220, porCoordenador.length * 40 + 50)}>
+              <BarChart data={porCoordenador} layout="vertical" margin={{ left: 0, right: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTip />} />
                 <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-                <Bar dataKey="inspecoes" name="Inspeções" fill="#8B5CF6" radius={[3, 3, 0, 0]} maxBarSize={24} />
-                <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[3, 3, 0, 0]} maxBarSize={24} />
-                <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[3, 3, 0, 0]} maxBarSize={24} />
+                <Bar dataKey="inspecoes" name="Inspeções" fill="#8B5CF6" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                  <LabelList dataKey="inspecoes" position="right" style={{ fill: '#8B5CF6', fontSize: 10, fontWeight: 'bold' }} />
+                </Bar>
+                <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                  <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+                </Bar>
+                <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14}>
+                  <LabelList dataKey="reconhecimentos" position="right" style={{ fill: INSP_GREEN, fontSize: 10, fontWeight: 'bold' }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -441,6 +460,7 @@ export default function InspDashboardPage() {
                   { name: 'Concluídas', value: kpis.concluidas, color: INSP_GREEN },
                 ]}
                 cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={4} dataKey="value"
+                label={({ value }) => value > 0 ? `${value}` : ''} labelLine={false}
               >
                 {[{ color: '#F59E0B' }, { color: INSP_GREEN }].map((e, i) => <Cell key={i} fill={e.color} />)}
               </Pie>

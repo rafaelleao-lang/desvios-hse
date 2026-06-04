@@ -5,12 +5,12 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Filter, X, FileText, FileSpreadsheet, Presentation, BarChart3 } from 'lucide-react'
+import { Filter, X, FileText, FileSpreadsheet, BarChart3 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import type { Inspecao } from '@/types'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
+  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area, LabelList,
 } from 'recharts'
 
 const INSP_GREEN = '#10B981'
@@ -508,7 +508,7 @@ export default function InspecoesRelatoriosPage() {
     const list = filtros.obra_id ? encarregados.filter(e => e.obra_id === filtros.obra_id) : encarregados
     return list.map(enc => {
       const eInsp = filtered.filter(f => f.encarregado_id === enc.id)
-      return { nome: enc.nome.split(' ')[0], nomeCompleto: enc.nome, desvios: eInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: eInsp.reduce((a, f) => a + f.total_reconhecimentos, 0), inspecoes: eInsp.length }
+      return { nome: enc.nome.length > 22 ? enc.nome.slice(0, 21) + '…' : enc.nome, nomeCompleto: enc.nome, desvios: eInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: eInsp.reduce((a, f) => a + f.total_reconhecimentos, 0), inspecoes: eInsp.length }
     }).filter(e => e.inspecoes > 0).sort((a, b) => (b.desvios + b.reconhecimentos) - (a.desvios + a.reconhecimentos)).slice(0, 10)
   }, [filtered, encarregados, filtros.obra_id])
 
@@ -521,14 +521,14 @@ export default function InspecoesRelatoriosPage() {
     const list = filtros.obra_id ? coordenadores.filter(c => c.obra_id === filtros.obra_id) : coordenadores
     return list.map(c => {
       const cInsp = filtered.filter(f => f.coordenador_id === c.id)
-      return { nome: c.nome.split(' ')[0], desvios: cInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: cInsp.reduce((a, f) => a + f.total_reconhecimentos, 0), inspecoes: cInsp.length }
+      return { nome: c.nome.length > 22 ? c.nome.slice(0, 21) + '…' : c.nome, desvios: cInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: cInsp.reduce((a, f) => a + f.total_reconhecimentos, 0), inspecoes: cInsp.length }
     }).filter(c => c.inspecoes > 0).sort((a, b) => b.inspecoes - a.inspecoes).slice(0, 8)
   }, [filtered, coordenadores, filtros.obra_id])
 
   const porTst = useMemo(() => {
     const list = filtros.obra_id ? tsts.filter(t => t.obra_id === filtros.obra_id) : tsts
     return list.map(t => ({
-      nome: t.nome.split(' ')[0], inspecoes: filtered.filter(f => f.tst_id === t.id).length,
+      nome: t.nome.length > 22 ? t.nome.slice(0, 21) + '…' : t.nome, inspecoes: filtered.filter(f => f.tst_id === t.id).length,
       desvios: filtered.filter(f => f.tst_id === t.id).reduce((a, f) => a + f.total_desvios, 0),
     })).filter(t => t.inspecoes > 0).sort((a, b) => b.inspecoes - a.inspecoes).slice(0, 8)
   }, [filtered, tsts, filtros.obra_id])
@@ -764,14 +764,18 @@ export default function InspecoesRelatoriosPage() {
             <div id="rel-chart-obra" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">Inspeções por Obra</h3>
               {porObra.length === 0 ? <div className="flex items-center justify-center h-[180px] text-zinc-600 text-sm">Sem dados</div> : (
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={porObra} layout="vertical">
+                <ResponsiveContainer width="100%" height={Math.max(180, porObra.length * 36 + 40)}>
+                  <BarChart data={porObra} layout="vertical" margin={{ right: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
                     <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={80} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={110} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTip />} />
-                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14} />
-                    <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14} />
+                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                      <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+                    </Bar>
+                    <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14}>
+                      <LabelList dataKey="reconhecimentos" position="right" style={{ fill: INSP_GREEN, fontSize: 10, fontWeight: 'bold' }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -782,15 +786,19 @@ export default function InspecoesRelatoriosPage() {
           {porEncarregado.length > 0 && (
             <div id="rel-chart-enc" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">Encarregado × Desvios × Reconhecimentos</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={porEncarregado}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <ResponsiveContainer width="100%" height={Math.max(200, porEncarregado.length * 40 + 50)}>
+                <BarChart data={porEncarregado} layout="vertical" margin={{ right: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTip />} />
                   <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-                  <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[3, 3, 0, 0]} maxBarSize={28} />
-                  <Bar dataKey="reconhecimentos" name="Reconhecimentos" fill={INSP_GREEN} radius={[3, 3, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                    <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+                  </Bar>
+                  <Bar dataKey="reconhecimentos" name="Reconhecimentos" fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14}>
+                    <LabelList dataKey="reconhecimentos" position="right" style={{ fill: INSP_GREEN, fontSize: 10, fontWeight: 'bold' }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -821,14 +829,18 @@ export default function InspecoesRelatoriosPage() {
             {porTst.length > 0 && (
               <div id="rel-chart-tst" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                 <h3 className="text-sm font-semibold text-zinc-200 mb-4">Inspeções por TST</h3>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={porTst} layout="vertical">
+                <ResponsiveContainer width="100%" height={Math.max(200, porTst.length * 40 + 50)}>
+                  <BarChart data={porTst} layout="vertical" margin={{ right: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
                     <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={80} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTip />} />
-                    <Bar dataKey="inspecoes" name="Inspeções" fill="#06B6D4" radius={[0, 3, 3, 0]} maxBarSize={16} />
-                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={16} />
+                    <Bar dataKey="inspecoes" name="Inspeções" fill="#06B6D4" radius={[0, 3, 3, 0]} maxBarSize={16}>
+                      <LabelList dataKey="inspecoes" position="right" style={{ fill: '#06B6D4', fontSize: 10, fontWeight: 'bold' }} />
+                    </Bar>
+                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={16}>
+                      <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -836,16 +848,22 @@ export default function InspecoesRelatoriosPage() {
             {porCoordenador.length > 0 && (
               <div id="rel-chart-coord" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                 <h3 className="text-sm font-semibold text-zinc-200 mb-4">Coordenador × Desvios × Reconhecimentos</h3>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={porCoordenador}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <ResponsiveContainer width="100%" height={Math.max(200, porCoordenador.length * 40 + 50)}>
+                  <BarChart data={porCoordenador} layout="vertical" margin={{ right: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={130} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTip />} />
                     <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-                    <Bar dataKey="inspecoes" name="Inspeções" fill="#8B5CF6" radius={[3, 3, 0, 0]} maxBarSize={24} />
-                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[3, 3, 0, 0]} maxBarSize={24} />
-                    <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[3, 3, 0, 0]} maxBarSize={24} />
+                    <Bar dataKey="inspecoes" name="Inspeções" fill="#8B5CF6" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                      <LabelList dataKey="inspecoes" position="right" style={{ fill: '#8B5CF6', fontSize: 10, fontWeight: 'bold' }} />
+                    </Bar>
+                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                      <LabelList dataKey="desvios" position="right" style={{ fill: '#EF4444', fontSize: 10, fontWeight: 'bold' }} />
+                    </Bar>
+                    <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14}>
+                      <LabelList dataKey="reconhecimentos" position="right" style={{ fill: INSP_GREEN, fontSize: 10, fontWeight: 'bold' }} />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
