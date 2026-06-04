@@ -655,14 +655,6 @@ export default function InspecoesRelatoriosPage() {
           <FileSpreadsheet className="w-4 h-4" />
           Exportar Excel
         </button>
-        <button
-          onClick={async () => { setGeneratingPPT(true); try { await gerarPPT(filtered) } finally { setGeneratingPPT(false) } }}
-          disabled={filtered.length === 0 || generatingPPT}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-orange-600 hover:bg-orange-700 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Presentation className="w-4 h-4" />
-          {generatingPPT ? 'Gerando…' : 'Exportar PPT'}
-        </button>
       </div>
 
       {/* Preview table */}
