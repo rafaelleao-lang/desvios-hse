@@ -3,12 +3,168 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useApp } from '@/contexts/AppContext'
-import { Eye, Search, Filter, X, ClipboardList, Calendar, CheckCircle2 } from 'lucide-react'
+import { Eye, Search, Filter, X, ClipboardList, Calendar, CheckCircle2, FileText, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { inspecoesDB } from '@/lib/db'
+import type { Inspecao, InspecaoEvidencia } from '@/types'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const INSP_GREEN = '#10B981'
-const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+const MSE_RED = '#E8291C'
+
+async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia[] }) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const hoje = new Date()
+  const PW = 210, ML = 14, MR = 14, CW = PW - ML - MR
+  const RED: [number, number, number] = [232, 41, 28]
+  let y = 0
+
+  function drawHeader() {
+    doc.setFillColor(RED[0], RED[1], RED[2])
+    doc.rect(0, 0, PW, 18, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255)
+    doc.text('mse', ML, 12.5)
+    doc.setLineWidth(0.3); doc.setDrawColor(255, 255, 255)
+    doc.line(ML + 15, 4, ML + 15, 14)
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
+    doc.text('Relatório de Inspeção HSE  ·  MSE Engenharia', ML + 19, 12.5)
+    const ds = hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    doc.setFontSize(7); doc.setTextColor(255, 200, 200)
+    doc.text(ds, PW - MR, 12.5, { align: 'right' })
+  }
+
+  function formatDate(d: string) {
+    if (!d) return '—'
+    const parts = d.split('T')[0].split('-')
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+
+  function formatDateTime(d: string) {
+    if (!d) return '—'
+    const dt = new Date(d)
+    return dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  drawHeader()
+  y = 24
+
+  // Title
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(30, 30, 30)
+  doc.text(`Inspeção INS-${String(insp.numero).padStart(4, '0')}`, ML, y)
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 100, 100)
+  doc.text(insp.status === 'concluida' ? 'Concluída' : 'Em Aberto', PW - MR, y, { align: 'right' })
+  y += 6
+
+  // Info grid
+  const infoItems = [
+    ['Obra', insp.obra_nome || '—'],
+    ['Data', formatDate(insp.data_inspecao) + (insp.hora_inspecao ? '  ' + insp.hora_inspecao : '')],
+    ['TST / Inspetor', insp.tst_nome || '—'],
+    ['Encarregado', insp.encarregado_nome || '—'],
+    ['Coordenador', insp.coordenador_nome || '—'],
+    ['Fechado em', insp.fechado_em ? formatDateTime(insp.fechado_em) : '—'],
+  ]
+  const colW = (CW - 3) / 2
+  infoItems.forEach(([label, value], i) => {
+    const col = i % 2, row = Math.floor(i / 2)
+    const bx = ML + col * (colW + 3), by = y + row * 9
+    doc.setFillColor(248, 248, 248); doc.rect(bx, by, colW, 8, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(150, 150, 150)
+    doc.text(label.toUpperCase(), bx + 2, by + 3)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(30, 30, 30)
+    doc.text(value, bx + 2, by + 6.5)
+  })
+  y += Math.ceil(infoItems.length / 2) * 9 + 6
+
+  // KPIs
+  const kpis = [
+    { label: 'Desvios', value: String(insp.total_desvios), c: [239, 68, 68] as [number, number, number] },
+    { label: 'Fechados', value: String(insp.desvios_fechados), c: [34, 197, 94] as [number, number, number] },
+    { label: 'Reconhec.', value: String(insp.total_reconhecimentos), c: [16, 185, 129] as [number, number, number] },
+  ]
+  const kW = (CW - 6) / 3
+  kpis.forEach((k, i) => {
+    const kx = ML + i * (kW + 3)
+    doc.setFillColor(k.c[0] + 200, k.c[1] + 40, k.c[2] + 40)
+    doc.roundedRect(kx, y, kW, 16, 2, 2, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(k.c[0], k.c[1], k.c[2])
+    doc.text(k.value, kx + kW / 2, y + 9, { align: 'center' })
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80)
+    doc.text(k.label, kx + kW / 2, y + 13.5, { align: 'center' })
+  })
+  y += 22
+
+  // Evidences table
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 30, 30)
+  doc.text('Evidências', ML, y); y += 2
+
+  const evidencias = insp.evidencias ?? []
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'Tipo', 'Local', 'Descrição', 'Status', 'Prazo', 'Fechado em', 'Quem fechou', 'Tratativa']],
+    body: evidencias.map((ev, i) => {
+      const isDesvio = ev.tipo === 'desvio'
+      const isClosed = !!ev.data_fechamento
+      return [
+        String(i + 1),
+        isDesvio ? 'Desvio' : 'Reconhec.',
+        ev.local,
+        (ev.descricao || '—').slice(0, 40),
+        isDesvio ? (isClosed ? 'Fechado' : 'Em Aberto') : '—',
+        ev.prazo_correcao ? formatDate(ev.prazo_correcao) : '—',
+        isClosed ? formatDateTime(ev.data_fechamento!) : '—',
+        ev.quem_fechou || '—',
+        (ev.tratativa_texto || '—').slice(0, 50),
+      ]
+    }),
+    styles: { fontSize: 6.5, cellPadding: 2 },
+    headStyles: { fillColor: RED, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7 },
+    alternateRowStyles: { fillColor: [250, 250, 252] as [number, number, number] },
+    columnStyles: {
+      0: { cellWidth: 8 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 },
+      3: { cellWidth: 28 }, 4: { cellWidth: 16 }, 5: { cellWidth: 14 },
+      6: { cellWidth: 20 }, 7: { cellWidth: 22 }, 8: { cellWidth: 36 },
+    },
+    margin: { top: 22, left: ML, right: MR },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    didDrawPage: (data: any) => { if (data.pageNumber > 1) drawHeader() },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    didParseCell: (data: any) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const ev = evidencias[data.row.index]
+        if (ev?.tipo === 'desvio') data.cell.styles.textColor = [239, 68, 68]
+        else data.cell.styles.textColor = [16, 185, 129]
+      }
+      if (data.section === 'body' && data.column.index === 4) {
+        const ev = evidencias[data.row.index]
+        if (ev?.tipo === 'desvio' && !ev.data_fechamento) {
+          data.cell.styles.textColor = [245, 158, 11]
+          data.cell.styles.fontStyle = 'italic'
+        } else if (ev?.tipo === 'desvio' && ev.data_fechamento) {
+          data.cell.styles.textColor = [34, 197, 94]
+        }
+      }
+    },
+  })
+
+  // Footer
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFillColor(248, 248, 248); doc.rect(0, 287, PW, 10, 'F')
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 160, 160)
+    doc.text('MSE Engenharia · Sistema de Gestão HSE', ML, 293)
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(RED[0], RED[1], RED[2])
+    doc.text(`Página ${i} / ${totalPages}`, PW - MR, 293, { align: 'right' })
+  }
+
+  const dd = String(hoje.getDate()).padStart(2, '0')
+  const mm = String(hoje.getMonth() + 1).padStart(2, '0')
+  const yy = hoje.getFullYear()
+  doc.save(`Inspecao-INS${String(insp.numero).padStart(4, '0')}-${yy}-${mm}-${dd}.pdf`)
+}
 
 function formatDate(d: string) {
   if (!d) return '—'
@@ -33,6 +189,17 @@ export default function InspecoesPage() {
   const [dataIni, setDataIni] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null)
+
+  async function handlePDF(id: string) {
+    setPdfLoading(id)
+    try {
+      const data = await inspecoesDB.find(id)
+      if (data) await gerarPDFInspecao(data)
+    } finally {
+      setPdfLoading(null)
+    }
+  }
 
   const concluidas = useMemo(
     () => inspecoes.filter(i => i.status === 'concluida'),
@@ -204,12 +371,13 @@ export default function InspecoesPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Coordenador</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500">Desvios</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500">Reconh.</th>
-                  <th className="px-4 py-3" />
+                  <th className="px-4 py-3 text-xs font-semibold text-zinc-500">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((insp, idx) => {
                   const dias = insp.fechado_em ? diasEntre(insp.criado_em, insp.fechado_em) : 0
+                  const isLoadingPdf = pdfLoading === insp.id
                   return (
                     <tr key={insp.id} className={cn('border-b border-zinc-800/60 hover:bg-zinc-800/40 transition-colors', idx % 2 === 1 && 'bg-zinc-900/50')}>
                       <td className="px-4 py-3 font-mono font-bold text-emerald-400 text-xs">
@@ -234,10 +402,23 @@ export default function InspecoesPage() {
                         <span className="text-xs font-bold text-emerald-400">{insp.total_reconhecimentos}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/inspecoes/${insp.id}`}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 transition-all">
-                          <Eye className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center gap-1.5">
+                          <Link href={`/inspecoes/${insp.id}`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 border border-zinc-800 hover:border-emerald-500/20 transition-all">
+                            <Eye className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            onClick={() => handlePDF(insp.id)}
+                            disabled={isLoadingPdf}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-500/10 border border-zinc-800 hover:border-red-500/20 transition-all disabled:opacity-50"
+                          >
+                            {isLoadingPdf
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <FileText className="w-3.5 h-3.5" />
+                            }
+                            PDF
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

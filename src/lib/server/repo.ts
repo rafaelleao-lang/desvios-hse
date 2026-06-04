@@ -668,7 +668,38 @@ export const inspecoesRepo = {
       'SELECT * FROM inspecao_evidencias WHERE inspecao_id = ? ORDER BY ordem ASC, criado_em ASC',
       [id],
     )
-    return { ...insp, evidencias: evRows.map(mapEvidencia) }
+    const evidencias = evRows.map(mapEvidencia)
+
+    // Enriquece evidências de desvio com dados live (foto fechamento, data, tratativa, responsável)
+    const desvioIds = evidencias.filter(e => e.desvio_id).map(e => e.desvio_id!)
+    if (desvioIds.length > 0) {
+      const ph = desvioIds.map(() => '?').join(',')
+      const dRows = await query<RowDataPacket[]>(`SELECT * FROM desvios WHERE id IN (${ph})`, desvioIds)
+      const desviosMap = new Map(dRows.map(d => [d.id as string, mapDesvio(d)]))
+      const CLOSED = new Set(['fechado', 'concluido', 'reincidente'])
+      return {
+        ...insp,
+        evidencias: evidencias.map(ev => {
+          if (ev.tipo !== 'desvio' || !ev.desvio_id) return ev
+          const d = desviosMap.get(ev.desvio_id)
+          if (!d) return ev
+          const isClosed = CLOSED.has(d.status)
+          const tratativas = d.tratativas ?? []
+          const last = tratativas[tratativas.length - 1]
+          const closedHist = [...(d.historico_status ?? [])].reverse()
+            .find(h => CLOSED.has(h.status_novo as string))
+          return {
+            ...ev,
+            fotos_fechamento: isClosed && last?.fotos?.length ? last.fotos : ev.fotos_fechamento,
+            data_fechamento: isClosed ? (closedHist?.criado_em ?? d.atualizado_em) : ev.data_fechamento,
+            tratativa_texto: isClosed ? (last?.acao_realizada || last?.comentario || ev.tratativa_texto || '') : ev.tratativa_texto,
+            quem_fechou: isClosed ? (closedHist?.por || last?.autor || ev.quem_fechou || '') : ev.quem_fechou,
+            prazo_correcao: d.prazo_correcao || ev.prazo_correcao,
+          }
+        }),
+      }
+    }
+    return { ...insp, evidencias }
   },
 
   async create(data: {

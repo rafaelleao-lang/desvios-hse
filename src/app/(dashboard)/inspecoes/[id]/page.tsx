@@ -46,9 +46,6 @@ function EvidenciaCard({ ev, index }: { ev: InspecaoEvidencia; index: number }) 
             ? <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 border border-red-500/20 text-red-400 text-xs font-semibold"><ShieldAlert className="w-3 h-3" />Desvio</span>
             : <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 text-xs font-semibold"><ThumbsUp className="w-3 h-3" />Reconhecimento</span>
           }
-          {ev.desvio_id && (
-            <span className="text-xs text-zinc-500 font-mono">ID: {ev.desvio_id.slice(0, 8)}…</span>
-          )}
         </div>
       </div>
 
@@ -64,7 +61,7 @@ function EvidenciaCard({ ev, index }: { ev: InspecaoEvidencia; index: number }) 
       </div>
 
       {/* Photos */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={cn('grid gap-4', isDesvio ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1')}>
         {/* Foto de abertura */}
         <div>
           <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-medium mb-2 flex items-center gap-1">
@@ -72,16 +69,16 @@ function EvidenciaCard({ ev, index }: { ev: InspecaoEvidencia; index: number }) 
             {isDesvio ? 'Foto de Abertura' : 'Evidência Fotográfica'}
           </p>
           {ev.fotos_abertura && ev.fotos_abertura.length > 0 ? (
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className={cn('grid gap-2', ev.fotos_abertura.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
               {ev.fotos_abertura.slice(0, 4).map((foto, i) => (
-                <div key={i} className="aspect-square bg-zinc-800 rounded-lg overflow-hidden">
+                <div key={i} className="bg-zinc-800 rounded-xl overflow-hidden" style={{ height: 220 }}>
                   <img src={foto.data_url} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="aspect-square bg-zinc-800/60 rounded-lg flex items-center justify-center">
-              <Image className="w-6 h-6 text-zinc-600" />
+            <div className="bg-zinc-800/60 rounded-xl flex items-center justify-center" style={{ height: 180 }}>
+              <Image className="w-8 h-8 text-zinc-600" />
             </div>
           )}
         </div>
@@ -94,17 +91,17 @@ function EvidenciaCard({ ev, index }: { ev: InspecaoEvidencia; index: number }) 
               Foto de Fechamento
             </p>
             {isFechado && ev.fotos_fechamento && ev.fotos_fechamento.length > 0 ? (
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className={cn('grid gap-2', ev.fotos_fechamento.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
                 {ev.fotos_fechamento.slice(0, 4).map((foto, i) => (
-                  <div key={i} className="aspect-square bg-zinc-800 rounded-lg overflow-hidden">
+                  <div key={i} className="bg-zinc-800 rounded-xl overflow-hidden" style={{ height: 220 }}>
                     <img src={foto.data_url} alt="" className="w-full h-full object-cover" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="aspect-square bg-amber-500/5 border border-amber-500/20 rounded-lg flex flex-col items-center justify-center gap-2 p-3">
-                <Clock className="w-6 h-6 text-amber-400" />
-                <p className="text-[10px] text-amber-400 text-center font-medium leading-tight">
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl flex flex-col items-center justify-center gap-3" style={{ height: 180 }}>
+                <Clock className="w-8 h-8 text-amber-400" />
+                <p className="text-xs text-amber-400 text-center font-medium leading-tight px-4">
                   Aguardando fechamento do desvio
                 </p>
               </div>
