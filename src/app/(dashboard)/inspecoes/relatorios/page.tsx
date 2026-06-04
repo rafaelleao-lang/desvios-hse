@@ -56,7 +56,17 @@ function filtrarInspecoes(inspecoes: Inspecao[], f: FiltrosInspecao): Inspecao[]
   })
 }
 
-function gerarPDF(filtered: Inspecao[], filtros: FiltrosInspecao, obras: { id: string; nome: string }[]) {
+async function captureChartImg(id: string): Promise<string | null> {
+  const el = document.getElementById(id)
+  if (!el) return null
+  try {
+    const html2canvas = (await import('html2canvas')).default
+    const canvas = await html2canvas(el, { backgroundColor: '#18181b', scale: 2, useCORS: true, logging: false })
+    return canvas.toDataURL('image/png')
+  } catch { return null }
+}
+
+async function gerarPDF(filtered: Inspecao[], filtros: FiltrosInspecao, obras: { id: string; nome: string }[]) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const hoje = new Date()
   const GREEN_RGB: [number, number, number] = [16, 185, 129]
@@ -156,15 +166,52 @@ function gerarPDF(filtered: Inspecao[], filtros: FiltrosInspecao, obras: { id: s
     },
   })
 
-  // Footer
-  const totalPages = doc.getNumberOfPages()
-  for (let i = 1; i <= totalPages; i++) {
+  // ── Capture charts from page ──────────────────────────────────────────────
+  const chartIds = [
+    { id: 'rel-chart-evolucao', title: 'Curva de Evolução Mensal' },
+    { id: 'rel-chart-donut',    title: 'Desvios vs Reconhecimentos' },
+    { id: 'rel-chart-obra',     title: 'Inspeções por Obra' },
+    { id: 'rel-chart-enc',      title: 'Encarregado × Desvios × Reconhecimentos' },
+    { id: 'rel-chart-pct-enc',  title: '% Desvios por Encarregado' },
+    { id: 'rel-chart-tst',      title: 'Inspeções por TST' },
+    { id: 'rel-chart-coord',    title: 'Coordenador × Desvios × Reconhecimentos' },
+  ]
+
+  const chartImgs = await Promise.all(chartIds.map(c => captureChartImg(c.id)))
+  const validCharts = chartIds.map((c, i) => ({ ...c, img: chartImgs[i] })).filter(c => c.img)
+
+  if (validCharts.length > 0) {
+    const chartsPerPage = 2
+    for (let ci = 0; ci < validCharts.length; ci += chartsPerPage) {
+      doc.addPage()
+      drawHeader()
+      let cy = 24
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(50, 50, 50)
+      doc.text('Análise Visual', ML, cy); cy += 6
+
+      const batch = validCharts.slice(ci, ci + chartsPerPage)
+      const chartH = batch.length === 1 ? 110 : 82
+      const chartW = PW - ML * 2
+
+      batch.forEach((c, bi) => {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(60, 60, 60)
+        doc.text(c.title, ML, cy); cy += 3
+        try { doc.addImage(c.img!, 'PNG', ML, cy, chartW, chartH) } catch { /* skip */ }
+        cy += chartH + 10
+      })
+    }
+  }
+
+  // Footer (re-apply after new pages)
+  const totalPagesAfter = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPagesAfter; i++) {
     doc.setPage(i)
     doc.setFillColor(248, 248, 248); doc.rect(0, 207 - 8, PW, 8, 'F')
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 160, 160)
     doc.text('MSE Engenharia · Sistema de Gestão HSE · Inspeções', ML, 207 - 2.5)
     doc.setFont('helvetica', 'bold'); doc.setTextColor(GREEN_RGB[0], GREEN_RGB[1], GREEN_RGB[2])
-    doc.text(`Página ${i} / ${totalPages}`, PW - ML, 207 - 2.5, { align: 'right' })
+    doc.text(`Página ${i} / ${totalPagesAfter}`, PW - ML, 207 - 2.5, { align: 'right' })
   }
 
   const dd = String(hoje.getDate()).padStart(2, '0')
@@ -323,6 +370,7 @@ export default function InspecoesRelatoriosPage() {
   const [filtros, setFiltros] = useState<FiltrosInspecao>({})
   const [showFilters, setShowFilters] = useState(true)
   const [generatingPPT, setGeneratingPPT] = useState(false)
+  const [generatingPDF, setGeneratingPDF] = useState(false)
 
   const tstOptions = useMemo(() => filtros.obra_id ? tsts.filter(t => t.obra_id === filtros.obra_id) : tsts, [tsts, filtros.obra_id])
   const encOptions = useMemo(() => filtros.obra_id ? encarregados.filter(e => e.obra_id === filtros.obra_id) : encarregados, [encarregados, filtros.obra_id])
@@ -491,12 +539,12 @@ export default function InspecoesRelatoriosPage() {
       {/* Export buttons */}
       <div className="flex flex-wrap gap-3">
         <button
-          onClick={() => gerarPDF(filtered, filtros, obras)}
-          disabled={filtered.length === 0}
+          onClick={async () => { setGeneratingPDF(true); try { await gerarPDF(filtered, filtros, obras) } finally { setGeneratingPDF(false) } }}
+          disabled={filtered.length === 0 || generatingPDF}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-red-600 hover:bg-red-700 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <FileText className="w-4 h-4" />
-          Exportar PDF
+          {generatingPDF ? 'Gerando…' : 'Exportar PDF'}
         </button>
         <button
           onClick={() => gerarXLSX(filtered)}
@@ -585,7 +633,7 @@ export default function InspecoesRelatoriosPage() {
           </div>
 
           {/* Evolução Mensal */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <div id="rel-chart-evolucao" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
             <h3 className="text-sm font-semibold text-zinc-200 mb-1">Curva de Evolução Mensal</h3>
             <p className="text-xs text-zinc-500 mb-4">Últimos 12 meses</p>
             <ResponsiveContainer width="100%" height={200}>
@@ -608,7 +656,7 @@ export default function InspecoesRelatoriosPage() {
 
           {/* Donut + Por Obra */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <div id="rel-chart-donut" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">Desvios vs Reconhecimentos</h3>
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
@@ -620,7 +668,7 @@ export default function InspecoesRelatoriosPage() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <div id="rel-chart-obra" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">Inspeções por Obra</h3>
               {porObra.length === 0 ? <div className="flex items-center justify-center h-[180px] text-zinc-600 text-sm">Sem dados</div> : (
                 <ResponsiveContainer width="100%" height={180}>
@@ -639,7 +687,7 @@ export default function InspecoesRelatoriosPage() {
 
           {/* Por Encarregado */}
           {porEncarregado.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <div id="rel-chart-enc" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">Encarregado × Desvios × Reconhecimentos</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={porEncarregado}>
@@ -657,7 +705,7 @@ export default function InspecoesRelatoriosPage() {
 
           {/* % Desvios por Encarregado */}
           {taxaDesvioEnc.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <div id="rel-chart-pct-enc" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">% Desvios por Encarregado</h3>
               <div className="space-y-3">
                 {taxaDesvioEnc.map(e => (
@@ -678,7 +726,7 @@ export default function InspecoesRelatoriosPage() {
           {/* TST + Coordenador */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {porTst.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <div id="rel-chart-tst" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                 <h3 className="text-sm font-semibold text-zinc-200 mb-4">Inspeções por TST</h3>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={porTst} layout="vertical">
@@ -693,7 +741,7 @@ export default function InspecoesRelatoriosPage() {
               </div>
             )}
             {porCoordenador.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <div id="rel-chart-coord" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                 <h3 className="text-sm font-semibold text-zinc-200 mb-4">Coordenador × Desvios × Reconhecimentos</h3>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={porCoordenador}>

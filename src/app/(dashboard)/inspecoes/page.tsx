@@ -18,147 +18,297 @@ async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const hoje = new Date()
   const PW = 210, ML = 14, MR = 14, CW = PW - ML - MR
+  const MB = 14  // bottom margin
   const RED: [number, number, number] = [232, 41, 28]
   let y = 0
 
-  function drawHeader() {
-    doc.setFillColor(RED[0], RED[1], RED[2])
-    doc.rect(0, 0, PW, 18, 'F')
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255)
-    doc.text('mse', ML, 12.5)
-    doc.setLineWidth(0.3); doc.setDrawColor(255, 255, 255)
-    doc.line(ML + 15, 4, ML + 15, 14)
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
-    doc.text('Relatório de Inspeção HSE  ·  MSE Engenharia', ML + 19, 12.5)
-    const ds = hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    doc.setFontSize(7); doc.setTextColor(255, 200, 200)
-    doc.text(ds, PW - MR, 12.5, { align: 'right' })
-  }
-
-  function formatDate(d: string) {
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function fmtDate(d: string) {
     if (!d) return '—'
-    const parts = d.split('T')[0].split('-')
-    return `${parts[2]}/${parts[1]}/${parts[0]}`
+    const p = d.split('T')[0].split('-'); return `${p[2]}/${p[1]}/${p[0]}`
   }
-
-  function formatDateTime(d: string) {
+  function fmtDT(d: string) {
     if (!d) return '—'
     const dt = new Date(d)
     return dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  drawHeader()
-  y = 24
+  function drawHeader() {
+    doc.setFillColor(RED[0], RED[1], RED[2]); doc.rect(0, 0, PW, 20, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255)
+    doc.text('mse', ML, 14)
+    doc.setLineWidth(0.4); doc.setDrawColor(255, 255, 255)
+    doc.line(ML + 18, 5, ML + 18, 16)
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+    doc.text('Relatório de Inspeção HSE  ·  MSE Engenharia', ML + 22, 10)
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold')
+    doc.text(`INS-${String(insp.numero).padStart(4, '0')}`, ML + 22, 15.5)
+    const ds = hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 210, 210)
+    doc.text(ds, PW - MR, 13, { align: 'right' })
+  }
+
+  function drawFooter() {
+    const n = doc.getNumberOfPages()
+    for (let i = 1; i <= n; i++) {
+      doc.setPage(i)
+      doc.setFillColor(248, 248, 248); doc.rect(0, 297 - 10, PW, 10, 'F')
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 160, 160)
+      doc.text('MSE Engenharia · Sistema de Gestão HSE · Inspeção HSE', ML, 297 - 3.5)
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(RED[0], RED[1], RED[2])
+      doc.text(`${i} / ${n}`, PW - MR, 297 - 3.5, { align: 'right' })
+    }
+  }
+
+  function ensureY(need: number) {
+    if (y + need > 297 - MB - 10) { doc.addPage(); drawHeader(); y = 26 }
+  }
+
+  // ── Page 1: Cover ────────────────────────────────────────────────────────────
+  drawHeader(); y = 26
+
+  // Status badge
+  const isConcluida = insp.status === 'concluida'
+  const statusC: [number,number,number] = isConcluida ? [22, 163, 74] : [234, 179, 8]
+  doc.setFillColor(...statusC); doc.roundedRect(PW - MR - 28, y - 5, 28, 8, 2, 2, 'F')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255)
+  doc.text(isConcluida ? '✓ Concluída' : '⟳ Em Aberto', PW - MR - 14, y - 0.5, { align: 'center' })
 
   // Title
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(30, 30, 30)
-  doc.text(`Inspeção INS-${String(insp.numero).padStart(4, '0')}`, ML, y)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 100, 100)
-  doc.text(insp.status === 'concluida' ? 'Concluída' : 'Em Aberto', PW - MR, y, { align: 'right' })
-  y += 6
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(20, 20, 20)
+  doc.text('Relatório de Inspeção HSE', ML, y + 1); y += 10
 
-  // Info grid
-  const infoItems = [
-    ['Obra', insp.obra_nome || '—'],
-    ['Data', formatDate(insp.data_inspecao) + (insp.hora_inspecao ? '  ' + insp.hora_inspecao : '')],
-    ['TST / Inspetor', insp.tst_nome || '—'],
-    ['Encarregado', insp.encarregado_nome || '—'],
-    ['Coordenador', insp.coordenador_nome || '—'],
-    ['Fechado em', insp.fechado_em ? formatDateTime(insp.fechado_em) : '—'],
+  // Divider
+  doc.setDrawColor(RED[0], RED[1], RED[2]); doc.setLineWidth(0.8)
+  doc.line(ML, y, PW - MR, y); y += 6
+
+  // Metadata grid 3×2
+  const metaItems = [
+    ['OBRA',          insp.obra_nome || '—'],
+    ['DATA / HORA',   fmtDate(insp.data_inspecao) + (insp.hora_inspecao ? '  ' + insp.hora_inspecao : '')],
+    ['TST / INSPETOR', insp.tst_nome || '—'],
+    ['ENCARREGADO',   insp.encarregado_nome || '—'],
+    ['COORDENADOR',   insp.coordenador_nome || '—'],
+    ['CONCLUÍDA EM',  insp.fechado_em ? fmtDT(insp.fechado_em) : '—'],
   ]
-  const colW = (CW - 3) / 2
-  infoItems.forEach(([label, value], i) => {
-    const col = i % 2, row = Math.floor(i / 2)
-    const bx = ML + col * (colW + 3), by = y + row * 9
-    doc.setFillColor(248, 248, 248); doc.rect(bx, by, colW, 8, 'F')
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(150, 150, 150)
-    doc.text(label.toUpperCase(), bx + 2, by + 3)
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(30, 30, 30)
-    doc.text(value, bx + 2, by + 6.5)
+  const cols3 = 3, mW = (CW - (cols3 - 1) * 3) / cols3
+  metaItems.forEach(([lbl, val], i) => {
+    const col = i % cols3, row = Math.floor(i / cols3)
+    const bx = ML + col * (mW + 3), by = y + row * 12
+    doc.setFillColor(250, 250, 250); doc.roundedRect(bx, by, mW, 11, 1.5, 1.5, 'F')
+    doc.setDrawColor(235, 235, 235); doc.setLineWidth(0.3); doc.roundedRect(bx, by, mW, 11, 1.5, 1.5, 'S')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(180, 180, 180)
+    doc.text(lbl, bx + 2.5, by + 4)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
+    const shortVal = val.length > 30 ? val.slice(0, 29) + '…' : val
+    doc.text(shortVal, bx + 2.5, by + 8.5)
   })
-  y += Math.ceil(infoItems.length / 2) * 9 + 6
+  y += Math.ceil(metaItems.length / cols3) * 12 + 8
 
-  // KPIs
-  const kpis = [
-    { label: 'Desvios', value: String(insp.total_desvios), c: [239, 68, 68] as [number, number, number] },
-    { label: 'Fechados', value: String(insp.desvios_fechados), c: [34, 197, 94] as [number, number, number] },
-    { label: 'Reconhec.', value: String(insp.total_reconhecimentos), c: [16, 185, 129] as [number, number, number] },
+  // KPI strip
+  const kpiItems = [
+    { label: 'Total Desvios',    value: String(insp.total_desvios),         c: [239, 68, 68] as [number,number,number] },
+    { label: 'Desvios Fechados', value: String(insp.desvios_fechados),       c: [22, 163, 74] as [number,number,number] },
+    { label: 'Reconhecimentos',  value: String(insp.total_reconhecimentos),  c: [16, 185, 129] as [number,number,number] },
   ]
-  const kW = (CW - 6) / 3
-  kpis.forEach((k, i) => {
-    const kx = ML + i * (kW + 3)
-    doc.setFillColor(k.c[0] + 200, k.c[1] + 40, k.c[2] + 40)
-    doc.roundedRect(kx, y, kW, 16, 2, 2, 'F')
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(k.c[0], k.c[1], k.c[2])
-    doc.text(k.value, kx + kW / 2, y + 9, { align: 'center' })
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80)
-    doc.text(k.label, kx + kW / 2, y + 13.5, { align: 'center' })
+  const kW3 = (CW - 6) / 3
+  kpiItems.forEach((k, i) => {
+    const kx = ML + i * (kW3 + 3)
+    doc.setFillColor(k.c[0], k.c[1], k.c[2]); doc.roundedRect(kx, y, kW3, 18, 2, 2, 'F')
+    doc.setFillColor(255, 255, 255, 30); doc.roundedRect(kx, y, kW3, 18, 2, 2, 'F')
+    doc.setFont('helvetica', 'black'); doc.setFontSize(22); doc.setTextColor(k.c[0], k.c[1], k.c[2])
+    // Draw white text
+    doc.setTextColor(255, 255, 255)
+    doc.text(k.value, kx + kW3 / 2, y + 11, { align: 'center' })
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 255, 255)
+    doc.text(k.label, kx + kW3 / 2, y + 15.5, { align: 'center' })
   })
-  y += 22
+  y += 24
 
-  // Evidences table
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(30, 30, 30)
-  doc.text('Evidências', ML, y); y += 2
-
+  // ── Evidências ───────────────────────────────────────────────────────────────
   const evidencias = insp.evidencias ?? []
+
+  // Summary table first
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20)
+  doc.text(`Evidências (${evidencias.length})`, ML, y); y += 3
+
   autoTable(doc, {
     startY: y,
-    head: [['#', 'Tipo', 'Local', 'Descrição', 'Status', 'Prazo', 'Fechado em', 'Quem fechou', 'Tratativa']],
-    body: evidencias.map((ev, i) => {
-      const isDesvio = ev.tipo === 'desvio'
-      const isClosed = !!ev.data_fechamento
+    head: [['#', 'Tipo', 'Local', 'Descrição', 'Status', 'Prazo', 'Fechado em', 'Responsável', 'Tratativa']],
+    body: evidencias.map((ev, idx) => {
+      const isD = ev.tipo === 'desvio', isCl = !!ev.data_fechamento
       return [
-        String(i + 1),
-        isDesvio ? 'Desvio' : 'Reconhec.',
-        ev.local,
-        (ev.descricao || '—').slice(0, 40),
-        isDesvio ? (isClosed ? 'Fechado' : 'Em Aberto') : '—',
-        ev.prazo_correcao ? formatDate(ev.prazo_correcao) : '—',
-        isClosed ? formatDateTime(ev.data_fechamento!) : '—',
-        ev.quem_fechou || '—',
-        (ev.tratativa_texto || '—').slice(0, 50),
+        String(idx + 1),
+        isD ? 'Desvio' : 'Reconhec.',
+        ev.local || '—',
+        (ev.descricao || '—').slice(0, 35),
+        isD ? (isCl ? 'Fechado' : 'Em Aberto') : '—',
+        ev.prazo_correcao ? fmtDate(ev.prazo_correcao) : '—',
+        isCl ? fmtDT(ev.data_fechamento!) : '—',
+        (ev.quem_fechou || '—').slice(0, 18),
+        (ev.tratativa_texto || '—').slice(0, 45),
       ]
     }),
-    styles: { fontSize: 6.5, cellPadding: 2 },
-    headStyles: { fillColor: RED, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7 },
-    alternateRowStyles: { fillColor: [250, 250, 252] as [number, number, number] },
+    styles: { fontSize: 6.5, cellPadding: 2.5 },
+    headStyles: { fillColor: RED, textColor: [255,255,255] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+    alternateRowStyles: { fillColor: [252, 252, 254] as [number,number,number] },
     columnStyles: {
-      0: { cellWidth: 8 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 },
-      3: { cellWidth: 28 }, 4: { cellWidth: 16 }, 5: { cellWidth: 14 },
-      6: { cellWidth: 20 }, 7: { cellWidth: 22 }, 8: { cellWidth: 36 },
+      0: { cellWidth: 7 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 },
+      3: { cellWidth: 28 }, 4: { cellWidth: 15 }, 5: { cellWidth: 13 },
+      6: { cellWidth: 19 }, 7: { cellWidth: 22 }, 8: { cellWidth: 40 },
     },
     margin: { top: 22, left: ML, right: MR },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     didDrawPage: (data: any) => { if (data.pageNumber > 1) drawHeader() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     didParseCell: (data: any) => {
-      if (data.section === 'body' && data.column.index === 1) {
-        const ev = evidencias[data.row.index]
-        if (ev?.tipo === 'desvio') data.cell.styles.textColor = [239, 68, 68]
-        else data.cell.styles.textColor = [16, 185, 129]
-      }
-      if (data.section === 'body' && data.column.index === 4) {
-        const ev = evidencias[data.row.index]
-        if (ev?.tipo === 'desvio' && !ev.data_fechamento) {
-          data.cell.styles.textColor = [245, 158, 11]
-          data.cell.styles.fontStyle = 'italic'
-        } else if (ev?.tipo === 'desvio' && ev.data_fechamento) {
-          data.cell.styles.textColor = [34, 197, 94]
-        }
+      if (data.section !== 'body') return
+      const ev = evidencias[data.row.index]
+      if (data.column.index === 1) data.cell.styles.textColor = ev?.tipo === 'desvio' ? [239,68,68] : [16,185,129]
+      if (data.column.index === 4 && ev?.tipo === 'desvio') {
+        data.cell.styles.textColor = ev.data_fechamento ? [22,163,74] : [245,158,11]
+        if (!ev.data_fechamento) data.cell.styles.fontStyle = 'italic'
       }
     },
   })
 
-  // Footer
-  const totalPages = doc.getNumberOfPages()
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i)
-    doc.setFillColor(248, 248, 248); doc.rect(0, 287, PW, 10, 'F')
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 160, 160)
-    doc.text('MSE Engenharia · Sistema de Gestão HSE', ML, 293)
-    doc.setFont('helvetica', 'bold'); doc.setTextColor(RED[0], RED[1], RED[2])
-    doc.text(`Página ${i} / ${totalPages}`, PW - MR, 293, { align: 'right' })
+  // ── Detalhe individual de cada evidência com fotos ───────────────────────────
+  for (let idx = 0; idx < evidencias.length; idx++) {
+    const ev = evidencias[idx]
+    const isD = ev.tipo === 'desvio'
+    const isCl = !!ev.data_fechamento
+    const fotosAb = ev.fotos_abertura ?? []
+    const fotosFech = ev.fotos_fechamento ?? []
+    const hasAbFotos = fotosAb.length > 0
+    const hasFechFotos = fotosFech.length > 0 && isCl
+    const photoH = 52  // height per photo row
+
+    // Estimate section height
+    let sectionH = 8 + 14  // header + local+desc
+    if (hasAbFotos || isD) sectionH += photoH + 6
+    if (isD && isCl) sectionH += 22
+    sectionH += 4  // bottom padding
+
+    doc.addPage(); drawHeader(); y = 26
+
+    // Section header
+    const badgeC: [number,number,number] = isD ? [239,68,68] : [16,185,129]
+    doc.setFillColor(...badgeC); doc.roundedRect(ML, y, isD ? 16 : 28, 7, 2, 2, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255,255,255)
+    doc.text(isD ? 'DESVIO' : 'RECONHEC.', ML + (isD ? 8 : 14), y + 4.5, { align: 'center' })
+    doc.setFontSize(10); doc.setTextColor(20,20,20)
+    doc.text(`Evidência #${idx + 1}`, ML + (isD ? 20 : 32), y + 5)
+    if (isD && isCl) {
+      doc.setFillColor(22,163,74); doc.roundedRect(PW - MR - 22, y, 22, 7, 2, 2, 'F')
+      doc.setFontSize(7); doc.setTextColor(255,255,255)
+      doc.text('✓ Fechado', PW - MR - 11, y + 4.5, { align: 'center' })
+    } else if (isD && !isCl) {
+      doc.setFillColor(245,158,11); doc.roundedRect(PW - MR - 22, y, 22, 7, 2, 2, 'F')
+      doc.setFontSize(7); doc.setTextColor(255,255,255)
+      doc.text('Em Aberto', PW - MR - 11, y + 4.5, { align: 'center' })
+    }
+    y += 11
+
+    // Local
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(180,180,180)
+    doc.text('LOCAL', ML, y); y += 4
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20,20,20)
+    doc.text(ev.local || '—', ML, y); y += 6
+
+    // Description
+    if (ev.descricao) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60,60,60)
+      const lines = doc.splitTextToSize(ev.descricao, CW)
+      doc.text(lines, ML, y); y += lines.length * 4 + 4
+    }
+
+    // Photos row
+    const photoColW = isD ? (CW - 6) / 2 : CW
+    if (hasAbFotos || isD) {
+      // Opening photo label
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(180,180,180)
+      doc.text(isD ? 'FOTO DE ABERTURA' : 'EVIDÊNCIA FOTOGRÁFICA', ML, y); y += 3
+
+      // Opening photos
+      const firstAb = fotosAb[0]
+      if (firstAb?.data_url?.startsWith('data:')) {
+        try {
+          doc.addImage(firstAb.data_url, 'JPEG', ML, y, photoColW, photoH, undefined, 'FAST')
+        } catch { /* ignore bad image */ }
+      } else {
+        doc.setFillColor(240,240,240); doc.rect(ML, y, photoColW, photoH, 'F')
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160,160,160)
+        doc.text('Sem foto', ML + photoColW / 2, y + photoH / 2, { align: 'center' })
+      }
+
+      // Closing photo (desvios only)
+      if (isD) {
+        const closingX = ML + photoColW + 6
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(180,180,180)
+        doc.text('FOTO DE FECHAMENTO', closingX, y - 3)
+        if (hasFechFotos && fotosFech[0]?.data_url?.startsWith('data:')) {
+          try {
+            doc.addImage(fotosFech[0].data_url, 'JPEG', closingX, y, photoColW, photoH, undefined, 'FAST')
+          } catch { /* ignore */ }
+        } else if (hasFechFotos && fotosFech[0]?.data_url) {
+          try {
+            const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(fotosFech[0].data_url)}`)
+            if (res.ok) {
+              const blob = await res.blob()
+              const dataUrl = await new Promise<string>((resolve, reject) => {
+                const r = new FileReader(); r.onload = () => resolve(r.result as string); r.onerror = reject; r.readAsDataURL(blob)
+              })
+              doc.addImage(dataUrl, 'JPEG', closingX, y, photoColW, photoH, undefined, 'FAST')
+            }
+          } catch { /* ignore */ }
+        } else {
+          doc.setFillColor(255, 251, 235); doc.rect(closingX, y, photoColW, photoH, 'F')
+          doc.setDrawColor(245, 158, 11); doc.setLineWidth(0.3); doc.rect(closingX, y, photoColW, photoH, 'S')
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(180, 130, 0)
+          doc.text(isCl ? 'Sem foto de fechamento' : 'Aguardando fechamento', closingX + photoColW / 2, y + photoH / 2, { align: 'center' })
+        }
+      }
+      y += photoH + 6
+    }
+
+    // Closing info (desvios only)
+    if (isD && isCl) {
+      doc.setFillColor(240, 253, 244); doc.roundedRect(ML, y, CW, 20, 2, 2, 'F')
+      doc.setDrawColor(134, 239, 172); doc.setLineWidth(0.3); doc.roundedRect(ML, y, CW, 20, 2, 2, 'S')
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(21, 128, 61)
+      doc.text('FECHAMENTO DO DESVIO', ML + 3, y + 5)
+      const closingCols = [
+        ['Prazo', ev.prazo_correcao ? fmtDate(ev.prazo_correcao) : '—'],
+        ['Data Fechamento', fmtDT(ev.data_fechamento!)],
+        ['Responsável', ev.quem_fechou || '—'],
+      ]
+      const cW = (CW - 6) / 3
+      closingCols.forEach(([lbl, val], ci) => {
+        const cx = ML + 3 + ci * (cW + 3)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(100, 160, 100)
+        doc.text(lbl.toUpperCase(), cx, y + 10)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(20, 80, 20)
+        const v = val.length > 22 ? val.slice(0, 21) + '…' : val
+        doc.text(v, cx, y + 15)
+      })
+      y += 22
+      if (ev.tratativa_texto) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(180,180,180)
+        doc.text('TRATATIVA REALIZADA', ML, y + 2)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(40,40,40)
+        const tratLines = doc.splitTextToSize(ev.tratativa_texto, CW)
+        doc.text(tratLines.slice(0, 4), ML, y + 7)
+        y += tratLines.slice(0, 4).length * 4 + 10
+      }
+    } else if (isD && !isCl) {
+      doc.setFillColor(255, 251, 235); doc.roundedRect(ML, y, CW, 10, 2, 2, 'F')
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(160, 100, 0)
+      doc.text('Desvio em andamento — aguardando fechamento na aba Desvios', ML + CW / 2, y + 6.5, { align: 'center' })
+      y += 14
+    }
   }
+
+  drawFooter()
 
   const dd = String(hoje.getDate()).padStart(2, '0')
   const mm = String(hoje.getMonth() + 1).padStart(2, '0')
