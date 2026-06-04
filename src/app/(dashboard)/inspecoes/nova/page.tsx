@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/contexts/AppContext'
-import { inspecoesDB, desviosDB, uploadFotoToStorage } from '@/lib/db'
+import { inspecoesDB, desviosDB } from '@/lib/db'
 import { CATEGORIAS_PADRAO, serializeCategoria } from '@/types'
 import type { FotoDesvio, TST, Encarregado, Coordenador } from '@/types'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 
 const INSP_GREEN = '#10B981'
+const MSE_RED = '#E8291C'
 
 async function compressImage(file: File, maxW = 1024, quality = 0.78): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -126,22 +127,6 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
     setSaving(true)
     setError('')
     try {
-      const fotos: FotoDesvio[] = []
-      for (const f of form.fotos) {
-        if (f.data_url.startsWith('data:')) {
-          try {
-            const blob = await fetch(f.data_url).then(r => r.blob())
-            const file = new File([blob], f.nome || 'foto.jpg', { type: 'image/jpeg' })
-            const url = await uploadFotoToStorage(file)
-            fotos.push({ ...f, data_url: url })
-          } catch {
-            fotos.push(f)
-          }
-        } else {
-          fotos.push(f)
-        }
-      }
-
       const desvio = await desviosDB.create({
         obra_id,
         obra_nome,
@@ -164,7 +149,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
         hora_ocorrencia: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         prazo_correcao: form.prazo_correcao,
         reincidente: false,
-        fotos,
+        fotos: form.fotos,
         tratativas: [],
       })
       onSuccess(desvio.id, desvio.numero)
@@ -435,26 +420,11 @@ export default function NovaInspecaoPage() {
 
       for (let i = 0; i < evidencias.length; i++) {
         const ev = evidencias[i]
-        const fotos_abertura: FotoDesvio[] = []
-        for (const foto of ev.fotos) {
-          if (foto.data_url.startsWith('data:')) {
-            try {
-              const blob = await fetch(foto.data_url).then(r => r.blob())
-              const file = new File([blob], foto.nome || 'foto.jpg', { type: 'image/jpeg' })
-              const url = await uploadFotoToStorage(file)
-              fotos_abertura.push({ ...foto, data_url: url })
-            } catch {
-              fotos_abertura.push(foto)
-            }
-          } else {
-            fotos_abertura.push(foto)
-          }
-        }
         await inspecoesDB.addEvidencia(insp.id, {
           tipo: ev.tipo!,
           local: ev.local,
           descricao: ev.descricao,
-          fotos_abertura,
+          fotos_abertura: ev.fotos,
           fotos_fechamento: [],
           desvio_id: ev.desvio_id || undefined,
           prazo_correcao: undefined,
@@ -485,7 +455,7 @@ export default function NovaInspecaoPage() {
             <ArrowLeft className="w-4 h-4" /> Voltar
           </button>
           <div className="rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4" style={{ background: INSP_GREEN }}>
+            <div className="flex items-center gap-3 px-5 py-4" style={{ background: MSE_RED }}>
               <span className="text-2xl font-black text-white leading-none">mse</span>
               <div className="w-px h-6 bg-white/30" />
               <div>
@@ -541,7 +511,7 @@ export default function NovaInspecaoPage() {
               onClick={() => { addEvidencia(); setStep(1) }}
               disabled={!canStep0}
               className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{ background: INSP_GREEN }}
+              style={{ background: MSE_RED }}
             >
               Adicionar Evidências
               <ChevronRight className="w-4 h-4" />
@@ -738,7 +708,7 @@ export default function NovaInspecaoPage() {
               onClick={handleLancar}
               disabled={!canLancar || saving || evidencias.length === 0}
               className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
-              style={{ background: canLancar && !saving ? INSP_GREEN : '#10B98166' }}
+              style={{ background: canLancar && !saving ? MSE_RED : '#E8291C66' }}
             >
               {saving ? <><Loader2 className="w-5 h-5 animate-spin" />Lançando inspeção…</> : <><CheckCircle2 className="w-5 h-5" />Lançar Inspeção</>}
             </button>
