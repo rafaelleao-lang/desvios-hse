@@ -620,14 +620,48 @@ async function nextInspecaoNum(): Promise<number> {
   return ((rows[0]?.max as number) ?? 0) + 1
 }
 
+// SQL que calcula contadores e status dinamicamente a partir dos desvios reais
+const INSP_LIST_SQL = `
+  SELECT
+    i.id, i.numero, i.obra_id, i.obra_nome,
+    i.encarregado_id, i.encarregado_nome,
+    i.tst_id, i.tst_nome,
+    i.coordenador_id, i.coordenador_nome,
+    i.data_inspecao, i.hora_inspecao,
+    i.criado_em, i.atualizado_em, i.fechado_em,
+    COALESCE(ev.td, 0)  AS total_desvios,
+    COALESCE(ev.tr, 0)  AS total_reconhecimentos,
+    COALESCE(cl.df, 0)  AS desvios_fechados,
+    CASE
+      WHEN COALESCE(ev.td, 0) > 0
+       AND COALESCE(cl.df, 0) >= COALESCE(ev.td, 0) THEN 'concluida'
+      WHEN COALESCE(ev.td, 0) > 0                   THEN 'em_aberto'
+      ELSE i.status
+    END AS status
+  FROM inspecoes i
+  LEFT JOIN (
+    SELECT inspecao_id,
+      SUM(tipo = 'desvio')         AS td,
+      SUM(tipo = 'reconhecimento') AS tr
+    FROM inspecao_evidencias GROUP BY inspecao_id
+  ) ev ON ev.inspecao_id = i.id
+  LEFT JOIN (
+    SELECT ie.inspecao_id, COUNT(*) AS df
+    FROM inspecao_evidencias ie
+    JOIN desvios d ON d.id = ie.desvio_id
+    WHERE d.status IN ('fechado','concluido','reincidente')
+    GROUP BY ie.inspecao_id
+  ) cl ON cl.inspecao_id = i.id
+`
+
 export const inspecoesRepo = {
   async list(): Promise<Inspecao[]> {
-    const rows = await query<RowDataPacket[]>('SELECT * FROM inspecoes ORDER BY numero DESC')
+    const rows = await query<RowDataPacket[]>(`${INSP_LIST_SQL} ORDER BY i.numero DESC`)
     return rows.map(mapInspecao)
   },
 
   async find(id: string): Promise<(Inspecao & { evidencias: InspecaoEvidencia[] }) | undefined> {
-    const rows = await query<RowDataPacket[]>('SELECT * FROM inspecoes WHERE id = ? LIMIT 1', [id])
+    const rows = await query<RowDataPacket[]>(`${INSP_LIST_SQL} WHERE i.id = ? LIMIT 1`, [id])
     if (!rows[0]) return undefined
     const insp = mapInspecao(rows[0])
     const evRows = await query<RowDataPacket[]>(
@@ -700,22 +734,50 @@ export const inspecoesRepo = {
     desvioId: string,
     dados: { data_fechamento: string; tratativa_texto: string; quem_fechou: string; fotos_fechamento: FotoDesvio[]; prazo_correcao?: string },
   ): Promise<void> {
+    // Atualiza a evidência vinculada (se existir o link direto)
     const rows = await query<RowDataPacket[]>('SELECT * FROM inspecao_evidencias WHERE desvio_id = ? LIMIT 1', [desvioId])
-    if (!rows[0]) return
-    const ev = mapEvidencia(rows[0])
-    await query(
-      `UPDATE inspecao_evidencias SET data_fechamento = ?, tratativa_texto = ?, quem_fechou = ?,
-       fotos_fechamento = ?, prazo_correcao = COALESCE(?, prazo_correcao) WHERE id = ?`,
-      [dados.data_fechamento, dados.tratativa_texto, dados.quem_fechou,
-       JSON.stringify(dados.fotos_fechamento), dados.prazo_correcao ?? null, ev.id],
-    )
-    await query('UPDATE inspecoes SET desvios_fechados = desvios_fechados + 1, atualizado_em = ? WHERE id = ?', [now(), ev.inspecao_id])
-    const inspRows = await query<RowDataPacket[]>('SELECT * FROM inspecoes WHERE id = ? LIMIT 1', [ev.inspecao_id])
-    if (!inspRows[0]) return
-    const insp = mapInspecao(inspRows[0])
-    if (insp.total_desvios > 0 && insp.desvios_fechados >= insp.total_desvios) {
-      await query("UPDATE inspecoes SET status = 'concluida', fechado_em = ?, atualizado_em = ? WHERE id = ?", [now(), now(), ev.inspecao_id])
+    if (rows[0]) {
+      const ev = mapEvidencia(rows[0])
+      await query(
+        `UPDATE inspecao_evidencias SET data_fechamento = ?, tratativa_texto = ?, quem_fechou = ?,
+         fotos_fechamento = ?, prazo_correcao = COALESCE(?, prazo_correcao) WHERE id = ?`,
+        [dados.data_fechamento, dados.tratativa_texto, dados.quem_fechou,
+         JSON.stringify(dados.fotos_fechamento), dados.prazo_correcao ?? null, ev.id],
+      )
+      // Recomputa contadores no banco usando subquery (auto-corretivo)
+      await inspecoesRepo.recomputeContadores(ev.inspecao_id)
     }
+  },
+
+  // Recalcula total_desvios, total_reconhecimentos, desvios_fechados e status
+  // diretamente das tabelas — funciona mesmo que o link desvio_id esteja ausente
+  async recomputeContadores(inspecaoId: string): Promise<void> {
+    const [counts] = await query<RowDataPacket[]>(`
+      SELECT
+        SUM(tipo = 'desvio')         AS td,
+        SUM(tipo = 'reconhecimento') AS tr
+      FROM inspecao_evidencias WHERE inspecao_id = ?`, [inspecaoId])
+    const [closed] = await query<RowDataPacket[]>(`
+      SELECT COUNT(*) AS df
+      FROM inspecao_evidencias ie
+      JOIN desvios d ON d.id = ie.desvio_id
+      WHERE ie.inspecao_id = ? AND d.status IN ('fechado','concluido','reincidente')`, [inspecaoId])
+    const td = Number((counts as RowDataPacket).td ?? 0)
+    const tr = Number((counts as RowDataPacket).tr ?? 0)
+    const df = Number((closed as RowDataPacket).df ?? 0)
+    const isConcluida = td > 0 && df >= td
+    const inspRow = await query<RowDataPacket[]>('SELECT fechado_em FROM inspecoes WHERE id = ? LIMIT 1', [inspecaoId])
+    const existingFechadoEm = inspRow[0]?.fechado_em ?? null
+    await query(
+      `UPDATE inspecoes SET
+        total_desvios = ?, total_reconhecimentos = ?, desvios_fechados = ?,
+        status = ?, fechado_em = ?, atualizado_em = ?
+       WHERE id = ?`,
+      [td, tr, df,
+       isConcluida ? 'concluida' : 'em_aberto',
+       isConcluida ? (existingFechadoEm ?? now()) : null,
+       now(), inspecaoId],
+    )
   },
 
   async delete(id: string): Promise<void> {
