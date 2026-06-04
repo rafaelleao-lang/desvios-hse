@@ -1,4 +1,4 @@
-import type { Obra, TST, Encarregado, Coordenador, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa, IndicadorSemanal } from '@/types'
+import type { Obra, TST, Encarregado, Coordenador, Desvio, DesvioComputado, StatusDesvio, GravidadeDesvio, Tratativa, IndicadorSemanal, Inspecao, InspecaoEvidencia } from '@/types'
 import { parseCategoria } from '@/types'
 
 // ── Cliente RPC para o backend MySQL ────────────────────────────────────────────
@@ -278,6 +278,27 @@ export const indicadoresDB = {
     data: Partial<Omit<IndicadorSemanal, 'id' | 'criado_em'>>
   ): Promise<IndicadorSemanal | undefined> => rpc('indicadores', 'update', id, data),
   delete: (id: string): Promise<void> => rpc('indicadores', 'delete', id),
+}
+
+// ── Inspeções HSE ─────────────────────────────────────────────────────────────
+
+type CreateInspecaoData = {
+  obra_id: string; obra_nome?: string
+  encarregado_id?: string; encarregado_nome?: string
+  tst_id?: string; tst_nome?: string
+  coordenador_id?: string; coordenador_nome?: string
+  data_inspecao: string; hora_inspecao?: string
+}
+
+type AddEvidenciaData = Omit<InspecaoEvidencia, 'id' | 'criado_em' | 'inspecao_id'>
+
+export const inspecoesDB = {
+  list: (): Promise<Inspecao[]> => rpc('inspecoes', 'list'),
+  find: (id: string): Promise<(Inspecao & { evidencias: InspecaoEvidencia[] }) | undefined> => rpc('inspecoes', 'find', id),
+  create: (data: CreateInspecaoData): Promise<Inspecao> => rpc('inspecoes', 'create', data),
+  addEvidencia: (inspecaoId: string, ev: AddEvidenciaData): Promise<InspecaoEvidencia> =>
+    rpc('inspecoes', 'addEvidencia', inspecaoId, ev),
+  delete: (id: string): Promise<void> => rpc('inspecoes', 'delete', id),
 }
 
 // ── Image upload (storage local via /api/upload) ──────────────────────────────

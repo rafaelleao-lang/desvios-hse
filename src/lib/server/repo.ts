@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2'
 import { query } from '@/lib/mysql'
 import type {
   Obra, TST, Encarregado, Coordenador, Desvio, StatusDesvio, Tratativa, IndicadorSemanal,
+  Inspecao, InspecaoEvidencia, FotoDesvio,
 } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -453,6 +454,19 @@ export const desviosRepo = {
       'UPDATE desvios SET status = ?, atualizado_em = ?, historico_status = ? WHERE id = ?',
       [status, now(), JSON.stringify([...(current.historico_status ?? []), hist]), id],
     )
+    // Sync inspection when desvio is closed
+    const CLOSED = ['fechado', 'concluido', 'reincidente']
+    if (CLOSED.includes(status)) {
+      const tratativas = current.tratativas ?? []
+      const last = tratativas.length > 0 ? tratativas[tratativas.length - 1] : null
+      await inspecoesRepo.syncDesvioFechado(id, {
+        data_fechamento: now(),
+        tratativa_texto: last?.acao_realizada || last?.comentario || observacao || '',
+        quem_fechou: por,
+        fotos_fechamento: (last?.fotos ?? []) as FotoDesvio[],
+        prazo_correcao: current.prazo_correcao,
+      })
+    }
     return desviosRepo.find(id)
   },
 
@@ -556,6 +570,159 @@ export const indicadoresRepo = {
   },
 }
 
+// ── Inspeções HSE ──────────────────────────────────────────────────────────────
+
+function mapInspecao(r: RowDataPacket): Inspecao {
+  return {
+    id: r.id,
+    numero: Number(r.numero),
+    obra_id: r.obra_id,
+    obra_nome: r.obra_nome ?? undefined,
+    encarregado_id: r.encarregado_id ?? undefined,
+    encarregado_nome: r.encarregado_nome ?? undefined,
+    tst_id: r.tst_id ?? undefined,
+    tst_nome: r.tst_nome ?? undefined,
+    coordenador_id: r.coordenador_id ?? undefined,
+    coordenador_nome: r.coordenador_nome ?? undefined,
+    status: r.status,
+    data_inspecao: r.data_inspecao,
+    hora_inspecao: r.hora_inspecao ?? undefined,
+    total_desvios: Number(r.total_desvios ?? 0),
+    total_reconhecimentos: Number(r.total_reconhecimentos ?? 0),
+    desvios_fechados: Number(r.desvios_fechados ?? 0),
+    criado_em: r.criado_em,
+    atualizado_em: r.atualizado_em,
+    fechado_em: r.fechado_em ?? undefined,
+  }
+}
+
+function mapEvidencia(r: RowDataPacket): InspecaoEvidencia {
+  return {
+    id: r.id,
+    inspecao_id: r.inspecao_id,
+    tipo: r.tipo,
+    local: r.local,
+    descricao: r.descricao ?? undefined,
+    fotos_abertura: parseJSON(r.fotos_abertura, []),
+    fotos_fechamento: parseJSON(r.fotos_fechamento, []),
+    desvio_id: r.desvio_id ?? undefined,
+    prazo_correcao: r.prazo_correcao ?? undefined,
+    data_fechamento: r.data_fechamento ?? undefined,
+    tratativa_texto: r.tratativa_texto ?? undefined,
+    quem_fechou: r.quem_fechou ?? undefined,
+    ordem: Number(r.ordem ?? 0),
+    criado_em: r.criado_em,
+  }
+}
+
+async function nextInspecaoNum(): Promise<number> {
+  const rows = await query<RowDataPacket[]>('SELECT MAX(numero) AS max FROM inspecoes')
+  return ((rows[0]?.max as number) ?? 0) + 1
+}
+
+export const inspecoesRepo = {
+  async list(): Promise<Inspecao[]> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM inspecoes ORDER BY numero DESC')
+    return rows.map(mapInspecao)
+  },
+
+  async find(id: string): Promise<(Inspecao & { evidencias: InspecaoEvidencia[] }) | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM inspecoes WHERE id = ? LIMIT 1', [id])
+    if (!rows[0]) return undefined
+    const insp = mapInspecao(rows[0])
+    const evRows = await query<RowDataPacket[]>(
+      'SELECT * FROM inspecao_evidencias WHERE inspecao_id = ? ORDER BY ordem ASC, criado_em ASC',
+      [id],
+    )
+    return { ...insp, evidencias: evRows.map(mapEvidencia) }
+  },
+
+  async create(data: {
+    obra_id: string; obra_nome?: string
+    encarregado_id?: string; encarregado_nome?: string
+    tst_id?: string; tst_nome?: string
+    coordenador_id?: string; coordenador_nome?: string
+    data_inspecao: string; hora_inspecao?: string
+  }): Promise<Inspecao> {
+    const num = await nextInspecaoNum()
+    const insp: Inspecao = {
+      ...data, id: uid(), numero: num, status: 'em_aberto',
+      total_desvios: 0, total_reconhecimentos: 0, desvios_fechados: 0,
+      criado_em: now(), atualizado_em: now(),
+    }
+    await query(
+      `INSERT INTO inspecoes (
+        id, numero, obra_id, obra_nome, encarregado_id, encarregado_nome,
+        tst_id, tst_nome, coordenador_id, coordenador_nome, status,
+        data_inspecao, hora_inspecao, total_desvios, total_reconhecimentos,
+        desvios_fechados, criado_em, atualizado_em, fechado_em
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        insp.id, insp.numero, insp.obra_id, insp.obra_nome ?? null,
+        insp.encarregado_id ?? null, insp.encarregado_nome ?? null,
+        insp.tst_id ?? null, insp.tst_nome ?? null,
+        insp.coordenador_id ?? null, insp.coordenador_nome ?? null,
+        insp.status, insp.data_inspecao, insp.hora_inspecao ?? null,
+        0, 0, 0, insp.criado_em, insp.atualizado_em, null,
+      ],
+    )
+    return insp
+  },
+
+  async addEvidencia(
+    inspecaoId: string,
+    ev: Omit<InspecaoEvidencia, 'id' | 'criado_em' | 'inspecao_id'>,
+  ): Promise<InspecaoEvidencia> {
+    const evRecord: InspecaoEvidencia = { ...ev, id: uid(), inspecao_id: inspecaoId, criado_em: now() }
+    await query(
+      `INSERT INTO inspecao_evidencias (
+        id, inspecao_id, tipo, local, descricao, fotos_abertura, fotos_fechamento,
+        desvio_id, prazo_correcao, data_fechamento, tratativa_texto, quem_fechou, ordem, criado_em
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        evRecord.id, evRecord.inspecao_id, evRecord.tipo, evRecord.local,
+        evRecord.descricao ?? null, JSON.stringify(evRecord.fotos_abertura ?? []),
+        JSON.stringify(evRecord.fotos_fechamento ?? []),
+        evRecord.desvio_id ?? null, evRecord.prazo_correcao ?? null,
+        evRecord.data_fechamento ?? null, evRecord.tratativa_texto ?? null,
+        evRecord.quem_fechou ?? null, evRecord.ordem ?? 0, evRecord.criado_em,
+      ],
+    )
+    if (evRecord.tipo === 'desvio') {
+      await query('UPDATE inspecoes SET total_desvios = total_desvios + 1, atualizado_em = ? WHERE id = ?', [now(), inspecaoId])
+    } else {
+      await query('UPDATE inspecoes SET total_reconhecimentos = total_reconhecimentos + 1, atualizado_em = ? WHERE id = ?', [now(), inspecaoId])
+    }
+    return evRecord
+  },
+
+  async syncDesvioFechado(
+    desvioId: string,
+    dados: { data_fechamento: string; tratativa_texto: string; quem_fechou: string; fotos_fechamento: FotoDesvio[]; prazo_correcao?: string },
+  ): Promise<void> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM inspecao_evidencias WHERE desvio_id = ? LIMIT 1', [desvioId])
+    if (!rows[0]) return
+    const ev = mapEvidencia(rows[0])
+    await query(
+      `UPDATE inspecao_evidencias SET data_fechamento = ?, tratativa_texto = ?, quem_fechou = ?,
+       fotos_fechamento = ?, prazo_correcao = COALESCE(?, prazo_correcao) WHERE id = ?`,
+      [dados.data_fechamento, dados.tratativa_texto, dados.quem_fechou,
+       JSON.stringify(dados.fotos_fechamento), dados.prazo_correcao ?? null, ev.id],
+    )
+    await query('UPDATE inspecoes SET desvios_fechados = desvios_fechados + 1, atualizado_em = ? WHERE id = ?', [now(), ev.inspecao_id])
+    const inspRows = await query<RowDataPacket[]>('SELECT * FROM inspecoes WHERE id = ? LIMIT 1', [ev.inspecao_id])
+    if (!inspRows[0]) return
+    const insp = mapInspecao(inspRows[0])
+    if (insp.total_desvios > 0 && insp.desvios_fechados >= insp.total_desvios) {
+      await query("UPDATE inspecoes SET status = 'concluida', fechado_em = ?, atualizado_em = ? WHERE id = ?", [now(), now(), ev.inspecao_id])
+    }
+  },
+
+  async delete(id: string): Promise<void> {
+    await query('DELETE FROM inspecoes WHERE id = ?', [id])
+  },
+}
+
 // ── Dispatcher (usado pela rota /api/db) ────────────────────────────────────────
 export const repos = {
   obras: obrasRepo,
@@ -564,6 +731,7 @@ export const repos = {
   coordenadores: coordenadoresRepo,
   desvios: desviosRepo,
   indicadores: indicadoresRepo,
+  inspecoes: inspecoesRepo,
 } as const
 
 export type ResourceName = keyof typeof repos

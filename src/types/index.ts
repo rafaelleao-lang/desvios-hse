@@ -193,6 +193,51 @@ export interface IndicadorSemanal {
   atualizado_em: string
 }
 
+// ── Inspeções HSE ─────────────────────────────────────────────────────────────
+
+export type StatusInspecao = 'em_aberto' | 'concluida'
+export type TipoEvidencia = 'desvio' | 'reconhecimento'
+
+export interface InspecaoEvidencia {
+  id: string
+  inspecao_id: string
+  tipo: TipoEvidencia
+  local: string
+  descricao?: string
+  fotos_abertura: FotoDesvio[]
+  fotos_fechamento: FotoDesvio[]
+  desvio_id?: string
+  prazo_correcao?: string
+  data_fechamento?: string
+  tratativa_texto?: string
+  quem_fechou?: string
+  ordem: number
+  criado_em: string
+}
+
+export interface Inspecao {
+  id: string
+  numero: number
+  obra_id: string
+  obra_nome?: string
+  encarregado_id?: string
+  encarregado_nome?: string
+  tst_id?: string
+  tst_nome?: string
+  coordenador_id?: string
+  coordenador_nome?: string
+  status: StatusInspecao
+  data_inspecao: string
+  hora_inspecao?: string
+  total_desvios: number
+  total_reconhecimentos: number
+  desvios_fechados: number
+  criado_em: string
+  atualizado_em: string
+  fechado_em?: string
+  evidencias?: InspecaoEvidencia[]
+}
+
 export const CATEGORIAS_CORES: Record<string, string> = {
   'EPI/EPC':              '#EF4444',
   'Trabalho em Altura':   '#F97316',
