@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
-  TrendingUp, Plus, History,
+  TrendingUp, Plus, History, ClipboardList, AlertCircle, ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -23,8 +23,20 @@ const TABS_INDICADORES = [
   { href: '/indicadores/historico', icon: History,         label: 'Histórico' },
 ]
 
+// Dashboard | Inspeções | [+] | Em Aberto | Relatórios
+const TABS_INSP_LEFT  = [
+  { href: '/inspecoes/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+  { href: '/inspecoes',           icon: ClipboardList,   label: 'Inspeções', exact: true },
+]
+const TABS_INSP_RIGHT = [
+  { href: '/inspecoes/em-aberto',  icon: AlertCircle, label: 'Em Aberto', exact: false },
+  { href: '/inspecoes/relatorios', icon: BarChart3,   label: 'Relatórios', exact: false },
+]
+
 function getSistema(pathname: string) {
-  return pathname.startsWith('/indicadores') ? 'indicadores' : 'desvios'
+  if (pathname.startsWith('/inspecoes')) return 'inspecoes'
+  if (pathname.startsWith('/indicadores')) return 'indicadores'
+  return 'desvios'
 }
 
 // ── Nav Desvios (4 tabs + FAB) ────────────────────────────────────────────────
@@ -141,6 +153,58 @@ function IndicadoresNav({ pathname }: { pathname: string }) {
   )
 }
 
+// ── Nav Inspeções HSE (Dashboard | Inspeções | FAB | Em Aberto | Relatórios) ──
+
+function InspecoesNav({ pathname }: { pathname: string }) {
+  const router = useRouter()
+  const cor = '#10B981'
+
+  function Tab({ href, icon: Icon, label, exact }: { href: string; icon: React.ElementType; label: string; exact: boolean }) {
+    const isActive = exact
+      ? pathname === href
+      : pathname === href || pathname.startsWith(href + '/')
+    return (
+      <Link href={href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+        {isActive && (
+          <motion.div layoutId="mob-insp-indicator"
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+            style={{ background: cor }}
+            transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+        )}
+        <Icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+          style={isActive ? { color: cor } : {}} />
+        <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+          style={isActive ? { color: cor } : {}}>
+          {label}
+        </span>
+      </Link>
+    )
+  }
+
+  return (
+    <div className="flex items-center h-16">
+      {TABS_INSP_LEFT.map(tab => (
+        <Tab key={tab.href} {...tab} />
+      ))}
+
+      {/* FAB — Nova Inspeção */}
+      <div className="flex-shrink-0 px-2">
+        <button
+          onClick={() => router.push('/inspecoes/nova')}
+          className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95"
+          style={{ background: cor }}
+        >
+          <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {TABS_INSP_RIGHT.map(tab => (
+        <Tab key={tab.href} {...tab} />
+      ))}
+    </div>
+  )
+}
+
 // ── Export ────────────────────────────────────────────────────────────────────
 
 export function MobileNav() {
@@ -157,9 +221,11 @@ export function MobileNav() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
         >
-          {sistema === 'desvios'
-            ? <DesviosNav pathname={pathname} />
-            : <IndicadoresNav pathname={pathname} />
+          {sistema === 'inspecoes'
+            ? <InspecoesNav pathname={pathname} />
+            : sistema === 'indicadores'
+              ? <IndicadoresNav pathname={pathname} />
+              : <DesviosNav pathname={pathname} />
           }
         </motion.div>
       </AnimatePresence>
