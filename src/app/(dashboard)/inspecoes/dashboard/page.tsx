@@ -309,16 +309,33 @@ export default function InspDashboardPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h3 className="text-sm font-semibold text-zinc-200 mb-1">Desvios vs Reconhecimentos</h3>
           <p className="text-xs text-zinc-500 mb-4">Distribuição total das evidências</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value"
-                label={({ name, value }) => `${value}`} labelLine={false}>
-                {donutData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-              </Pie>
-              <Tooltip content={<ChartTip />} />
-              <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="flex items-center gap-6 justify-center mt-2">
+            {/* Donut com total no centro */}
+            <div className="relative flex-shrink-0" style={{ width: 160, height: 160 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={72} paddingAngle={3} dataKey="value">
+                    {donutData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip content={<ChartTip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p className="text-2xl font-black text-zinc-100">{kpis.totalDesvios + kpis.totalReconh}</p>
+                <p className="text-xs text-zinc-500">total</p>
+              </div>
+            </div>
+            {/* Legenda com valores */}
+            <div className="flex flex-col gap-3 min-w-[140px]">
+              {donutData.map(item => (
+                <div key={item.name} className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                  <span className="text-sm text-zinc-400 flex-1">{item.name}</span>
+                  <span className="text-sm font-bold" style={{ color: item.color }}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Por obra */}
@@ -452,22 +469,40 @@ export default function InspDashboardPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h3 className="text-sm font-semibold text-zinc-200 mb-1">Status das Inspeções</h3>
           <p className="text-xs text-zinc-500 mb-4">Em aberto vs concluídas</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie
-                data={[
-                  { name: 'Em Aberto', value: kpis.emAberto, color: '#F59E0B' },
-                  { name: 'Concluídas', value: kpis.concluidas, color: INSP_GREEN },
-                ]}
-                cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={4} dataKey="value"
-                label={({ value }) => value > 0 ? `${value}` : ''} labelLine={false}
-              >
-                {[{ color: '#F59E0B' }, { color: INSP_GREEN }].map((e, i) => <Cell key={i} fill={e.color} />)}
-              </Pie>
-              <Tooltip content={<ChartTip />} />
-              <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-            </PieChart>
-          </ResponsiveContainer>
+          {(() => {
+            const statusData = [
+              { name: 'Em Aberto', value: kpis.emAberto, color: '#F59E0B' },
+              { name: 'Concluídas', value: kpis.concluidas, color: INSP_GREEN },
+            ]
+            const statusTotal = kpis.emAberto + kpis.concluidas
+            return (
+              <div className="flex items-center gap-4 justify-center mt-2">
+                <div className="relative flex-shrink-0" style={{ width: 130, height: 130 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={statusData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={4} dataKey="value">
+                        {statusData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                      </Pie>
+                      <Tooltip content={<ChartTip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <p className="text-xl font-black text-zinc-100">{statusTotal}</p>
+                    <p className="text-[10px] text-zinc-500">total</p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  {statusData.map(item => (
+                    <div key={item.name} className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: item.color }} />
+                      <span className="text-xs text-zinc-400 flex-1">{item.name}</span>
+                      <span className="text-xs font-bold ml-2" style={{ color: item.color }}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Top obras por desvios */}

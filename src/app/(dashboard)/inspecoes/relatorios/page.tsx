@@ -751,15 +751,40 @@ export default function InspecoesRelatoriosPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div id="rel-chart-donut" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">Desvios vs Reconhecimentos</h3>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie data={[{ name: 'Desvios', value: kpis.totalDesvios, color: '#EF4444' }, { name: 'Reconhecimentos', value: kpis.totalReconh, color: INSP_GREEN }]} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
-                    {[{ color: '#EF4444' }, { color: INSP_GREEN }].map((e, i) => <Cell key={i} fill={e.color} />)}
-                  </Pie>
-                  <Tooltip content={<ChartTip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
-                </PieChart>
-              </ResponsiveContainer>
+              {(() => {
+                const donutItems = [
+                  { name: 'Desvios', value: kpis.totalDesvios, color: '#EF4444' },
+                  { name: 'Reconhecimentos', value: kpis.totalReconh, color: INSP_GREEN },
+                ]
+                const donutTotal = kpis.totalDesvios + kpis.totalReconh
+                return (
+                  <div className="flex items-center gap-6 justify-center mt-2">
+                    <div className="relative flex-shrink-0" style={{ width: 150, height: 150 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={donutItems} cx="50%" cy="50%" innerRadius={46} outerRadius={68} paddingAngle={3} dataKey="value">
+                            {donutItems.map((e, i) => <Cell key={i} fill={e.color} />)}
+                          </Pie>
+                          <Tooltip content={<ChartTip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <p className="text-2xl font-black text-zinc-100">{donutTotal}</p>
+                        <p className="text-xs text-zinc-500">total</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {donutItems.map(item => (
+                        <div key={item.name} className="flex items-center gap-2 min-w-[140px]">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                          <span className="text-sm text-zinc-400 flex-1">{item.name}</span>
+                          <span className="text-sm font-bold" style={{ color: item.color }}>{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             <div id="rel-chart-obra" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-zinc-200 mb-4">Inspeções por Obra</h3>
