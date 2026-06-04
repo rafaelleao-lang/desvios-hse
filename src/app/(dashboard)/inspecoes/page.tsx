@@ -14,6 +14,24 @@ import autoTable from 'jspdf-autotable'
 const INSP_GREEN = '#10B981'
 const MSE_RED = '#E8291C'
 
+// Embeds a photo preserving aspect ratio, centered inside (maxW × maxH)
+async function addPhotoAspect(
+  doc: jsPDF, dataUrl: string,
+  x: number, y: number, maxW: number, maxH: number,
+): Promise<void> {
+  if (!dataUrl?.startsWith('data:')) return
+  const { w: iw, h: ih } = await new Promise<{w:number;h:number}>(resolve => {
+    const img = new Image()
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight })
+    img.onerror = () => resolve({ w: 1, h: 1 })
+    img.src = dataUrl
+  })
+  const scale = Math.min(maxW / iw, maxH / ih)
+  const fw = iw * scale, fh = ih * scale
+  const ox = x + (maxW - fw) / 2, oy = y + (maxH - fh) / 2
+  try { doc.addImage(dataUrl, 'JPEG', ox, oy, fw, fh) } catch { /* skip */ }
+}
+
 async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia[] }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const hoje = new Date()
@@ -232,9 +250,7 @@ async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia
       // Opening photos
       const firstAb = fotosAb[0]
       if (firstAb?.data_url?.startsWith('data:')) {
-        try {
-          doc.addImage(firstAb.data_url, 'JPEG', ML, y, photoColW, photoH, undefined, 'FAST')
-        } catch { /* ignore bad image */ }
+        await addPhotoAspect(doc, firstAb.data_url, ML, y, photoColW, photoH)
       } else {
         doc.setFillColor(240,240,240); doc.rect(ML, y, photoColW, photoH, 'F')
         doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160,160,160)
@@ -247,9 +263,7 @@ async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia
         doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(180,180,180)
         doc.text('FOTO DE FECHAMENTO', closingX, y - 3)
         if (hasFechFotos && fotosFech[0]?.data_url?.startsWith('data:')) {
-          try {
-            doc.addImage(fotosFech[0].data_url, 'JPEG', closingX, y, photoColW, photoH, undefined, 'FAST')
-          } catch { /* ignore */ }
+          await addPhotoAspect(doc, fotosFech[0].data_url, closingX, y, photoColW, photoH)
         } else if (hasFechFotos && fotosFech[0]?.data_url) {
           try {
             const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(fotosFech[0].data_url)}`)
@@ -258,7 +272,7 @@ async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia
               const dataUrl = await new Promise<string>((resolve, reject) => {
                 const r = new FileReader(); r.onload = () => resolve(r.result as string); r.onerror = reject; r.readAsDataURL(blob)
               })
-              doc.addImage(dataUrl, 'JPEG', closingX, y, photoColW, photoH, undefined, 'FAST')
+              await addPhotoAspect(doc, dataUrl, closingX, y, photoColW, photoH)
             }
           } catch { /* ignore */ }
         } else {

@@ -56,17 +56,14 @@ function filtrarInspecoes(inspecoes: Inspecao[], f: FiltrosInspecao): Inspecao[]
   })
 }
 
-async function captureChartImg(id: string): Promise<string | null> {
-  const el = document.getElementById(id)
-  if (!el) return null
-  try {
-    const html2canvas = (await import('html2canvas')).default
-    const canvas = await html2canvas(el, { backgroundColor: '#18181b', scale: 2, useCORS: true, logging: false })
-    return canvas.toDataURL('image/png')
-  } catch { return null }
-}
-
-async function gerarPDF(filtered: Inspecao[], filtros: FiltrosInspecao, obras: { id: string; nome: string }[]) {
+function gerarPDF(
+  filtered: Inspecao[],
+  filtros: FiltrosInspecao,
+  obras: { id: string; nome: string }[],
+  tsts: { id: string; nome: string; obra_id: string }[],
+  encarregados: { id: string; nome: string; obra_id: string }[],
+  coordenadores: { id: string; nome: string; obra_id: string }[],
+) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const hoje = new Date()
   const GREEN_RGB: [number, number, number] = [16, 185, 129]
@@ -166,44 +163,152 @@ async function gerarPDF(filtered: Inspecao[], filtros: FiltrosInspecao, obras: {
     },
   })
 
-  // ── Capture charts from page ──────────────────────────────────────────────
-  const chartIds = [
-    { id: 'rel-chart-evolucao', title: 'Curva de Evolução Mensal' },
-    { id: 'rel-chart-donut',    title: 'Desvios vs Reconhecimentos' },
-    { id: 'rel-chart-obra',     title: 'Inspeções por Obra' },
-    { id: 'rel-chart-enc',      title: 'Encarregado × Desvios × Reconhecimentos' },
-    { id: 'rel-chart-pct-enc',  title: '% Desvios por Encarregado' },
-    { id: 'rel-chart-tst',      title: 'Inspeções por TST' },
-    { id: 'rel-chart-coord',    title: 'Coordenador × Desvios × Reconhecimentos' },
+  // ── Chart helpers ─────────────────────────────────────────────────────────
+  const MONTHS_PDF = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+
+  function h2r(hex: string): [number,number,number] {
+    return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)]
+  }
+
+  function drawArc(cx: number, cy: number, r: number, sa: number, ea: number, rgb: [number,number,number], lw: number) {
+    const steps = Math.max(40, Math.ceil(Math.abs(ea-sa)/(2*Math.PI)*120))
+    doc.setDrawColor(rgb[0],rgb[1],rgb[2]); doc.setLineWidth(lw)
+    for (let i=0;i<steps;i++) {
+      const a1=sa+(ea-sa)*i/steps, a2=sa+(ea-sa)*(i+1)/steps
+      doc.line(cx+r*Math.cos(a1),cy+r*Math.sin(a1),cx+r*Math.cos(a2),cy+r*Math.sin(a2))
+    }
+    doc.setLineWidth(0.1)
+  }
+
+  function drawInspLineChart(cx: number, cy: number, w: number, h: number,
+    data: {label:string; inspecoes:number; desvios:number; reconhecimentos:number}[]) {
+    const maxV = Math.max(1, ...data.flatMap(d=>[d.inspecoes,d.desvios,d.reconhecimentos]))
+    const n = data.length
+    const pL=10,pR=4,pT=14,pB=16, pw=w-pL-pR, ph=h-pT-pB
+    const gx=(i:number)=>cx+pL+(n<=1?pw/2:pw*i/(n-1))
+    const gy=(v:number)=>cy+pT+ph*(1-v/maxV)
+    doc.setDrawColor(220,220,220); doc.setLineWidth(0.1)
+    for (let r=0;r<=4;r++) doc.line(cx+pL,cy+pT+ph*r/4,cx+pL+pw,cy+pT+ph*r/4)
+    data.forEach((d,i)=>{ doc.setFont('helvetica','normal');doc.setFontSize(5.5);doc.setTextColor(130,130,130); doc.text(d.label,gx(i),cy+pT+ph+pB-2,{align:'center'}) })
+    const series=[
+      {key:'inspecoes' as const,rgb:h2r('#10B981'),yOff:-1.8,lbl:'Inspeções'},
+      {key:'desvios' as const,rgb:h2r('#EF4444'),yOff:3.5,lbl:'Desvios'},
+      {key:'reconhecimentos' as const,rgb:h2r('#3B82F6'),yOff:-1.8,lbl:'Reconhec.'},
+    ]
+    series.forEach(({key,rgb,lbl})=>{
+      for (let i=0;i<n-1;i++){ doc.setDrawColor(rgb[0],rgb[1],rgb[2]);doc.setLineWidth(0.7); doc.line(gx(i),gy(data[i][key]),gx(i+1),gy(data[i+1][key])) }
+      data.forEach((d,i)=>{ doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.circle(gx(i),gy(d[key]),0.7,'F') })
+      const lx=cx+pL+pw-60+(series.indexOf(series.find(s=>s.key===key)!)*22)
+      doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(lx,cy+2,4,2.5,'F')
+      doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(90,90,90);doc.text(lbl,lx+5.5,cy+4.2)
+    })
+  }
+
+  function drawHorizBars2Col(cx: number, cy: number, w: number, h: number,
+    data: {label:string; v1:number; v2:number; rgb1:[number,number,number]; rgb2:[number,number,number]; lbl1:string; lbl2:string}[]) {
+    const maxV = Math.max(1,...data.flatMap(d=>[d.v1,d.v2]))
+    const lW=52, bMaxW=w-lW-12, bH=4, rowH=h/Math.max(data.length,1)
+    data.forEach((d,i)=>{
+      const ry=cy+i*rowH
+      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(60,60,60)
+      const lbl=d.label.length>25?d.label.slice(0,24)+'…':d.label; doc.text(lbl,cx,ry+6)
+      doc.setFillColor(228,228,228); doc.rect(cx+lW,ry,bMaxW,bH,'F')
+      if (d.v1>0){const bw=(d.v1/maxV)*bMaxW;doc.setFillColor(d.rgb1[0],d.rgb1[1],d.rgb1[2]);doc.rect(cx+lW,ry,Math.max(bw,0.5),bH,'F')}
+      doc.setFillColor(228,228,228); doc.rect(cx+lW,ry+bH+1,bMaxW,bH,'F')
+      if (d.v2>0){const bw=(d.v2/maxV)*bMaxW;doc.setFillColor(d.rgb2[0],d.rgb2[1],d.rgb2[2]);doc.rect(cx+lW,ry+bH+1,Math.max(bw,0.5),bH,'F')}
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5)
+      doc.setTextColor(d.rgb1[0],d.rgb1[1],d.rgb1[2]);doc.text(`${d.lbl1}:${d.v1}`,cx+lW+bMaxW+3,ry+3.5)
+      doc.setTextColor(d.rgb2[0],d.rgb2[1],d.rgb2[2]);doc.text(`${d.lbl2}:${d.v2}`,cx+lW+bMaxW+3,ry+bH+4.5)
+    })
+  }
+
+  function drawHorizBars1Col(cx: number, cy: number, w: number, maxH: number,
+    data: {label:string; total:number; hex:string}[]) {
+    const maxV=Math.max(1,...data.map(d=>d.total))
+    const lW=52, bMaxW=w-lW-12, bH=5.5, rowH=9
+    data.slice(0,Math.floor(maxH/rowH)).forEach((d,i)=>{
+      const ry=cy+i*rowH
+      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(60,60,60)
+      const lbl=d.label.length>24?d.label.slice(0,23)+'…':d.label; doc.text(lbl,cx,ry+4.5)
+      doc.setFillColor(228,228,228); doc.rect(cx+lW,ry,bMaxW,bH,'F')
+      if (d.total>0){const rgb=h2r(d.hex);const bw=(d.total/maxV)*bMaxW;doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(cx+lW,ry,Math.max(bw,0.5),bH,'F')}
+      const rgb=h2r(d.hex); doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(rgb[0],rgb[1],rgb[2])
+      doc.text(String(d.total),cx+lW+bMaxW+3,ry+4.5)
+    })
+  }
+
+  // ── Chart data ──────────────────────────────────────────────────────────────
+  const obraFiltro = filtros.obra_id
+  const evoData = Array.from({length:12},(_,i)=>{
+    const dt=new Date(); dt.setMonth(dt.getMonth()-(11-i))
+    const mes=dt.toISOString().slice(0,7)
+    const m=filtered.filter(f=>f.data_inspecao.startsWith(mes))
+    return {label:MONTHS_PDF[dt.getMonth()]+'/'+String(dt.getFullYear()).slice(2),inspecoes:m.length,desvios:m.reduce((a,f)=>a+f.total_desvios,0),reconhecimentos:m.reduce((a,f)=>a+f.total_reconhecimentos,0)}
+  })
+  const encList=obraFiltro?encarregados.filter(e=>e.obra_id===obraFiltro):encarregados
+  const encData=encList.map(e=>{const m=filtered.filter(f=>f.encarregado_id===e.id);return{label:e.nome,v1:m.reduce((a,f)=>a+f.total_desvios,0),v2:m.reduce((a,f)=>a+f.total_reconhecimentos,0),rgb1:h2r('#EF4444') as [number,number,number],rgb2:h2r('#10B981') as [number,number,number],lbl1:'Desv',lbl2:'Rec'}}).filter(e=>e.v1+e.v2>0).sort((a,b)=>(b.v1+b.v2)-(a.v1+a.v2)).slice(0,10)
+  const coordList=obraFiltro?coordenadores.filter(c=>c.obra_id===obraFiltro):coordenadores
+  const coordData=coordList.map(c=>{const m=filtered.filter(f=>f.coordenador_id===c.id);return{label:c.nome,v1:m.reduce((a,f)=>a+f.total_desvios,0),v2:m.reduce((a,f)=>a+f.total_reconhecimentos,0),rgb1:h2r('#EF4444') as [number,number,number],rgb2:h2r('#10B981') as [number,number,number],lbl1:'Desv',lbl2:'Rec'}}).filter(c=>c.v1+c.v2>0).sort((a,b)=>b.v1-a.v1).slice(0,8)
+  const tstList=obraFiltro?tsts.filter(t=>t.obra_id===obraFiltro):tsts
+  const tstData=tstList.map(t=>({label:t.nome,total:filtered.filter(f=>f.tst_id===t.id).length,hex:'#06B6D4'})).filter(t=>t.total>0).sort((a,b)=>b.total-a.total).slice(0,8)
+  const obraData=obras.map(o=>({label:o.nome,total:filtered.filter(f=>f.obra_id===o.id).length,hex:'#8B5CF6'})).filter(o=>o.total>0).sort((a,b)=>b.total-a.total).slice(0,8)
+  const desvioTotal=filtered.reduce((a,i)=>a+i.total_desvios,0)
+  const recoTotal=filtered.reduce((a,i)=>a+i.total_reconhecimentos,0)
+
+  // ── Page 2: Evolução + Donut ─────────────────────────────────────────────
+  doc.addPage(); drawHeader(); let cy = 24
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50)
+  doc.text('Curva de Evolução (últimos 12 meses)',ML,cy);cy+=4
+  drawInspLineChart(ML,cy,CW,52,evoData);cy+=58
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50)
+  doc.text('Desvios vs Reconhecimentos',ML,cy);cy+=5
+  const donutCX=ML+20,donutCY=cy+22,donutR=16,donutLW=7
+  const dTotal=desvioTotal+recoTotal
+  if(dTotal>0){
+    let ang=-Math.PI/2
+    const slices=[{v:desvioTotal,rgb:h2r('#EF4444')},{v:recoTotal,rgb:h2r('#10B981')}]
+    slices.forEach(s=>{const sw=(s.v/dTotal)*2*Math.PI;drawArc(donutCX,donutCY,donutR,ang,ang+sw,s.rgb,donutLW);ang+=sw})
+  } else { drawArc(donutCX,donutCY,donutR,0,2*Math.PI,[200,200,200],donutLW) }
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(50,50,50);doc.text(String(dTotal),donutCX,donutCY+2.5,{align:'center'})
+  doc.setFont('helvetica','normal');doc.setFontSize(5);doc.setTextColor(130,130,130);doc.text('total',donutCX,donutCY+6,{align:'center'})
+  const lx=ML+42
+  const legendaItems: Array<{v:number;rgb:[number,number,number];lbl:string}> = [
+    {v:desvioTotal, rgb:h2r('#EF4444') as [number,number,number], lbl:'Desvios'},
+    {v:recoTotal,   rgb:h2r('#10B981') as [number,number,number], lbl:'Reconhec.'},
   ]
+  legendaItems.forEach((s,i)=>{
+    const ly=cy+i*9+3; doc.setFillColor(s.rgb[0],s.rgb[1],s.rgb[2]);doc.circle(lx,ly+1.2,1.5,'F')
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(70,70,70);doc.text(s.lbl,lx+4,ly+2.2)
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(s.rgb[0],s.rgb[1],s.rgb[2]);doc.text(String(s.v),lx+38,ly+2.2)
+  })
 
-  const chartImgs = await Promise.all(chartIds.map(c => captureChartImg(c.id)))
-  const validCharts = chartIds.map((c, i) => ({ ...c, img: chartImgs[i] })).filter(c => c.img)
-
-  if (validCharts.length > 0) {
-    const chartsPerPage = 2
-    for (let ci = 0; ci < validCharts.length; ci += chartsPerPage) {
-      doc.addPage()
-      drawHeader()
-      let cy = 24
-
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(50, 50, 50)
-      doc.text('Análise Visual', ML, cy); cy += 6
-
-      const batch = validCharts.slice(ci, ci + chartsPerPage)
-      const chartH = batch.length === 1 ? 110 : 82
-      const chartW = PW - ML * 2
-
-      batch.forEach((c, bi) => {
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(60, 60, 60)
-        doc.text(c.title, ML, cy); cy += 3
-        try { doc.addImage(c.img!, 'PNG', ML, cy, chartW, chartH) } catch { /* skip */ }
-        cy += chartH + 10
-      })
+  // ── Page 3: Por Encarregado + Por Coordenador ────────────────────────────
+  if(encData.length>0||coordData.length>0){
+    doc.addPage();drawHeader();cy=24
+    if(encData.length>0){
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Por Encarregado (Desvios e Reconhecimentos)',ML,cy);cy+=4
+      drawHorizBars2Col(ML,cy,CW,encData.length*10,encData);cy+=encData.length*10+10
+    }
+    if(coordData.length>0){
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Por Coordenador (Desvios e Reconhecimentos)',ML,cy);cy+=4
+      drawHorizBars2Col(ML,cy,CW,coordData.length*10,coordData);cy+=coordData.length*10+10
     }
   }
 
-  // Footer (re-apply after new pages)
+  // ── Page 4: Por TST + Por Obra ───────────────────────────────────────────
+  if(tstData.length>0||obraData.length>0){
+    doc.addPage();drawHeader();cy=24
+    if(tstData.length>0){
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Inspeções por TST',ML,cy);cy+=4
+      drawHorizBars1Col(ML,cy,CW,tstData.length*9+4,tstData);cy+=tstData.length*9+12
+    }
+    if(obraData.length>0){
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Inspeções por Obra',ML,cy);cy+=4
+      drawHorizBars1Col(ML,cy,CW,obraData.length*9+4,obraData);
+    }
+  }
+
+  // ── Footer ─────────────────────────────────────────────────────────────────
   const totalPagesAfter = doc.getNumberOfPages()
   for (let i = 1; i <= totalPagesAfter; i++) {
     doc.setPage(i)
@@ -539,12 +644,12 @@ export default function InspecoesRelatoriosPage() {
       {/* Export buttons */}
       <div className="flex flex-wrap gap-3">
         <button
-          onClick={async () => { setGeneratingPDF(true); try { await gerarPDF(filtered, filtros, obras) } finally { setGeneratingPDF(false) } }}
-          disabled={filtered.length === 0 || generatingPDF}
+          onClick={() => gerarPDF(filtered, filtros, obras, tsts, encarregados, coordenadores)}
+          disabled={filtered.length === 0}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-red-600 hover:bg-red-700 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <FileText className="w-4 h-4" />
-          {generatingPDF ? 'Gerando…' : 'Exportar PDF'}
+          Exportar PDF
         </button>
         <button
           onClick={() => gerarXLSX(filtered)}
