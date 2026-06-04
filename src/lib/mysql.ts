@@ -41,22 +41,27 @@ function buildSslConfig(): mysql.PoolOptions['ssl'] {
 // global para não vazar conexões.
 const globalForDb = globalThis as unknown as { __mysqlPool?: mysql.Pool }
 
+function createPool(): mysql.Pool {
+  return mysql.createPool({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD ?? '',
+    database: process.env.DB_NAME || 'desvios',
+    waitForConnections: true,
+    connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+    queueLimit: 0,
+    charset: 'utf8mb4',
+    dateStrings: true,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    ssl: buildSslConfig(),
+  })
+}
+
 export function getPool(): mysql.Pool {
   if (!globalForDb.__mysqlPool) {
-    globalForDb.__mysqlPool = mysql.createPool({
-      host: process.env.DB_HOST || '127.0.0.1',
-      port: Number(process.env.DB_PORT || 3306),
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD ?? '',
-      database: process.env.DB_NAME || 'desvios',
-      waitForConnections: true,
-      connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
-      queueLimit: 0,
-      charset: 'utf8mb4',
-      // Mantém DATE/DATETIME como string, evitando conversões de fuso horário.
-      dateStrings: true,
-      ssl: buildSslConfig(),
-    })
+    globalForDb.__mysqlPool = createPool()
   }
   return globalForDb.__mysqlPool
 }
@@ -65,6 +70,17 @@ export async function query<T = mysql.RowDataPacket[]>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T> {
-  const [rows] = await getPool().query(sql, params)
-  return rows as T
+  try {
+    const [rows] = await getPool().query(sql, params)
+    return rows as T
+  } catch (err: unknown) {
+    // Conexão stale após hot-reload ou idle timeout → recria o pool e tenta uma vez
+    const code = (err as { code?: string }).code
+    if (code === 'ECONNRESET' || code === 'PROTOCOL_CONNECTION_LOST' || code === 'ENOTFOUND') {
+      globalForDb.__mysqlPool = createPool()
+      const [rows] = await getPool().query(sql, params)
+      return rows as T
+    }
+    throw err
+  }
 }

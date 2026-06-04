@@ -6,15 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
+  ClipboardCheck, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ── Sistema detectado pelo pathname ──────────────────────────────────────────
 
-type Sistema = 'desvios' | 'indicadores'
+type Sistema = 'desvios' | 'indicadores' | 'inspecoes'
 
 function getSistema(pathname: string): Sistema {
-  return pathname.startsWith('/indicadores') ? 'indicadores' : 'desvios'
+  if (pathname.startsWith('/inspecoes')) return 'inspecoes'
+  if (pathname.startsWith('/indicadores')) return 'indicadores'
+  return 'desvios'
 }
 
 // ── Configuração dos menus ────────────────────────────────────────────────────
@@ -47,6 +50,21 @@ const MENUS = [
       { href: '/indicadores',           icon: LayoutDashboard, label: 'Dashboard' },
       { href: '/indicadores/novo',      icon: Plus,            label: 'Lançar'    },
       { href: '/indicadores/historico', icon: History,         label: 'Histórico' },
+    ],
+  },
+  {
+    key:        'inspecoes' as Sistema,
+    label:      'Inspeções HSE',
+    icon:       ClipboardCheck,
+    cor:        '#10B981',
+    corHover:   '#059669',
+    homeHref:   '/inspecoes/dashboard',
+    acao:       { label: 'Nova Inspeção', href: '/inspecoes/nova' },
+    subnav: [
+      { href: '/inspecoes/dashboard',  icon: LayoutDashboard, label: 'Dashboard'      },
+      { href: '/inspecoes/em-aberto',  icon: AlertCircle,     label: 'Em Aberto'      },
+      { href: '/inspecoes',            icon: ClipboardList,   label: 'Inspeções'      },
+      { href: '/inspecoes/relatorios', icon: BarChart3,       label: 'Relatórios'     },
     ],
   },
 ]
@@ -132,7 +150,9 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                         const active =
                           item.href === '/indicadores'
                             ? pathname === '/indicadores'
-                            : pathname === item.href || pathname.startsWith(item.href + '/')
+                            : item.href === '/inspecoes'
+                              ? pathname === '/inspecoes'
+                              : pathname === item.href || pathname.startsWith(item.href + '/')
                         return (
                           <li key={item.href}>
                             <Link
