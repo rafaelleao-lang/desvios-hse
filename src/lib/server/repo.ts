@@ -628,7 +628,7 @@ const INSP_LIST_SQL = `
     i.tst_id, i.tst_nome,
     i.coordenador_id, i.coordenador_nome,
     i.data_inspecao, i.hora_inspecao,
-    i.criado_em, i.atualizado_em, i.fechado_em,
+    i.criado_em, i.atualizado_em,
     COALESCE(ev.td, 0)  AS total_desvios,
     COALESCE(ev.tr, 0)  AS total_reconhecimentos,
     COALESCE(cl.df, 0)  AS desvios_fechados,
@@ -637,7 +637,12 @@ const INSP_LIST_SQL = `
        AND COALESCE(cl.df, 0) >= COALESCE(ev.td, 0) THEN 'concluida'
       WHEN COALESCE(ev.td, 0) > 0                   THEN 'em_aberto'
       ELSE i.status
-    END AS status
+    END AS status,
+    CASE
+      WHEN COALESCE(ev.td, 0) > 0 AND COALESCE(cl.df, 0) >= COALESCE(ev.td, 0)
+        THEN COALESCE(i.fechado_em, cl.last_closed)
+      ELSE NULL
+    END AS fechado_em
   FROM inspecoes i
   LEFT JOIN (
     SELECT inspecao_id,
@@ -646,7 +651,7 @@ const INSP_LIST_SQL = `
     FROM inspecao_evidencias GROUP BY inspecao_id
   ) ev ON ev.inspecao_id = i.id
   LEFT JOIN (
-    SELECT ie.inspecao_id, COUNT(*) AS df
+    SELECT ie.inspecao_id, COUNT(*) AS df, MAX(d.atualizado_em) AS last_closed
     FROM inspecao_evidencias ie
     JOIN desvios d ON d.id = ie.desvio_id
     WHERE d.status IN ('fechado','concluido','reincidente')

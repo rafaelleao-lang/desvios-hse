@@ -71,14 +71,14 @@ function EvidenciaCard({ ev, index }: { ev: InspecaoEvidencia; index: number }) 
           {ev.fotos_abertura && ev.fotos_abertura.length > 0 ? (
             <div className={cn('grid gap-2', ev.fotos_abertura.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
               {ev.fotos_abertura.slice(0, 4).map((foto, i) => (
-                <div key={i} className="bg-zinc-800 rounded-xl overflow-hidden" style={{ height: 220 }}>
-                  <img src={foto.data_url} alt="" className="w-full h-full object-cover" />
+                <div key={i} className="bg-zinc-800 rounded-xl overflow-hidden flex items-center justify-center" style={{ maxHeight: 180 }}>
+                  <img src={foto.data_url} alt="" className="max-w-full max-h-full object-contain rounded-xl" style={{ maxHeight: 180 }} />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="bg-zinc-800/60 rounded-xl flex items-center justify-center" style={{ height: 180 }}>
-              <Image className="w-8 h-8 text-zinc-600" />
+            <div className="bg-zinc-800/60 rounded-xl flex items-center justify-center" style={{ height: 120 }}>
+              <Image className="w-7 h-7 text-zinc-600" />
             </div>
           )}
         </div>
@@ -93,14 +93,14 @@ function EvidenciaCard({ ev, index }: { ev: InspecaoEvidencia; index: number }) 
             {isFechado && ev.fotos_fechamento && ev.fotos_fechamento.length > 0 ? (
               <div className={cn('grid gap-2', ev.fotos_fechamento.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
                 {ev.fotos_fechamento.slice(0, 4).map((foto, i) => (
-                  <div key={i} className="bg-zinc-800 rounded-xl overflow-hidden" style={{ height: 220 }}>
-                    <img src={foto.data_url} alt="" className="w-full h-full object-cover" />
+                  <div key={i} className="bg-zinc-800 rounded-xl overflow-hidden flex items-center justify-center" style={{ maxHeight: 180 }}>
+                    <img src={foto.data_url} alt="" className="max-w-full max-h-full object-contain rounded-xl" style={{ maxHeight: 180 }} />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl flex flex-col items-center justify-center gap-3" style={{ height: 180 }}>
-                <Clock className="w-8 h-8 text-amber-400" />
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl flex flex-col items-center justify-center gap-3" style={{ height: 120 }}>
+                <Clock className="w-7 h-7 text-amber-400" />
                 <p className="text-xs text-amber-400 text-center font-medium leading-tight px-4">
                   Aguardando fechamento do desvio
                 </p>

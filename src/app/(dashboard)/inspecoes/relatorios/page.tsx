@@ -5,9 +5,13 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Filter, Download, X, FileText, FileSpreadsheet, Presentation, BarChart3 } from 'lucide-react'
+import { Filter, X, FileText, FileSpreadsheet, Presentation, BarChart3 } from 'lucide-react'
 import { useApp } from '@/contexts/AppContext'
 import type { Inspecao } from '@/types'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
+} from 'recharts'
 
 const INSP_GREEN = '#10B981'
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -298,6 +302,20 @@ async function gerarPPT(filtered: Inspecao[]) {
   await pptx.writeFile({ fileName: `Inspecoes-HSE-${yy}-${mm}-${dd}.pptx` })
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ChartTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 shadow-xl text-xs">
+      {label && <p className="text-zinc-400 mb-1 font-medium">{label}</p>}
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      {payload.map((p: any, i: number) => (
+        <p key={i} style={{ color: p.color }} className="font-bold">{p.name}: {p.value}</p>
+      ))}
+    </div>
+  )
+}
+
 const inputCls = 'w-full h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30'
 
 export default function InspecoesRelatoriosPage() {
@@ -310,6 +328,66 @@ export default function InspecoesRelatoriosPage() {
   const encOptions = useMemo(() => filtros.obra_id ? encarregados.filter(e => e.obra_id === filtros.obra_id) : encarregados, [encarregados, filtros.obra_id])
   const coordOptions = useMemo(() => filtros.obra_id ? coordenadores.filter(c => c.obra_id === filtros.obra_id) : coordenadores, [coordenadores, filtros.obra_id])
   const filtered = useMemo(() => filtrarInspecoes(inspecoes, filtros), [inspecoes, filtros])
+
+  // ── Chart data (mesmos do Dashboard, mas com filtered) ─────────────────────
+  const kpis = useMemo(() => {
+    const totalDesvios = filtered.reduce((a, i) => a + i.total_desvios, 0)
+    const totalReconh = filtered.reduce((a, i) => a + i.total_reconhecimentos, 0)
+    const total = totalDesvios + totalReconh
+    return {
+      total: filtered.length,
+      emAberto: filtered.filter(i => i.status === 'em_aberto').length,
+      concluidas: filtered.filter(i => i.status === 'concluida').length,
+      totalDesvios, totalReconh,
+      taxaDesvio: total > 0 ? Math.round((totalDesvios / total) * 100) : 0,
+    }
+  }, [filtered])
+
+  const evolucaoMensal = useMemo(() => Array.from({ length: 12 }, (_, i) => {
+    const dt = new Date(); dt.setMonth(dt.getMonth() - (11 - i))
+    const mes = dt.toISOString().slice(0, 7)
+    const mInsp = filtered.filter(f => f.data_inspecao.startsWith(mes))
+    return {
+      label: MONTHS[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2),
+      inspecoes: mInsp.length,
+      desvios: mInsp.reduce((a, f) => a + f.total_desvios, 0),
+      reconhecimentos: mInsp.reduce((a, f) => a + f.total_reconhecimentos, 0),
+    }
+  }), [filtered])
+
+  const porEncarregado = useMemo(() => {
+    const list = filtros.obra_id ? encarregados.filter(e => e.obra_id === filtros.obra_id) : encarregados
+    return list.map(enc => {
+      const eInsp = filtered.filter(f => f.encarregado_id === enc.id)
+      return { nome: enc.nome.split(' ')[0], nomeCompleto: enc.nome, desvios: eInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: eInsp.reduce((a, f) => a + f.total_reconhecimentos, 0), inspecoes: eInsp.length }
+    }).filter(e => e.inspecoes > 0).sort((a, b) => (b.desvios + b.reconhecimentos) - (a.desvios + a.reconhecimentos)).slice(0, 10)
+  }, [filtered, encarregados, filtros.obra_id])
+
+  const taxaDesvioEnc = useMemo(() => porEncarregado.map(e => ({
+    nome: e.nome, total: e.desvios + e.reconhecimentos,
+    pct: e.desvios + e.reconhecimentos > 0 ? Math.round((e.desvios / (e.desvios + e.reconhecimentos)) * 100) : 0,
+  })).sort((a, b) => b.pct - a.pct), [porEncarregado])
+
+  const porCoordenador = useMemo(() => {
+    const list = filtros.obra_id ? coordenadores.filter(c => c.obra_id === filtros.obra_id) : coordenadores
+    return list.map(c => {
+      const cInsp = filtered.filter(f => f.coordenador_id === c.id)
+      return { nome: c.nome.split(' ')[0], desvios: cInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: cInsp.reduce((a, f) => a + f.total_reconhecimentos, 0), inspecoes: cInsp.length }
+    }).filter(c => c.inspecoes > 0).sort((a, b) => b.inspecoes - a.inspecoes).slice(0, 8)
+  }, [filtered, coordenadores, filtros.obra_id])
+
+  const porTst = useMemo(() => {
+    const list = filtros.obra_id ? tsts.filter(t => t.obra_id === filtros.obra_id) : tsts
+    return list.map(t => ({
+      nome: t.nome.split(' ')[0], inspecoes: filtered.filter(f => f.tst_id === t.id).length,
+      desvios: filtered.filter(f => f.tst_id === t.id).reduce((a, f) => a + f.total_desvios, 0),
+    })).filter(t => t.inspecoes > 0).sort((a, b) => b.inspecoes - a.inspecoes).slice(0, 8)
+  }, [filtered, tsts, filtros.obra_id])
+
+  const porObra = useMemo(() => obras.filter(o => o.ativa).map(o => {
+    const oInsp = filtered.filter(f => f.obra_id === o.id)
+    return { nome: o.nome.length > 14 ? o.nome.slice(0, 13) + '…' : o.nome, nomeCompleto: o.nome, inspecoes: oInsp.length, desvios: oInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: oInsp.reduce((a, f) => a + f.total_reconhecimentos, 0) }
+  }).filter(o => o.inspecoes > 0).sort((a, b) => b.inspecoes - a.inspecoes).slice(0, 8), [filtered, obras])
 
   const activeFilters = Object.values(filtros).filter(v => v !== undefined && v !== '').length
 
@@ -475,6 +553,161 @@ export default function InspecoesRelatoriosPage() {
             </table>
             {filtered.length > 20 && (
               <p className="text-xs text-zinc-600 px-4 py-2 border-t border-zinc-800">+ {filtered.length - 20} registros no arquivo exportado</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Análise Visual (mesmos gráficos do Dashboard) ─────────────────── */}
+      {filtered.length > 0 && (
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 pt-2">
+            <div className="flex-1 h-px bg-zinc-800" />
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-2">Análise Visual</span>
+            <div className="flex-1 h-px bg-zinc-800" />
+          </div>
+
+          {/* KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { label: 'Inspeções', value: kpis.total, color: INSP_GREEN },
+              { label: 'Em Aberto', value: kpis.emAberto, color: '#F59E0B' },
+              { label: 'Concluídas', value: kpis.concluidas, color: '#3B82F6' },
+              { label: 'Desvios', value: kpis.totalDesvios, color: '#EF4444' },
+              { label: 'Reconhec.', value: kpis.totalReconh, color: INSP_GREEN },
+              { label: '% Desvios', value: kpis.taxaDesvio + '%', color: kpis.taxaDesvio > 50 ? '#EF4444' : '#F59E0B' },
+            ].map(k => (
+              <div key={k.label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 flex flex-col gap-1">
+                <p className="text-xl font-black leading-none" style={{ color: k.color }}>{k.value}</p>
+                <p className="text-xs text-zinc-500 font-medium">{k.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Evolução Mensal */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <h3 className="text-sm font-semibold text-zinc-200 mb-1">Curva de Evolução Mensal</h3>
+            <p className="text-xs text-zinc-500 mb-4">Últimos 12 meses</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={evolucaoMensal}>
+                <defs>
+                  <linearGradient id="rGI" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={INSP_GREEN} stopOpacity={0.3} /><stop offset="95%" stopColor={INSP_GREEN} stopOpacity={0} /></linearGradient>
+                  <linearGradient id="rGD" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} /><stop offset="95%" stopColor="#EF4444" stopOpacity={0} /></linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTip />} />
+                <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
+                <Area type="monotone" dataKey="inspecoes" name="Inspeções" stroke={INSP_GREEN} fill="url(#rGI)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="desvios" name="Desvios" stroke="#EF4444" fill="url(#rGD)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="reconhecimentos" name="Reconhec." stroke="#3B82F6" strokeWidth={2} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Donut + Por Obra */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <h3 className="text-sm font-semibold text-zinc-200 mb-4">Desvios vs Reconhecimentos</h3>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie data={[{ name: 'Desvios', value: kpis.totalDesvios, color: '#EF4444' }, { name: 'Reconhecimentos', value: kpis.totalReconh, color: INSP_GREEN }]} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
+                    {[{ color: '#EF4444' }, { color: INSP_GREEN }].map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <Tooltip content={<ChartTip />} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <h3 className="text-sm font-semibold text-zinc-200 mb-4">Inspeções por Obra</h3>
+              {porObra.length === 0 ? <div className="flex items-center justify-center h-[180px] text-zinc-600 text-sm">Sem dados</div> : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={porObra} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={80} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTip />} />
+                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={14} />
+                    <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[0, 3, 3, 0]} maxBarSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          {/* Por Encarregado */}
+          {porEncarregado.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <h3 className="text-sm font-semibold text-zinc-200 mb-4">Encarregado × Desvios × Reconhecimentos</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={porEncarregado}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                  <XAxis dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTip />} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
+                  <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="reconhecimentos" name="Reconhecimentos" fill={INSP_GREEN} radius={[3, 3, 0, 0]} maxBarSize={28} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* % Desvios por Encarregado */}
+          {taxaDesvioEnc.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <h3 className="text-sm font-semibold text-zinc-200 mb-4">% Desvios por Encarregado</h3>
+              <div className="space-y-3">
+                {taxaDesvioEnc.map(e => (
+                  <div key={e.nome}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-zinc-300 font-medium">{e.nome}</span>
+                      <span className="text-zinc-500">{e.pct}% desvios ({e.total} total)</span>
+                    </div>
+                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${e.pct}%`, background: e.pct > 70 ? '#EF4444' : e.pct > 40 ? '#F59E0B' : INSP_GREEN }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TST + Coordenador */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {porTst.length > 0 && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                <h3 className="text-sm font-semibold text-zinc-200 mb-4">Inspeções por TST</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={porTst} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={80} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTip />} />
+                    <Bar dataKey="inspecoes" name="Inspeções" fill="#06B6D4" radius={[0, 3, 3, 0]} maxBarSize={16} />
+                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[0, 3, 3, 0]} maxBarSize={16} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {porCoordenador.length > 0 && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                <h3 className="text-sm font-semibold text-zinc-200 mb-4">Coordenador × Desvios × Reconhecimentos</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={porCoordenador}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                    <XAxis dataKey="nome" tick={{ fill: '#a1a1aa', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTip />} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
+                    <Bar dataKey="inspecoes" name="Inspeções" fill="#8B5CF6" radius={[3, 3, 0, 0]} maxBarSize={24} />
+                    <Bar dataKey="desvios" name="Desvios" fill="#EF4444" radius={[3, 3, 0, 0]} maxBarSize={24} />
+                    <Bar dataKey="reconhecimentos" name="Reconhec." fill={INSP_GREEN} radius={[3, 3, 0, 0]} maxBarSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
         </div>
