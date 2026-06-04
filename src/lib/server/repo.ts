@@ -462,7 +462,7 @@ export const desviosRepo = {
       await inspecoesRepo.syncDesvioFechado(id, {
         data_fechamento: now(),
         tratativa_texto: last?.acao_realizada || last?.comentario || observacao || '',
-        quem_fechou: por,
+        quem_fechou: last?.autor || (por !== 'Sistema' ? por : '') || '',
         fotos_fechamento: (last?.fotos ?? []) as FotoDesvio[],
         prazo_correcao: current.prazo_correcao,
       })
@@ -693,7 +693,9 @@ export const inspecoesRepo = {
             fotos_fechamento: isClosed && last?.fotos?.length ? last.fotos : ev.fotos_fechamento,
             data_fechamento: isClosed ? (closedHist?.criado_em ?? d.atualizado_em) : ev.data_fechamento,
             tratativa_texto: isClosed ? (last?.acao_realizada || last?.comentario || ev.tratativa_texto || '') : ev.tratativa_texto,
-            quem_fechou: isClosed ? (closedHist?.por || last?.autor || ev.quem_fechou || '') : ev.quem_fechou,
+            quem_fechou: isClosed
+              ? (last?.autor || (closedHist?.por !== 'Sistema' ? closedHist?.por : '') || ev.quem_fechou || '')
+              : ev.quem_fechou,
             prazo_correcao: d.prazo_correcao || ev.prazo_correcao,
           }
         }),
