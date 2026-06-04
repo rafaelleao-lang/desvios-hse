@@ -66,26 +66,31 @@ function gerarPDF(
 ) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const hoje = new Date()
-  const GREEN_RGB: [number, number, number] = [16, 185, 129]
+  const RED_RGB: [number, number, number] = [232, 41, 28]
   const PW = 297
   const ML = 14
+  const CW = PW - ML * 2
+  const PAGE_H = 210  // landscape A4 height
+  const FOOTER_H = 10
 
   let y = 0
 
   function drawHeader() {
-    doc.setFillColor(GREEN_RGB[0], GREEN_RGB[1], GREEN_RGB[2])
+    doc.setFillColor(RED_RGB[0], RED_RGB[1], RED_RGB[2])
     doc.rect(0, 0, PW, 18, 'F')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(16)
-    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255)
     doc.text('mse', ML, 12.5)
     doc.setLineWidth(0.3); doc.setDrawColor(255, 255, 255)
     doc.line(ML + 15, 4, ML + 15, 14)
     doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
     doc.text('Relatório de Inspeções HSE  ·  MSE Engenharia', ML + 19, 12.5)
     const ds = hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    doc.setFontSize(7); doc.setTextColor(200, 240, 230)
+    doc.setFontSize(7); doc.setTextColor(255, 200, 200)
     doc.text(ds, PW - ML, 12.5, { align: 'right' })
+  }
+
+  function ensurePageY(need: number): void {
+    if (y + need > PAGE_H - FOOTER_H) { doc.addPage(); drawHeader(); y = 24 }
   }
 
   drawHeader()
@@ -105,7 +110,6 @@ function gerarPDF(
     { label: 'Reconhecimentos', value: String(totalReconh),     c: [16, 185, 129], bg: [240, 253, 249] },
   ]
 
-  const CW = PW - ML * 2
   const kW = (CW - 12) / 5
   kpiItems.forEach((k, col) => {
     const kx = ML + col * (kW + 3)
@@ -141,14 +145,14 @@ function gerarPDF(
       `${i.desvios_fechados}/${i.total_desvios}`,
       i.fechado_em ? formatDate(i.fechado_em) : '—',
     ]),
-    styles: { fontSize: 7, cellPadding: 2.5 },
-    headStyles: { fillColor: GREEN_RGB, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7.5 },
-    alternateRowStyles: { fillColor: [248, 253, 250] as [number, number, number] },
+    styles: { fontSize: 7, cellPadding: 2.5, overflow: 'linebreak' },
+    headStyles: { fillColor: RED_RGB, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [252, 250, 250] as [number, number, number] },
     columnStyles: {
-      0: { cellWidth: 18, fontStyle: 'bold', textColor: [16, 185, 129] as [number, number, number] },
-      1: { cellWidth: 16 }, 2: { cellWidth: 16 }, 3: { cellWidth: 36 },
-      4: { cellWidth: 28 }, 5: { cellWidth: 28 }, 6: { cellWidth: 28 },
-      7: { cellWidth: 14 }, 8: { cellWidth: 16 }, 9: { cellWidth: 18 }, 10: { cellWidth: 16 },
+      0: { cellWidth: 16, fontStyle: 'bold', textColor: [232, 41, 28] as [number, number, number] },
+      1: { cellWidth: 18 }, 2: { cellWidth: 18 }, 3: { cellWidth: 50 },
+      4: { cellWidth: 34 }, 5: { cellWidth: 36 }, 6: { cellWidth: 38 },
+      7: { cellWidth: 12 }, 8: { cellWidth: 12 }, 9: { cellWidth: 13 }, 10: { cellWidth: 22 },
     },
     margin: { top: 22, left: ML, right: ML },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,23 +188,32 @@ function gerarPDF(
     data: {label:string; inspecoes:number; desvios:number; reconhecimentos:number}[]) {
     const maxV = Math.max(1, ...data.flatMap(d=>[d.inspecoes,d.desvios,d.reconhecimentos]))
     const n = data.length
-    const pL=10,pR=4,pT=14,pB=16, pw=w-pL-pR, ph=h-pT-pB
+    const pL=10,pR=4,pT=18,pB=16, pw=w-pL-pR, ph=h-pT-pB
     const gx=(i:number)=>cx+pL+(n<=1?pw/2:pw*i/(n-1))
     const gy=(v:number)=>cy+pT+ph*(1-v/maxV)
-    doc.setDrawColor(220,220,220); doc.setLineWidth(0.1)
-    for (let r=0;r<=4;r++) doc.line(cx+pL,cy+pT+ph*r/4,cx+pL+pw,cy+pT+ph*r/4)
+    // Grid y-labels
+    for (let r=0;r<=4;r++) {
+      const gv=Math.round(maxV*(4-r)/4)
+      doc.setDrawColor(220,220,220); doc.setLineWidth(0.1)
+      doc.line(cx+pL,cy+pT+ph*r/4,cx+pL+pw,cy+pT+ph*r/4)
+      doc.setFont('helvetica','normal');doc.setFontSize(4.5);doc.setTextColor(150,150,150)
+      doc.text(String(gv),cx+pL-1,cy+pT+ph*r/4+1.5,{align:'right'})
+    }
     data.forEach((d,i)=>{ doc.setFont('helvetica','normal');doc.setFontSize(5.5);doc.setTextColor(130,130,130); doc.text(d.label,gx(i),cy+pT+ph+pB-2,{align:'center'}) })
     const series=[
-      {key:'inspecoes' as const,rgb:h2r('#10B981'),yOff:-1.8,lbl:'Inspeções'},
-      {key:'desvios' as const,rgb:h2r('#EF4444'),yOff:3.5,lbl:'Desvios'},
-      {key:'reconhecimentos' as const,rgb:h2r('#3B82F6'),yOff:-1.8,lbl:'Reconhec.'},
+      {key:'inspecoes' as const,rgb:h2r('#10B981'),valOff:-2.2,lbl:'Inspeções'},
+      {key:'reconhecimentos' as const,rgb:h2r('#3B82F6'),valOff:-2.2,lbl:'Reconhec.'},
+      {key:'desvios' as const,rgb:h2r('#EF4444'),valOff:3.8,lbl:'Desvios'},
     ]
-    series.forEach(({key,rgb,lbl})=>{
+    series.forEach(({key,rgb,valOff,lbl},si)=>{
       for (let i=0;i<n-1;i++){ doc.setDrawColor(rgb[0],rgb[1],rgb[2]);doc.setLineWidth(0.7); doc.line(gx(i),gy(data[i][key]),gx(i+1),gy(data[i+1][key])) }
-      data.forEach((d,i)=>{ doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.circle(gx(i),gy(d[key]),0.7,'F') })
-      const lx=cx+pL+pw-60+(series.indexOf(series.find(s=>s.key===key)!)*22)
-      doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(lx,cy+2,4,2.5,'F')
-      doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(90,90,90);doc.text(lbl,lx+5.5,cy+4.2)
+      data.forEach((d,i)=>{
+        doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.circle(gx(i),gy(d[key]),0.8,'F')
+        if(d[key]>0){doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(rgb[0],rgb[1],rgb[2]);doc.text(String(d[key]),gx(i),gy(d[key])+valOff,{align:'center'})}
+      })
+      const lx=cx+pL+pw-72+(si*26)
+      doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(lx,cy+3,4,2.5,'F')
+      doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(90,90,90);doc.text(lbl,lx+5.5,cy+5.2)
     })
   }
 
@@ -255,58 +268,41 @@ function gerarPDF(
   const desvioTotal=filtered.reduce((a,i)=>a+i.total_desvios,0)
   const recoTotal=filtered.reduce((a,i)=>a+i.total_reconhecimentos,0)
 
-  // ── Page 2: Evolução + Donut ─────────────────────────────────────────────
+  // ── Gráficos: layout dinâmico que preenche cada página antes de criar nova ─
   doc.addPage(); drawHeader(); let cy = 24
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50)
-  doc.text('Curva de Evolução (últimos 12 meses)',ML,cy);cy+=4
-  drawInspLineChart(ML,cy,CW,52,evoData);cy+=58
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50)
-  doc.text('Desvios vs Reconhecimentos',ML,cy);cy+=5
-  const donutCX=ML+20,donutCY=cy+22,donutR=16,donutLW=7
-  const dTotal=desvioTotal+recoTotal
-  if(dTotal>0){
-    let ang=-Math.PI/2
-    const slices=[{v:desvioTotal,rgb:h2r('#EF4444')},{v:recoTotal,rgb:h2r('#10B981')}]
-    slices.forEach(s=>{const sw=(s.v/dTotal)*2*Math.PI;drawArc(donutCX,donutCY,donutR,ang,ang+sw,s.rgb,donutLW);ang+=sw})
-  } else { drawArc(donutCX,donutCY,donutR,0,2*Math.PI,[200,200,200],donutLW) }
-  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(50,50,50);doc.text(String(dTotal),donutCX,donutCY+2.5,{align:'center'})
-  doc.setFont('helvetica','normal');doc.setFontSize(5);doc.setTextColor(130,130,130);doc.text('total',donutCX,donutCY+6,{align:'center'})
-  const lx=ML+42
-  const legendaItems: Array<{v:number;rgb:[number,number,number];lbl:string}> = [
-    {v:desvioTotal, rgb:h2r('#EF4444') as [number,number,number], lbl:'Desvios'},
-    {v:recoTotal,   rgb:h2r('#10B981') as [number,number,number], lbl:'Reconhec.'},
-  ]
-  legendaItems.forEach((s,i)=>{
-    const ly=cy+i*9+3; doc.setFillColor(s.rgb[0],s.rgb[1],s.rgb[2]);doc.circle(lx,ly+1.2,1.5,'F')
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(70,70,70);doc.text(s.lbl,lx+4,ly+2.2)
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(s.rgb[0],s.rgb[1],s.rgb[2]);doc.text(String(s.v),lx+38,ly+2.2)
+
+  function addSection(title: string, sectionH: number, drawFn: (sy: number) => void) {
+    const needed = 5 + sectionH + 4  // label + chart + padding
+    if (cy + needed > PAGE_H - FOOTER_H) { doc.addPage(); drawHeader(); cy = 24 }
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50)
+    doc.text(title, ML, cy); cy += 4
+    drawFn(cy); cy += sectionH + 8
+  }
+
+  // Evolução (full width)
+  addSection('Curva de Evolução (últimos 12 meses)', 62, sy => drawInspLineChart(ML, sy, CW, 62, evoData))
+
+  // Donut
+  addSection('Desvios vs Reconhecimentos', 46, sy => {
+    const donutCX=ML+22,donutCY=sy+22,donutR=16,donutLW=7
+    const dTotal=desvioTotal+recoTotal
+    if(dTotal>0){let ang=-Math.PI/2;[{v:desvioTotal,rgb:h2r('#EF4444')},{v:recoTotal,rgb:h2r('#10B981')}].forEach(s=>{const sw=(s.v/dTotal)*2*Math.PI;drawArc(donutCX,donutCY,donutR,ang,ang+sw,s.rgb,donutLW);ang+=sw})}
+    else drawArc(donutCX,donutCY,donutR,0,2*Math.PI,[200,200,200],donutLW)
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(50,50,50);doc.text(String(dTotal),donutCX,donutCY+2.5,{align:'center'})
+    doc.setFont('helvetica','normal');doc.setFontSize(5);doc.setTextColor(130,130,130);doc.text('total',donutCX,donutCY+6,{align:'center'})
+    const lx=ML+48
+    const leg: Array<{v:number;rgb:[number,number,number];lbl:string}> = [{v:desvioTotal,rgb:h2r('#EF4444') as [number,number,number],lbl:'Desvios'},{v:recoTotal,rgb:h2r('#10B981') as [number,number,number],lbl:'Reconhec.'}]
+    leg.forEach((s,i)=>{const ly=sy+i*10+3;doc.setFillColor(s.rgb[0],s.rgb[1],s.rgb[2]);doc.circle(lx,ly+1.2,1.5,'F');doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(70,70,70);doc.text(s.lbl,lx+4,ly+2.2);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(s.rgb[0],s.rgb[1],s.rgb[2]);doc.text(String(s.v),lx+38,ly+2.2)})
   })
 
-  // ── Page 3: Por Encarregado + Por Coordenador ────────────────────────────
-  if(encData.length>0||coordData.length>0){
-    doc.addPage();drawHeader();cy=24
-    if(encData.length>0){
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Por Encarregado (Desvios e Reconhecimentos)',ML,cy);cy+=4
-      drawHorizBars2Col(ML,cy,CW,encData.length*10,encData);cy+=encData.length*10+10
-    }
-    if(coordData.length>0){
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Por Coordenador (Desvios e Reconhecimentos)',ML,cy);cy+=4
-      drawHorizBars2Col(ML,cy,CW,coordData.length*10,coordData);cy+=coordData.length*10+10
-    }
-  }
-
-  // ── Page 4: Por TST + Por Obra ───────────────────────────────────────────
-  if(tstData.length>0||obraData.length>0){
-    doc.addPage();drawHeader();cy=24
-    if(tstData.length>0){
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Inspeções por TST',ML,cy);cy+=4
-      drawHorizBars1Col(ML,cy,CW,tstData.length*9+4,tstData);cy+=tstData.length*9+12
-    }
-    if(obraData.length>0){
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(50,50,50);doc.text('Inspeções por Obra',ML,cy);cy+=4
-      drawHorizBars1Col(ML,cy,CW,obraData.length*9+4,obraData);
-    }
-  }
+  // Por encarregado
+  if(encData.length>0) addSection('Por Encarregado (Desvios e Reconhecimentos)', encData.length*10+2, sy => drawHorizBars2Col(ML,sy,CW,encData.length*10,encData))
+  // Por coordenador
+  if(coordData.length>0) addSection('Por Coordenador (Desvios e Reconhecimentos)', coordData.length*10+2, sy => drawHorizBars2Col(ML,sy,CW,coordData.length*10,coordData))
+  // Por TST
+  if(tstData.length>0) addSection('Inspeções por TST', tstData.length*9+2, sy => drawHorizBars1Col(ML,sy,CW,tstData.length*9+4,tstData))
+  // Por obra
+  if(obraData.length>0) addSection('Inspeções por Obra', obraData.length*9+2, sy => drawHorizBars1Col(ML,sy,CW,obraData.length*9+4,obraData))
 
   // ── Footer ─────────────────────────────────────────────────────────────────
   const totalPagesAfter = doc.getNumberOfPages()
@@ -315,7 +311,7 @@ function gerarPDF(
     doc.setFillColor(248, 248, 248); doc.rect(0, 207 - 8, PW, 8, 'F')
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(160, 160, 160)
     doc.text('MSE Engenharia · Sistema de Gestão HSE · Inspeções', ML, 207 - 2.5)
-    doc.setFont('helvetica', 'bold'); doc.setTextColor(GREEN_RGB[0], GREEN_RGB[1], GREEN_RGB[2])
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(RED_RGB[0], RED_RGB[1], RED_RGB[2])
     doc.text(`Página ${i} / ${totalPagesAfter}`, PW - ML, 207 - 2.5, { align: 'right' })
   }
 

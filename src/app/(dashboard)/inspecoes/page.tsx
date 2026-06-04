@@ -85,13 +85,6 @@ async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia
   // ── Page 1: Cover ────────────────────────────────────────────────────────────
   drawHeader(); y = 26
 
-  // Status badge
-  const isConcluida = insp.status === 'concluida'
-  const statusC: [number,number,number] = isConcluida ? [22, 163, 74] : [234, 179, 8]
-  doc.setFillColor(...statusC); doc.roundedRect(PW - MR - 28, y - 5, 28, 8, 2, 2, 'F')
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255)
-  doc.text(isConcluida ? '✓ Concluída' : '⟳ Em Aberto', PW - MR - 14, y - 0.5, { align: 'center' })
-
   // Title
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(20, 20, 20)
   doc.text('Relatório de Inspeção HSE', ML, y + 1); y += 10
@@ -123,23 +116,21 @@ async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia
   })
   y += Math.ceil(metaItems.length / cols3) * 12 + 8
 
-  // KPI strip
+  // KPI strip — light style (same as relatorios)
   const kpiItems = [
-    { label: 'Total Desvios',    value: String(insp.total_desvios),         c: [239, 68, 68] as [number,number,number] },
-    { label: 'Desvios Fechados', value: String(insp.desvios_fechados),       c: [22, 163, 74] as [number,number,number] },
-    { label: 'Reconhecimentos',  value: String(insp.total_reconhecimentos),  c: [16, 185, 129] as [number,number,number] },
+    { label: 'Total Desvios',    value: String(insp.total_desvios),         c: [239, 68, 68] as [number,number,number], bg: [254, 242, 242] as [number,number,number] },
+    { label: 'Desvios Fechados', value: String(insp.desvios_fechados),       c: [22, 163, 74] as [number,number,number],  bg: [240, 253, 244] as [number,number,number] },
+    { label: 'Reconhecimentos',  value: String(insp.total_reconhecimentos),  c: [16, 185, 129] as [number,number,number], bg: [240, 253, 249] as [number,number,number] },
   ]
   const kW3 = (CW - 6) / 3
   kpiItems.forEach((k, i) => {
     const kx = ML + i * (kW3 + 3)
-    doc.setFillColor(k.c[0], k.c[1], k.c[2]); doc.roundedRect(kx, y, kW3, 18, 2, 2, 'F')
-    doc.setFillColor(255, 255, 255, 30); doc.roundedRect(kx, y, kW3, 18, 2, 2, 'F')
-    doc.setFont('helvetica', 'black'); doc.setFontSize(22); doc.setTextColor(k.c[0], k.c[1], k.c[2])
-    // Draw white text
-    doc.setTextColor(255, 255, 255)
-    doc.text(k.value, kx + kW3 / 2, y + 11, { align: 'center' })
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 255, 255)
-    doc.text(k.label, kx + kW3 / 2, y + 15.5, { align: 'center' })
+    doc.setFillColor(k.bg[0], k.bg[1], k.bg[2]); doc.roundedRect(kx, y, kW3, 18, 2, 2, 'F')
+    doc.setFillColor(k.c[0], k.c[1], k.c[2]); doc.roundedRect(kx, y, 3, 18, 1, 1, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(k.c[0], k.c[1], k.c[2])
+    doc.text(k.value, kx + kW3 / 2 + 1.5, y + 10, { align: 'center' })
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(70, 70, 70)
+    doc.text(k.label, kx + kW3 / 2 + 1.5, y + 15, { align: 'center' })
   })
   y += 24
 
@@ -216,15 +207,6 @@ async function gerarPDFInspecao(insp: Inspecao & { evidencias: InspecaoEvidencia
     doc.text(isD ? 'DESVIO' : 'RECONHEC.', ML + (isD ? 8 : 14), y + 4.5, { align: 'center' })
     doc.setFontSize(10); doc.setTextColor(20,20,20)
     doc.text(`Evidência #${idx + 1}`, ML + (isD ? 20 : 32), y + 5)
-    if (isD && isCl) {
-      doc.setFillColor(22,163,74); doc.roundedRect(PW - MR - 22, y, 22, 7, 2, 2, 'F')
-      doc.setFontSize(7); doc.setTextColor(255,255,255)
-      doc.text('✓ Fechado', PW - MR - 11, y + 4.5, { align: 'center' })
-    } else if (isD && !isCl) {
-      doc.setFillColor(245,158,11); doc.roundedRect(PW - MR - 22, y, 22, 7, 2, 2, 'F')
-      doc.setFontSize(7); doc.setTextColor(255,255,255)
-      doc.text('Em Aberto', PW - MR - 11, y + 4.5, { align: 'center' })
-    }
     y += 11
 
     // Local
