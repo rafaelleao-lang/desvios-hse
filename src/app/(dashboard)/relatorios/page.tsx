@@ -201,50 +201,76 @@ function gerarPDF(
     colors: string[],
   ) {
     if (data.length === 0 || names.length === 0) return
+
+    // Legenda abaixo do gráfico — 3 nomes por linha
+    const LEG_COLS = 3
+    const LEG_ROW_H = 5.5
+    const legendRows = Math.ceil(names.length / LEG_COLS)
+    const legendH = legendRows * LEG_ROW_H + 3
+
+    const pL = 14, pR = 4, pT = 8, pB = 12
+    const pw = w - pL - pR
+    const ph = h - pT - pB - legendH   // altura útil do plot
+
     const allVals = data.flatMap(d => names.map(n => Number(d[n]) || 0))
     const maxV = Math.max(1, ...allVals)
     const n = data.length
-    const pL = 12, pR = 4, pT = 10, pB = 14
-    const pw = w - pL - pR, ph = h - pT - pB
     const gx = (i: number) => cx + pL + (n <= 1 ? pw / 2 : pw * i / (n - 1))
     const gy = (v: number) => cy + pT + ph * (1 - v / maxV)
 
-    doc.setDrawColor(60, 60, 60); doc.setLineWidth(0.1)
-    for (let r = 0; r <= 4; r++) doc.line(cx + pL, cy + pT + ph * r / 4, cx + pL + pw, cy + pT + ph * r / 4)
+    // Grid horizontal com valores no eixo Y
+    doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.1)
+    for (let r = 0; r <= 4; r++) {
+      const lineY = cy + pT + ph * r / 4
+      doc.line(cx + pL, lineY, cx + pL + pw, lineY)
+      const val = Math.round(maxV * (1 - r / 4))
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(160, 160, 160)
+      doc.text(String(val), cx + pL - 1.5, lineY + 1.5, { align: 'right' })
+    }
 
+    // Rótulos do eixo X
     data.forEach((d, i) => {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(130, 130, 130)
-      doc.text(String(d.label), gx(i), cy + pT + ph + pB - 2, { align: 'center' })
+      doc.text(String(d.label), gx(i), cy + pT + ph + 8, { align: 'center' })
     })
 
+    // Linhas, pontos e valores
     names.forEach((name, ni) => {
       const rgb = h2r(colors[ni % colors.length])
+      // linhas
       for (let i = 0; i < n - 1; i++) {
         const v1 = Number(data[i][name]) || 0
         const v2 = Number(data[i + 1][name]) || 0
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]); doc.setLineWidth(0.65)
         doc.line(gx(i), gy(v1), gx(i + 1), gy(v2))
       }
+      // pontos e valores
       data.forEach((d, i) => {
         const v = Number(d[name]) || 0
         doc.setFillColor(rgb[0], rgb[1], rgb[2])
-        doc.circle(gx(i), gy(v), 0.65, 'F')
+        doc.circle(gx(i), gy(v), 0.7, 'F')
+        if (v > 0) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5)
+          doc.setTextColor(rgb[0], rgb[1], rgb[2])
+          doc.text(String(v), gx(i), gy(v) - 2, { align: 'center' })
+        }
       })
     })
 
-    // Legenda topo-direita em 2 colunas
-    const legX = cx + pL + pw - 68
-    const legY = cy + 1.5
-    names.slice(0, 8).forEach((name, ni) => {
+    // Legenda abaixo do eixo X — 3 colunas, nomes completos
+    const legStartY = cy + pT + ph + pB + 2
+    const colW = pw / LEG_COLS
+    names.forEach((name, ni) => {
       const rgb = h2r(colors[ni % colors.length])
-      const col = ni % 2, row = Math.floor(ni / 2)
-      const lx = legX + col * 34
-      const ly = legY + row * 4.5
+      const col = ni % LEG_COLS
+      const row = Math.floor(ni / LEG_COLS)
+      const lx = cx + pL + col * colW
+      const ly = legStartY + row * LEG_ROW_H
       doc.setFillColor(rgb[0], rgb[1], rgb[2])
-      doc.rect(lx, ly, 3.5, 2, 'F')
-      const short = name.length > 14 ? name.slice(0, 13) + '…' : name
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(90, 90, 90)
-      doc.text(short, lx + 4.5, ly + 1.7)
+      doc.rect(lx, ly + 0.3, 4, 2.2, 'F')
+      const label = name.length > 22 ? name.slice(0, 21) + '…' : name
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(55, 55, 55)
+      doc.text(label, lx + 5.5, ly + 2.2)
     })
   }
 
@@ -667,26 +693,26 @@ function gerarPDF(
 
   // ── Curva de Evolução — Encarregado ───────────────────────
   if (encEvoNames.length > 0) {
-    ensureY(70)
+    ensureY(95)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(50, 50, 50)
     doc.text('Curva de Evolução — Encarregado', ML, y)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120)
     doc.text('Desvios por encarregado nos últimos 6 meses', ML, y + 4)
     y += 7
-    drawMultiLineChart(ML, y, CW, 52, encEvoLines, encEvoNames, LINE_COLORS_PDF)
-    y += 52 + 8
+    drawMultiLineChart(ML, y, CW, 80, encEvoLines, encEvoNames, LINE_COLORS_PDF)
+    y += 80 + 8
   }
 
   // ── Curva de Evolução — Coordenador ───────────────────────
   if (coordEvoNames.length > 0) {
-    ensureY(70)
+    ensureY(95)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(50, 50, 50)
     doc.text('Curva de Evolução — Coordenador', ML, y)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120)
     doc.text('Desvios por coordenador nos últimos 6 meses', ML, y + 4)
     y += 7
-    drawMultiLineChart(ML, y, CW, 52, coordEvoLines, coordEvoNames, LINE_COLORS_PDF)
-    y += 52 + 8
+    drawMultiLineChart(ML, y, CW, 80, coordEvoLines, coordEvoNames, LINE_COLORS_PDF)
+    y += 80 + 8
   }
 
   // ── Full desvios list (new page) ───────────────────────────
