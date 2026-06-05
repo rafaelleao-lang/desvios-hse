@@ -157,9 +157,19 @@ export function formatFileSize(bytes: number): string {
 export async function compressImage(file: File, maxWidth = 1280, quality = 0.8): Promise<File> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')!
+    const ctx = canvas.getContext('2d')
+    // Canvas não suportado — retorna o arquivo original
+    if (!ctx) { resolve(file); return }
+
     const img = new Image()
     const url = URL.createObjectURL(file)
+
+    // Formato não suportado pelo browser (ex: HEIC em alguns dispositivos)
+    // → devolve o arquivo original sem travar
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(file)
+    }
 
     img.onload = () => {
       let { width, height } = img
@@ -170,15 +180,18 @@ export async function compressImage(file: File, maxWidth = 1280, quality = 0.8):
       canvas.width = width
       canvas.height = height
       ctx.drawImage(img, 0, 0, width, height)
+      URL.revokeObjectURL(url)
       canvas.toBlob(
         (blob) => {
-          URL.revokeObjectURL(url)
-          resolve(new File([blob!], file.name, { type: 'image/jpeg' }))
+          // toBlob retorna null em dispositivos sem memória suficiente
+          if (!blob) { resolve(file); return }
+          resolve(new File([blob], file.name, { type: 'image/jpeg' }))
         },
         'image/jpeg',
         quality,
       )
     }
+
     img.src = url
   })
 }
