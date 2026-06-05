@@ -44,6 +44,8 @@ const GRAV_HEX: Record<string, string> = {
   critico: '#EF4444',
 }
 
+const LINE_PALETTE = ['#E8291C','#3B82F6','#22C55E','#F59E0B','#A855F7','#06B6D4','#EC4899','#84CC16','#F97316','#14B8A6']
+
 const PER_PAGE = 15
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
@@ -192,6 +194,86 @@ function gerarPDF(
     })
   }
 
+  function drawMultiLineChart(
+    cx: number, cy: number, w: number, h: number,
+    data: Array<Record<string, string | number>>,
+    names: string[],
+    colors: string[],
+  ) {
+    if (data.length === 0 || names.length === 0) return
+
+    // Legenda abaixo do gráfico — 3 nomes por linha
+    const LEG_COLS = 3
+    const LEG_ROW_H = 5.5
+    const legendRows = Math.ceil(names.length / LEG_COLS)
+    const legendH = legendRows * LEG_ROW_H + 3
+
+    const pL = 14, pR = 4, pT = 8, pB = 12
+    const pw = w - pL - pR
+    const ph = h - pT - pB - legendH   // altura útil do plot
+
+    const allVals = data.flatMap(d => names.map(n => Number(d[n]) || 0))
+    const maxV = Math.max(1, ...allVals)
+    const n = data.length
+    const gx = (i: number) => cx + pL + (n <= 1 ? pw / 2 : pw * i / (n - 1))
+    const gy = (v: number) => cy + pT + ph * (1 - v / maxV)
+
+    // Grid horizontal com valores no eixo Y
+    doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.1)
+    for (let r = 0; r <= 4; r++) {
+      const lineY = cy + pT + ph * r / 4
+      doc.line(cx + pL, lineY, cx + pL + pw, lineY)
+      const val = Math.round(maxV * (1 - r / 4))
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(160, 160, 160)
+      doc.text(String(val), cx + pL - 1.5, lineY + 1.5, { align: 'right' })
+    }
+
+    // Rótulos do eixo X
+    data.forEach((d, i) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(130, 130, 130)
+      doc.text(String(d.label), gx(i), cy + pT + ph + 8, { align: 'center' })
+    })
+
+    // Linhas, pontos e valores
+    names.forEach((name, ni) => {
+      const rgb = h2r(colors[ni % colors.length])
+      // linhas
+      for (let i = 0; i < n - 1; i++) {
+        const v1 = Number(data[i][name]) || 0
+        const v2 = Number(data[i + 1][name]) || 0
+        doc.setDrawColor(rgb[0], rgb[1], rgb[2]); doc.setLineWidth(0.65)
+        doc.line(gx(i), gy(v1), gx(i + 1), gy(v2))
+      }
+      // pontos e valores
+      data.forEach((d, i) => {
+        const v = Number(d[name]) || 0
+        doc.setFillColor(rgb[0], rgb[1], rgb[2])
+        doc.circle(gx(i), gy(v), 0.7, 'F')
+        if (v > 0) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5)
+          doc.setTextColor(rgb[0], rgb[1], rgb[2])
+          doc.text(String(v), gx(i), gy(v) - 2, { align: 'center' })
+        }
+      })
+    })
+
+    // Legenda abaixo do eixo X — 3 colunas, nomes completos
+    const legStartY = cy + pT + ph + pB + 2
+    const colW = pw / LEG_COLS
+    names.forEach((name, ni) => {
+      const rgb = h2r(colors[ni % colors.length])
+      const col = ni % LEG_COLS
+      const row = Math.floor(ni / LEG_COLS)
+      const lx = cx + pL + col * colW
+      const ly = legStartY + row * LEG_ROW_H
+      doc.setFillColor(rgb[0], rgb[1], rgb[2])
+      doc.rect(lx, ly + 0.3, 4, 2.2, 'F')
+      const label = name.length > 22 ? name.slice(0, 21) + '…' : name
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(55, 55, 55)
+      doc.text(label, lx + 5.5, ly + 2.2)
+    })
+  }
+
   // ── Data ──────────────────────────────────────────────────
   const total    = filtered.length
   const abertos  = filtered.filter(d => d.status === 'aberto').length
@@ -242,6 +324,33 @@ function gerarPDF(
   const catData = Object.entries(catMap).map(([name,total])=>({name,total})).sort((a,b)=>b.total-a.total)
 
   const MONTHS_PDF = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  const LINE_COLORS_PDF = ['#E8291C','#3B82F6','#22C55E','#F59E0B','#A855F7','#06B6D4','#EC4899','#84CC16']
+
+  // Curva de Evolução — Encarregado (últimos 6 meses)
+  const encEvoNamesRaw = Array.from(new Set(filtered.map(d => d.encarregado_nome_computado).filter(n => n && n !== '—')))
+  const encEvoNames = encEvoNamesRaw
+    .map(n => ({ n, c: filtered.filter(d => d.encarregado_nome_computado === n).length }))
+    .sort((a, b) => b.c - a.c).slice(0, 8).map(x => x.n)
+  const encEvoLines: Array<Record<string, string | number>> = Array.from({ length: 6 }, (_, i) => {
+    const dt = new Date(); dt.setMonth(dt.getMonth() - (5 - i))
+    const mes = dt.toISOString().slice(0, 7)
+    const row: Record<string, string | number> = { label: MONTHS_PDF[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2) }
+    encEvoNames.forEach(name => { row[name] = filtered.filter(d => d.criado_em.startsWith(mes) && d.encarregado_nome_computado === name).length })
+    return row
+  })
+
+  // Curva de Evolução — Coordenador (últimos 6 meses)
+  const coordEvoNamesRaw = Array.from(new Set(filtered.map(d => d.coordenador_nome_computado).filter(n => n && n !== '—')))
+  const coordEvoNames = coordEvoNamesRaw
+    .map(n => ({ n, c: filtered.filter(d => d.coordenador_nome_computado === n).length }))
+    .sort((a, b) => b.c - a.c).slice(0, 8).map(x => x.n)
+  const coordEvoLines: Array<Record<string, string | number>> = Array.from({ length: 6 }, (_, i) => {
+    const dt = new Date(); dt.setMonth(dt.getMonth() - (5 - i))
+    const mes = dt.toISOString().slice(0, 7)
+    const row: Record<string, string | number> = { label: MONTHS_PDF[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2) }
+    coordEvoNames.forEach(name => { row[name] = filtered.filter(d => d.criado_em.startsWith(mes) && d.coordenador_nome_computado === name).length })
+    return row
+  })
   const evoData = Array.from({ length: 6 }, (_, i) => {
     const dt = new Date()
     dt.setMonth(dt.getMonth() - (5 - i))
@@ -580,6 +689,30 @@ function gerarPDF(
       doc.text(String(e.total), ML + catLabelW + catBarMaxW + 3, cy + 4.5)
     })
     y += catData.length * 9 + 8
+  }
+
+  // ── Curva de Evolução — Encarregado ───────────────────────
+  if (encEvoNames.length > 0) {
+    ensureY(95)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(50, 50, 50)
+    doc.text('Curva de Evolução — Encarregado', ML, y)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120)
+    doc.text('Desvios por encarregado nos últimos 6 meses', ML, y + 4)
+    y += 7
+    drawMultiLineChart(ML, y, CW, 80, encEvoLines, encEvoNames, LINE_COLORS_PDF)
+    y += 80 + 8
+  }
+
+  // ── Curva de Evolução — Coordenador ───────────────────────
+  if (coordEvoNames.length > 0) {
+    ensureY(95)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(50, 50, 50)
+    doc.text('Curva de Evolução — Coordenador', ML, y)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120)
+    doc.text('Desvios por coordenador nos últimos 6 meses', ML, y + 4)
+    y += 7
+    drawMultiLineChart(ML, y, CW, 80, coordEvoLines, coordEvoNames, LINE_COLORS_PDF)
+    y += 80 + 8
   }
 
   // ── Full desvios list (new page) ───────────────────────────
@@ -1140,6 +1273,8 @@ export default function RelatoriosPage() {
   const [activeTab, setActiveTab] = useState<TabId>('resumo')
   const [page, setPage] = useState(1)
   const [generatingPPT, setGeneratingPPT] = useState(false)
+  const [encEvoPeriod, setEncEvoPeriod] = useState<'mes'|'semana'>('mes')
+  const [coordEvoPeriod, setCoordEvoPeriod] = useState<'mes'|'semana'>('mes')
 
   const tstOptions = useMemo(() =>
     filtros.obra_id ? tsts.filter(t => t.obra_id === filtros.obra_id) : tsts
@@ -1285,6 +1420,66 @@ export default function RelatoriosPage() {
       }))
       .sort((a, b) => b.total - a.total)
   }, [filtered, coordenadores, filtros.obra_id])
+
+  const encEvolution = useMemo(() => {
+    const countByName: Record<string, number> = {}
+    filtered.forEach(d => {
+      const n = d.encarregado_nome_computado
+      if (n && n !== '—') countByName[n] = (countByName[n] || 0) + 1
+    })
+    const names = Object.entries(countByName).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([n]) => n)
+
+    const mesData = Array.from({ length: 6 }, (_, i) => {
+      const dt = new Date(); dt.setMonth(dt.getMonth() - (5 - i))
+      const mes = dt.toISOString().slice(0, 7)
+      const row: Record<string, string | number> = { label: `${MONTHS[dt.getMonth()]}/${String(dt.getFullYear()).slice(2)}` }
+      names.forEach(n => { row[n] = filtered.filter(x => x.criado_em.startsWith(mes) && x.encarregado_nome_computado === n).length })
+      return row
+    })
+
+    const semanaData = Array.from({ length: 8 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (7 - i) * 7)
+      const day = d.getDay(); d.setDate(d.getDate() - day + (day === 0 ? -6 : 1))
+      const ws = d.toISOString().slice(0, 10)
+      const we = new Date(d); we.setDate(we.getDate() + 6)
+      const weStr = we.toISOString().slice(0, 10)
+      const row: Record<string, string | number> = { label: `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}` }
+      names.forEach(n => { row[n] = filtered.filter(x => x.criado_em >= ws && x.criado_em <= weStr && x.encarregado_nome_computado === n).length })
+      return row
+    })
+
+    return { names, mesData, semanaData }
+  }, [filtered])
+
+  const coordEvolution = useMemo(() => {
+    const countByName: Record<string, number> = {}
+    filtered.forEach(d => {
+      const n = d.coordenador_nome_computado
+      if (n && n !== '—') countByName[n] = (countByName[n] || 0) + 1
+    })
+    const names = Object.entries(countByName).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([n]) => n)
+
+    const mesData = Array.from({ length: 6 }, (_, i) => {
+      const dt = new Date(); dt.setMonth(dt.getMonth() - (5 - i))
+      const mes = dt.toISOString().slice(0, 7)
+      const row: Record<string, string | number> = { label: `${MONTHS[dt.getMonth()]}/${String(dt.getFullYear()).slice(2)}` }
+      names.forEach(n => { row[n] = filtered.filter(x => x.criado_em.startsWith(mes) && x.coordenador_nome_computado === n).length })
+      return row
+    })
+
+    const semanaData = Array.from({ length: 8 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (7 - i) * 7)
+      const day = d.getDay(); d.setDate(d.getDate() - day + (day === 0 ? -6 : 1))
+      const ws = d.toISOString().slice(0, 10)
+      const we = new Date(d); we.setDate(we.getDate() + 6)
+      const weStr = we.toISOString().slice(0, 10)
+      const row: Record<string, string | number> = { label: `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}` }
+      names.forEach(n => { row[n] = filtered.filter(x => x.criado_em >= ws && x.criado_em <= weStr && x.coordenador_nome_computado === n).length })
+      return row
+    })
+
+    return { names, mesData, semanaData }
+  }, [filtered])
 
   // SLA analysis
   const slaData = useMemo(() => [
@@ -1614,6 +1809,76 @@ export default function RelatoriosPage() {
                   </div>
                 </div>
 
+                {/* Curva de Evolução — Encarregado */}
+                {encEvolution.names.length > 0 && (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-300">Curva de Evolução — Encarregado</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">Desvios por encarregado ao longo do tempo</p>
+                      </div>
+                      <div className="flex gap-0.5 bg-zinc-800 rounded-lg p-0.5">
+                        <button onClick={() => setEncEvoPeriod('mes')}
+                          className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all', encEvoPeriod === 'mes' ? 'text-white' : 'text-zinc-400')}
+                          style={encEvoPeriod === 'mes' ? { background: '#16A34A' } : {}}>Mês</button>
+                        <button onClick={() => setEncEvoPeriod('semana')}
+                          className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all', encEvoPeriod === 'semana' ? 'text-white' : 'text-zinc-400')}
+                          style={encEvoPeriod === 'semana' ? { background: '#16A34A' } : {}}>Semana</button>
+                      </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={encEvoPeriod === 'mes' ? encEvolution.mesData : encEvolution.semanaData} margin={{ top: 20, right: 10, bottom: 10, left: -10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272A" />
+                        <XAxis dataKey="label" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend formatter={v => <span style={{ color: '#A1A1AA', fontSize: 11 }}>{v}</span>} />
+                        {encEvolution.names.map((name, i) => (
+                          <Line key={name} type="monotone" dataKey={name} name={name}
+                            stroke={LINE_PALETTE[i % LINE_PALETTE.length]} strokeWidth={2}
+                            dot={{ r: 3, fill: LINE_PALETTE[i % LINE_PALETTE.length], strokeWidth: 0 }}
+                            activeDot={{ r: 5 }} />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Curva de Evolução — Coordenador */}
+                {coordEvolution.names.length > 0 && (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-300">Curva de Evolução — Coordenador</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">Desvios por coordenador ao longo do tempo</p>
+                      </div>
+                      <div className="flex gap-0.5 bg-zinc-800 rounded-lg p-0.5">
+                        <button onClick={() => setCoordEvoPeriod('mes')}
+                          className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all', coordEvoPeriod === 'mes' ? 'text-white' : 'text-zinc-400')}
+                          style={coordEvoPeriod === 'mes' ? { background: '#16A34A' } : {}}>Mês</button>
+                        <button onClick={() => setCoordEvoPeriod('semana')}
+                          className={cn('px-3 py-1 rounded-md text-xs font-semibold transition-all', coordEvoPeriod === 'semana' ? 'text-white' : 'text-zinc-400')}
+                          style={coordEvoPeriod === 'semana' ? { background: '#16A34A' } : {}}>Semana</button>
+                      </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={coordEvoPeriod === 'mes' ? coordEvolution.mesData : coordEvolution.semanaData} margin={{ top: 20, right: 10, bottom: 10, left: -10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272A" />
+                        <XAxis dataKey="label" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend formatter={v => <span style={{ color: '#A1A1AA', fontSize: 11 }}>{v}</span>} />
+                        {coordEvolution.names.map((name, i) => (
+                          <Line key={name} type="monotone" dataKey={name} name={name}
+                            stroke={LINE_PALETTE[i % LINE_PALETTE.length]} strokeWidth={2}
+                            dot={{ r: 3, fill: LINE_PALETTE[i % LINE_PALETTE.length], strokeWidth: 0 }}
+                            activeDot={{ r: 5 }} />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
                 {/* SLA Analysis */}
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
                   <p className="text-sm font-semibold text-zinc-300 mb-4">Análise de SLA (Prazos)</p>
@@ -1748,6 +2013,40 @@ export default function RelatoriosPage() {
                           </BarChart>
                         </ResponsiveContainer>
 
+                        {/* Curva de Evolução */}
+                        {coordEvolution.names.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-zinc-800">
+                            <div className="flex items-center justify-between mb-1">
+                              <div>
+                                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Curva de Evolução</p>
+                              </div>
+                              <div className="flex gap-0.5 bg-zinc-800 rounded-lg p-0.5">
+                                <button onClick={() => setCoordEvoPeriod('mes')}
+                                  className={cn('px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all', coordEvoPeriod === 'mes' ? 'text-white' : 'text-zinc-400')}
+                                  style={coordEvoPeriod === 'mes' ? { background: '#16A34A' } : {}}>Mês</button>
+                                <button onClick={() => setCoordEvoPeriod('semana')}
+                                  className={cn('px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all', coordEvoPeriod === 'semana' ? 'text-white' : 'text-zinc-400')}
+                                  style={coordEvoPeriod === 'semana' ? { background: '#16A34A' } : {}}>Semana</button>
+                              </div>
+                            </div>
+                            <ResponsiveContainer width="100%" height={220}>
+                              <LineChart data={coordEvoPeriod === 'mes' ? coordEvolution.mesData : coordEvolution.semanaData} margin={{ top: 20, right: 10, bottom: 10, left: -10 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#27272A" />
+                                <XAxis dataKey="label" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                <Tooltip content={<ChartTooltip />} />
+                                <Legend formatter={v => <span style={{ color: '#A1A1AA', fontSize: 11 }}>{v}</span>} />
+                                {coordEvolution.names.map((name, i) => (
+                                  <Line key={name} type="monotone" dataKey={name} name={name}
+                                    stroke={LINE_PALETTE[i % LINE_PALETTE.length]} strokeWidth={2}
+                                    dot={{ r: 3, fill: LINE_PALETTE[i % LINE_PALETTE.length], strokeWidth: 0 }}
+                                    activeDot={{ r: 5 }} />
+                                ))}
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+
                         {/* Ranking table */}
                         <div className="mt-4 rounded-2xl border border-zinc-800 overflow-hidden">
                           <div className="px-4 py-2.5 border-b border-zinc-800 bg-green-500/5">
@@ -1815,6 +2114,40 @@ export default function RelatoriosPage() {
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
+
+                        {/* Curva de Evolução */}
+                        {encEvolution.names.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-zinc-800">
+                            <div className="flex items-center justify-between mb-1">
+                              <div>
+                                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Curva de Evolução</p>
+                              </div>
+                              <div className="flex gap-0.5 bg-zinc-800 rounded-lg p-0.5">
+                                <button onClick={() => setEncEvoPeriod('mes')}
+                                  className={cn('px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all', encEvoPeriod === 'mes' ? 'text-white' : 'text-zinc-400')}
+                                  style={encEvoPeriod === 'mes' ? { background: '#16A34A' } : {}}>Mês</button>
+                                <button onClick={() => setEncEvoPeriod('semana')}
+                                  className={cn('px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all', encEvoPeriod === 'semana' ? 'text-white' : 'text-zinc-400')}
+                                  style={encEvoPeriod === 'semana' ? { background: '#16A34A' } : {}}>Semana</button>
+                              </div>
+                            </div>
+                            <ResponsiveContainer width="100%" height={220}>
+                              <LineChart data={encEvoPeriod === 'mes' ? encEvolution.mesData : encEvolution.semanaData} margin={{ top: 20, right: 10, bottom: 10, left: -10 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#27272A" />
+                                <XAxis dataKey="label" tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fill: '#71717A', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                <Tooltip content={<ChartTooltip />} />
+                                <Legend formatter={v => <span style={{ color: '#A1A1AA', fontSize: 11 }}>{v}</span>} />
+                                {encEvolution.names.map((name, i) => (
+                                  <Line key={name} type="monotone" dataKey={name} name={name}
+                                    stroke={LINE_PALETTE[i % LINE_PALETTE.length]} strokeWidth={2}
+                                    dot={{ r: 3, fill: LINE_PALETTE[i % LINE_PALETTE.length], strokeWidth: 0 }}
+                                    activeDot={{ r: 5 }} />
+                                ))}
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
 
                         {/* Ranking table */}
                         <div className="mt-4 rounded-2xl border border-zinc-800 overflow-hidden">
