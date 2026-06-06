@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, Plus, History, ClipboardList, AlertCircle, ClipboardCheck,
-  BookOpen, FileText,
+  BookOpen, FileText, List,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,7 +15,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 const TABS_DESVIOS = [
   { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
   { href: '/desvios',    icon: AlertTriangle,   label: 'Desvios'    },
-  { href: '/obras',      icon: Building2,       label: 'Obras'      },
   { href: '/relatorios', icon: BarChart3,       label: 'Relatórios' },
 ]
 
@@ -38,6 +37,7 @@ function getSistema(pathname: string) {
   if (pathname.startsWith('/tutorial'))    return 'tutorial'
   if (pathname.startsWith('/inspecoes'))   return 'inspecoes'
   if (pathname.startsWith('/indicadores')) return 'indicadores'
+  if (pathname.startsWith('/obras'))       return 'obras'
   return 'desvios'
 }
 
@@ -49,7 +49,8 @@ function DesviosNav({ pathname }: { pathname: string }) {
 
   return (
     <div className="flex items-center h-16">
-      {TABS_DESVIOS.slice(0, 2).map(tab => {
+      {/* Dashboard — único item à esquerda do FAB */}
+      {TABS_DESVIOS.slice(0, 1).map(tab => {
         const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
         return (
           <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
@@ -76,7 +77,8 @@ function DesviosNav({ pathname }: { pathname: string }) {
         </button>
       </div>
 
-      {TABS_DESVIOS.slice(2).map(tab => {
+      {/* Desvios + Relatórios — à direita do FAB */}
+      {TABS_DESVIOS.slice(1).map(tab => {
         const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
         return (
           <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
@@ -207,7 +209,53 @@ function InspecoesNav({ pathname }: { pathname: string }) {
   )
 }
 
-// ── Nav Tutoriais (3 tabs sem FAB) ───────────────────────────────────────────
+// ── Nav Obras ────────────────────────────────────────────────────────────────
+
+function ObrasNav({ pathname }: { pathname: string }) {
+  const router = useRouter()
+  const cor = '#F97316'
+  const isActive = pathname === '/obras' || pathname.startsWith('/obras/')
+
+  return (
+    <div className="flex items-center h-16">
+      {/* Obras list */}
+      <Link href="/obras" className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+        {isActive && pathname === '/obras' && (
+          <motion.div layoutId="mob-obras-indicator"
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+            style={{ background: cor }}
+            transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+        )}
+        <Building2 className={cn('w-5 h-5 transition-colors', pathname === '/obras' ? '' : 'text-zinc-600')}
+          style={pathname === '/obras' ? { color: cor } : {}} />
+        <span className={cn('text-[10px] font-medium transition-colors', pathname === '/obras' ? '' : 'text-zinc-600')}
+          style={pathname === '/obras' ? { color: cor } : {}}>
+          Obras
+        </span>
+      </Link>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* FAB — Nova Obra */}
+      <div className="flex-shrink-0 px-2">
+        <button
+          onClick={() => router.push('/obras/nova')}
+          className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95"
+          style={{ background: cor }}
+        >
+          <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {/* Spacers */}
+      <div className="flex-1" />
+      <div className="flex-1" />
+    </div>
+  )
+}
+
+// ── Nav Tutoriais (4 tabs sem FAB) ───────────────────────────────────────────
 
 const TABS_TUTORIAL = [
   { href: '/tutorial',             icon: BookOpen,  label: 'Tutoriais',  exact: true  },
@@ -259,13 +307,15 @@ export function MobileNav() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
         >
-          {sistema === 'tutorial'
-            ? <TutorialNav pathname={pathname} />
-            : sistema === 'inspecoes'
-              ? <InspecoesNav pathname={pathname} />
-              : sistema === 'indicadores'
-                ? <IndicadoresNav pathname={pathname} />
-                : <DesviosNav pathname={pathname} />
+          {sistema === 'obras'
+            ? <ObrasNav pathname={pathname} />
+            : sistema === 'tutorial'
+              ? <TutorialNav pathname={pathname} />
+              : sistema === 'inspecoes'
+                ? <InspecoesNav pathname={pathname} />
+                : sistema === 'indicadores'
+                  ? <IndicadoresNav pathname={pathname} />
+                  : <DesviosNav pathname={pathname} />
           }
         </motion.div>
       </AnimatePresence>
