@@ -306,12 +306,35 @@
   }
   .tab-pill.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(245,158,11,0.3); }
 
+  html, body { overflow-x: hidden; }
+
   @media (max-width: 768px) {
     .sidebar { display: none; }
-    .main { padding: 24px 20px 60px; }
+    .main { padding: 20px 16px 48px; max-width: 100%; overflow-x: hidden; }
     .card-grid, .card-grid-3 { grid-template-columns: 1fr; }
     .cat-grid { grid-template-columns: 1fr 1fr; }
     .export-grid { grid-template-columns: 1fr; }
+
+    /* Cover */
+    .cover { padding: 28px 20px; }
+    .cover-title { font-size: 26px; }
+    .cover-stats { gap: 16px; }
+
+    /* Headings e textos */
+    h2 { font-size: 19px; }
+    .section-lead { font-size: 14px; }
+    code { word-break: break-all; white-space: normal; }
+
+    /* Tabelas: bloco com scroll horizontal */
+    .field-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .field-table th, .field-table td { padding: 8px 10px; font-size: 12px; white-space: nowrap; }
+
+    /* Wireframes: scroll horizontal se SVG for largo */
+    .wireframe-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .wireframe-wrap svg { min-width: 300px; }
+
+    /* Section blocks */
+    .section-block { padding: 14px; }
   }
 </style>
 </head>
