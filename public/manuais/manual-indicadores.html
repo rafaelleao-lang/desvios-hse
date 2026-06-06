@@ -191,10 +191,33 @@
   .mse-logo-text .l1 { font-size: 13px; font-weight: 800; color: var(--text); }
   .mse-logo-text .l2 { font-size: 10px; color: var(--text4); }
 
+  html, body { overflow-x: hidden; }
+
   @media (max-width: 768px) {
     .sidebar { display: none; }
-    .main { padding: 24px 20px 60px; }
+    .main { padding: 20px 16px 48px; max-width: 100%; overflow-x: hidden; }
     .card-grid, .card-grid-3, .card-grid-4 { grid-template-columns: 1fr; }
+
+    /* Cover */
+    .cover { padding: 28px 20px; }
+    .cover-title { font-size: 26px; }
+    .cover-stats { gap: 16px; }
+
+    /* Headings e textos */
+    h2 { font-size: 19px; }
+    .section-lead { font-size: 14px; }
+    code { word-break: break-all; white-space: normal; }
+
+    /* Tabelas: scroll horizontal */
+    .field-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .field-table th, .field-table td { padding: 8px 10px; font-size: 12px; white-space: nowrap; }
+
+    /* Wireframes */
+    .wireframe-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .wireframe-wrap svg { min-width: 300px; }
+
+    /* Section blocks (referência campos) */
+    .section-block { padding: 14px; }
   }
 </style>
 </head>

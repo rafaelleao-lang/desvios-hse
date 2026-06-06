@@ -122,8 +122,8 @@ function KPICard({
             <Icon className="w-4 h-4" style={{ color }} />
           </div>
         </div>
-        <div className="text-2xl font-black text-zinc-100 leading-none">{value}</div>
-        <div className="text-xs font-semibold text-zinc-500 mt-1.5 uppercase tracking-wide">{label}</div>
+        <div className="text-xl sm:text-2xl font-black text-zinc-100 leading-none">{value}</div>
+        <div className="text-[11px] sm:text-xs font-semibold text-zinc-500 mt-1.5 uppercase tracking-wide">{label}</div>
         {sub && <div className="text-[10px] text-zinc-600 mt-0.5">{sub}</div>}
       </div>
     </div>
