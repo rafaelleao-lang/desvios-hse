@@ -12,12 +12,13 @@ import { cn } from '@/lib/utils'
 
 // ── Sistema detectado pelo pathname ──────────────────────────────────────────
 
-type Sistema = 'desvios' | 'indicadores' | 'inspecoes' | 'tutorial'
+type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'tutorial'
 
 function getSistema(pathname: string): Sistema {
-  if (pathname.startsWith('/tutorial'))   return 'tutorial'
-  if (pathname.startsWith('/inspecoes'))  return 'inspecoes'
+  if (pathname.startsWith('/tutorial'))    return 'tutorial'
+  if (pathname.startsWith('/inspecoes'))   return 'inspecoes'
   if (pathname.startsWith('/indicadores')) return 'indicadores'
+  if (pathname.startsWith('/obras'))       return 'obras'
   return 'desvios'
 }
 
@@ -34,6 +35,18 @@ const MENUS: Array<{
   subnav:   Array<{ href: string; icon: React.ElementType; label: string }>
 }> = [
   {
+    key:        'obras',
+    label:      'Obras',
+    icon:       Building2,
+    cor:        '#F97316',
+    corHover:   '#EA6C0A',
+    homeHref:   '/obras',
+    acao:       { label: 'Nova Obra', href: '/obras/nova' },
+    subnav: [
+      { href: '/obras', icon: Building2, label: 'Obras' },
+    ],
+  },
+  {
     key:        'desvios',
     label:      'Desvios',
     icon:       AlertTriangle,
@@ -44,7 +57,6 @@ const MENUS: Array<{
     subnav: [
       { href: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
       { href: '/desvios',    icon: AlertTriangle,   label: 'Desvios'    },
-      { href: '/obras',      icon: Building2,       label: 'Obras'      },
       { href: '/relatorios', icon: BarChart3,       label: 'Relatórios' },
     ],
   },
