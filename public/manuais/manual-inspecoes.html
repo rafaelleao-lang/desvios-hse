@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual — Inspeções HSE | MSE HSE</title>
+<style>
+  :root {
+    --accent: #10B981;
+    --accent-dim: rgba(16,185,129,0.12);
+    --accent-mid: rgba(16,185,129,0.25);
+    --red: #E8291C;
+    --red-dim: rgba(232,41,28,0.12);
+    --bg: #09090b;
+    --bg2: #111113;
+    --bg3: #18181b;
+    --bg4: #27272a;
+    --border: #3f3f46;
+    --border-soft: #27272a;
+    --text: #f4f4f5;
+    --text2: #a1a1aa;
+    --text3: #71717a;
+    --text4: #52525b;
+    --green: #22c55e;
+    --amber: #F59E0B;
+    --blue: #3b82f6;
+    --sidebar-w: 260px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--bg2); border-right: 1px solid var(--border-soft);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid var(--border-soft); }
+  .brand-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent-dim); border: 1px solid rgba(16,185,129,0.25);
+    border-radius: 10px; padding: 6px 10px; margin-bottom: 10px;
+  }
+  .brand-badge .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  .brand-badge span { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+  .brand-title { font-size: 15px; font-weight: 800; color: var(--text); }
+  .brand-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .nav-section { padding: 12px 12px 4px; font-size: 10px; font-weight: 700; color: var(--text4); letter-spacing: 0.08em; text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px; margin: 1px 8px;
+    font-size: 13px; color: var(--text2); text-decoration: none; transition: all 0.15s;
+  }
+  .nav-item:hover { background: var(--bg4); color: var(--text); }
+  .nav-item .num {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--bg4); font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border-soft); }
+  .sidebar-footer p { font-size: 11px; color: var(--text4); }
+  .sidebar-footer strong { color: var(--text3); }
+
+  .main { flex: 1; max-width: 900px; padding: 48px 48px 80px; }
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+
+  .cover {
+    background: linear-gradient(135deg, var(--bg3) 0%, #071a12 100%);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 20px; padding: 48px; margin-bottom: 64px; position: relative; overflow: hidden;
+  }
+  .cover::before {
+    content: ''; position: absolute; top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .cover-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .cover-title { font-size: 36px; font-weight: 900; line-height: 1.1; color: var(--text); margin-bottom: 12px; }
+  .cover-title span { color: var(--accent); }
+  .cover-desc { font-size: 15px; color: var(--text2); line-height: 1.6; max-width: 480px; margin-bottom: 28px; }
+  .cover-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  .cover-stat .val { font-size: 28px; font-weight: 900; color: var(--accent); line-height: 1; }
+  .cover-stat .lbl { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  h2 { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  h2 .section-num {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent-dim); color: var(--accent);
+    font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  p { font-size: 14px; line-height: 1.7; color: var(--text2); }
+  .section-lead { font-size: 15px; color: var(--text2); line-height: 1.6; margin-bottom: 24px; border-left: 3px solid var(--accent); padding-left: 14px; }
+
+  .card { background: var(--bg3); border: 1px solid var(--border-soft); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  .steps { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+  .step { display: flex; gap: 16px; padding-bottom: 28px; position: relative; }
+  .step:not(:last-child)::before { content: ''; position: absolute; left: 18px; top: 38px; bottom: 0; width: 2px; background: var(--border-soft); }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-dim); border: 2px solid var(--accent);
+    color: var(--accent); font-size: 14px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .step-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  .callout { border-radius: 12px; padding: 14px 16px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start; }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { flex: 1; }
+  .callout-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .callout-text { font-size: 13px; line-height: 1.5; }
+  .callout.tip { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); }
+  .callout.tip .callout-title { color: var(--blue); }
+  .callout.tip .callout-text { color: #93c5fd; }
+  .callout.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); }
+  .callout.warn .callout-title { color: var(--amber); }
+  .callout.warn .callout-text { color: #fcd34d; }
+  .callout.danger { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); }
+  .callout.danger .callout-title { color: #ef4444; }
+  .callout.danger .callout-text { color: #fca5a5; }
+  .callout.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); }
+  .callout.success .callout-title { color: var(--accent); }
+  .callout.success .callout-text { color: #6ee7b7; }
+
+  .field-table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+  .field-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--text4); text-transform: uppercase; letter-spacing: 0.06em; background: var(--bg4); border-bottom: 1px solid var(--border-soft); }
+  .field-table td { padding: 10px 12px; font-size: 13px; color: var(--text2); border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-table td:first-child { color: var(--text); font-weight: 600; }
+  .field-table .required { color: #ef4444; font-weight: 700; }
+  .field-table .optional { color: var(--text4); font-style: italic; }
+  .field-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  ul.feature-list { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+  ul.feature-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text2); line-height: 1.5; }
+  ul.feature-list li::before { content: '→'; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  .wireframe-wrap { background: var(--bg3); border: 1px solid var(--border-soft); border-radius: 16px; padding: 16px; margin: 20px 0; overflow-x: auto; }
+  .wireframe-label { font-size: 11px; font-weight: 700; color: var(--text4); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .wireframe-label::before { content: ''; display: block; width: 4px; height: 14px; background: var(--accent); border-radius: 2px; }
+
+  .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .tipo-card { border-radius: 14px; padding: 16px; border: 2px solid; }
+  .tipo-card.desvio { background: rgba(232,41,28,0.08); border-color: rgba(232,41,28,0.3); }
+  .tipo-card.reconhecimento { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.3); }
+  .tipo-card h3 { margin-bottom: 8px; }
+  .tipo-card.desvio h3 { color: #f87171; }
+  .tipo-card.reconhecimento h3 { color: var(--accent); }
+
+  .progress-insp { background: var(--bg4); border-radius: 6px; height: 8px; overflow: hidden; margin: 6px 0; }
+  .progress-insp-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+
+  /* ── Custom Scrollbar ── */
+  .sidebar::-webkit-scrollbar { width: 5px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent) 0%, rgba(16,185,129,0.3) 100%);
+    border-radius: 10px;
+  }
+  .sidebar::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  .main::-webkit-scrollbar { width: 6px; }
+  .main::-webkit-scrollbar-track { background: transparent; }
+  .main::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 10px; }
+  .main::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+  /* ── MSE Logo ── */
+  .mse-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .mse-logo-mark {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: #E8291C; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 2px 10px rgba(232,41,28,0.4);
+  }
+  .mse-logo-mark span { font-size: 13px; font-weight: 900; color: white; letter-spacing: -0.03em; }
+  .mse-logo-text { line-height: 1.2; }
+  .mse-logo-text .l1 { font-size: 13px; font-weight: 800; color: var(--text); }
+  .mse-logo-text .l2 { font-size: 10px; color: var(--text4); }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { padding: 24px 20px 60px; }
+    .card-grid, .card-grid-3, .tipo-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="mse-logo">
+      <div class="mse-logo-mark"><span>mse</span></div>
+      <div class="mse-logo-text">
+        <div class="l1">Inspeções HSE</div>
+        <div class="l2">Manual do Usuário</div>
+      </div>
+    </div>
+    <div class="brand-badge"><span class="dot"></span><span>MSE ENGENHARIA · HSE</span></div>
+  </div>
+  <div style="padding:8px 0;">
+    <div class="nav-section">Introdução</div>
+    <a href="#visao-geral" class="nav-item"><span class="num">1</span>Visão Geral</a>
+    <a href="#fluxo" class="nav-item"><span class="num">2</span>Fluxo Completo</a>
+    <div class="nav-section">Listas</div>
+    <a href="#em-aberto" class="nav-item"><span class="num">3</span>Inspeções em Aberto</a>
+    <a href="#concluidas" class="nav-item"><span class="num">4</span>Inspeções Concluídas</a>
+    <div class="nav-section">Nova Inspeção</div>
+    <a href="#nova-step1" class="nav-item"><span class="num">5</span>Etapa 1 — Identificação</a>
+    <a href="#nova-step2" class="nav-item"><span class="num">6</span>Etapa 2 — Evidências</a>
+    <a href="#tipo-desvio" class="nav-item"><span class="num">7</span>Evidência: Desvio</a>
+    <a href="#tipo-reconh" class="nav-item"><span class="num">8</span>Evidência: Reconhecimento</a>
+    <a href="#modal-desvio" class="nav-item"><span class="num">9</span>Registrar Desvio</a>
+    <div class="nav-section">Detalhe</div>
+    <a href="#detalhe" class="nav-item"><span class="num">10</span>Abrindo o Detalhe</a>
+    <a href="#fechar-desvio" class="nav-item"><span class="num">11</span>Fechar Desvio na Inspeção</a>
+    <div class="nav-section">Relatório</div>
+    <a href="#pdf" class="nav-item"><span class="num">12</span>Exportar PDF</a>
+    <a href="#filtros" class="nav-item"><span class="num">13</span>Filtros</a>
+    <div class="nav-section">Referência</div>
+    <a href="#status" class="nav-item"><span class="num">14</span>Status da Inspeção</a>
+    <a href="#numeracao" class="nav-item"><span class="num">15</span>Numeração</a>
+  </div>
+  <div class="sidebar-footer">
+    <p>MSE Engenharia</p>
+    <p><strong>Sistema de Gestão HSE</strong></p>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="cover">
+    <div class="cover-kicker">Manual do Usuário · MSE HSE</div>
+    <div class="cover-title">Inspeções<br><span>HSE</span></div>
+    <div class="cover-desc">Guia completo para realizar inspeções de segurança em campo, registrar desvios e reconhecimentos, acompanhar fechamentos e emitir relatórios em PDF.</div>
+    <div class="cover-stats">
+      <div class="cover-stat"><div class="val">2</div><div class="lbl">Etapas de cadastro</div></div>
+      <div class="cover-stat"><div class="val">2</div><div class="lbl">Tipos de evidência</div></div>
+      <div class="cover-stat"><div class="val">2</div><div class="lbl">Status possíveis</div></div>
+      <div class="cover-stat"><div class="val">1</div><div class="lbl">Relatório PDF automático</div></div>
+    </div>
+  </div>
+
+  <!-- ══ 1. VISÃO GERAL ══ -->
+  <section id="visao-geral">
+    <h2><span class="section-num">1</span>Visão Geral</h2>
+    <p class="section-lead">O Módulo Inspeções HSE permite que os Técnicos de Segurança (TSTs) realizem inspeções estruturadas em campo, registrando evidências fotográficas de cada ponto visitado — classificando-os como <strong>Desvio</strong> (problema encontrado) ou <strong>Reconhecimento</strong> (boas práticas observadas).</p>
+
+    <div class="card-grid">
+      <div class="card" style="border-color:rgba(232,41,28,0.25)">
+        <h3 style="color:#f87171;margin-bottom:8px;">🔴 Desvio</h3>
+        <p>Condição ou comportamento que representa risco ou não-conformidade. Gera automaticamente um registro no Módulo Desvios para acompanhamento e correção.</p>
+      </div>
+      <div class="card" style="border-color:rgba(16,185,129,0.25)">
+        <h3 style="color:var(--accent);margin-bottom:8px;">🟢 Reconhecimento</h3>
+        <p>Boas práticas, comportamentos seguros ou condições exemplares observadas. Serve para valorizar e reforçar os comportamentos positivos dos trabalhadores.</p>
+      </div>
+    </div>
+
+    <div class="callout success">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body">
+        <div class="callout-title">Integração automática com Desvios</div>
+        <div class="callout-text">Quando você registra um desvio durante uma inspeção, ele é automaticamente criado no Módulo Desvios com todos os dados (obra, TST, encarregado, foto) já preenchidos. Não precisa cadastrar duas vezes!</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 2. FLUXO ══ -->
+  <section id="fluxo">
+    <h2><span class="section-num">2</span>Fluxo Completo de uma Inspeção</h2>
+    <p class="section-lead">Uma inspeção começa em campo, com o TST percorrendo a obra, e termina quando todos os desvios registrados são fechados.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Iniciar a Inspeção</div>
+          <div class="step-desc">O TST clica em "Nova Inspeção", preenche a obra, seu nome, o encarregado e o coordenador. A data e hora são preenchidas automaticamente.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Percorrer a Obra e Adicionar Evidências</div>
+          <div class="step-desc">Para cada ponto visitado, o TST adiciona uma evidência: informa o local, tira uma foto, e classifica como Desvio ou Reconhecimento.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Para Desvios: Registrar Formalmente</div>
+          <div class="step-desc">Se a evidência for um desvio, o TST clica em "Registrar Desvio" para preencher os detalhes completos (categoria, gravidade, prazo, fotos). O desvio é criado no módulo de desvios automaticamente.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Lançar a Inspeção</div>
+          <div class="step-desc">Ao finalizar, clica em "Lançar Inspeção". A inspeção é salva com status <strong>Em Aberto</strong> e aparece na lista de inspeções em aberto.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Fechar os Desvios</div>
+          <div class="step-desc">Os encarregados corrigem os problemas e fecham os desvios na tela de detalhe da inspeção (ou diretamente no Módulo Desvios).</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:var(--accent-mid);border-color:var(--accent);">✓</div>
+        <div class="step-body">
+          <div class="step-title">Inspeção Concluída</div>
+          <div class="step-desc">Quando todos os desvios são fechados, a inspeção muda automaticamente para <strong>Concluída</strong> e fica disponível na lista de inspeções concluídas, podendo ser exportada em PDF.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 3. EM ABERTO ══ -->
+  <section id="em-aberto">
+    <h2><span class="section-num">3</span>Inspeções em Aberto</h2>
+    <p class="section-lead">Acesse pelo menu <strong>Inspeções &gt; Em Aberto</strong>. Mostra todas as inspeções que ainda têm desvios pendentes de fechamento, com indicador visual de progresso.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Card de Inspeção em Aberto</div>
+      <svg viewBox="0 0 680 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:680px;display:block;">
+        <rect width="680" height="200" fill="#111113" rx="12"/>
+        <rect x="16" y="16" width="648" height="168" rx="14" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <!-- Header -->
+        <text x="30" y="40" fill="#F59E0B" font-size="13" font-weight="700" font-family="monospace">INS-0012</text>
+        <rect x="110" y="26" width="70" height="20" rx="10" fill="rgba(245,158,11,0.15)" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
+        <text x="145" y="39" fill="#fbbf24" font-size="11" font-weight="600" text-anchor="middle" font-family="sans-serif">Em Aberto</text>
+        <text x="586" y="40" fill="#71717a" font-size="12" text-anchor="end" font-family="sans-serif">3 dias em aberto</text>
+        <!-- Info grid -->
+        <text x="30" y="62" fill="#71717a" font-size="10" font-family="sans-serif">OBRA</text>
+        <text x="200" y="62" fill="#71717a" font-size="10" font-family="sans-serif">TST</text>
+        <text x="370" y="62" fill="#71717a" font-size="10" font-family="sans-serif">ENCARREGADO</text>
+        <text x="540" y="62" fill="#71717a" font-size="10" font-family="sans-serif">DATA</text>
+        <text x="30" y="78" fill="#d4d4d8" font-size="12" font-weight="600" font-family="sans-serif">Obra Norte</text>
+        <text x="200" y="78" fill="#a1a1aa" font-size="12" font-family="sans-serif">Carlos Silva</text>
+        <text x="370" y="78" fill="#a1a1aa" font-size="12" font-family="sans-serif">João da Silva</text>
+        <text x="540" y="78" fill="#a1a1aa" font-size="12" font-family="sans-serif">📅 03/06/2025</text>
+        <!-- Stats -->
+        <circle cx="42" cy="104" r="4" fill="#ef4444"/>
+        <text x="52" y="108" fill="#a1a1aa" font-size="12" font-family="sans-serif"><tspan fill="#f87171" font-weight="700">2</tspan> desvio(s) aberto(s)</text>
+        <circle cx="190" cy="104" r="4" fill="#4ade80"/>
+        <text x="200" y="108" fill="#a1a1aa" font-size="12" font-family="sans-serif"><tspan fill="#4ade80" font-weight="700">1</tspan>/3 fechados</text>
+        <circle cx="330" cy="104" r="4" fill="#60a5fa"/>
+        <text x="340" y="108" fill="#a1a1aa" font-size="12" font-family="sans-serif"><tspan fill="#60a5fa" font-weight="700">2</tspan> reconhecimentos</text>
+        <!-- Progress bar -->
+        <text x="30" y="128" fill="#71717a" font-size="10" font-family="sans-serif">Progresso dos desvios</text>
+        <text x="562" y="128" fill="#71717a" font-size="10" text-anchor="end" font-family="sans-serif">33%</text>
+        <rect x="30" y="132" width="540" height="8" rx="4" fill="#27272a"/>
+        <rect x="30" y="132" width="180" height="8" rx="4" fill="#F59E0B"/>
+        <!-- Link button -->
+        <rect x="586" y="90" width="58" height="28" rx="8" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>
+        <text x="615" y="108" fill="#a1a1aa" font-size="12" text-anchor="middle" font-family="sans-serif">👁 Ver</text>
+        <!-- Empty -->
+        <text x="30" y="162" fill="#71717a" font-size="11" font-family="sans-serif">Desvios abertos devem ser fechados no detalhe da inspeção ou no Módulo Desvios</text>
+      </svg>
+    </div>
+
+    <h3 style="margin-top:20px;">O que o card mostra</h3>
+    <ul class="feature-list">
+      <li><strong>INS-XXXX</strong> — número único da inspeção</li>
+      <li><strong>Badge "Em Aberto"</strong> — indica que há desvios pendentes</li>
+      <li><strong>Dias em aberto</strong> — há quantos dias a inspeção está aguardando fechamento</li>
+      <li><strong>Desvios abertos/fechados</strong> — contagem visual do progresso</li>
+      <li><strong>Barra de progresso</strong> — amarela quando parcial, verde quando 100%</li>
+      <li><strong>Reconhecimentos</strong> — quantidade registrada (informativos)</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Quando fica vazia?</div>
+        <div class="callout-text">Se a aba "Em Aberto" estiver vazia, é um ótimo sinal! Significa que todos os desvios de todas as inspeções foram tratados. O sistema exibe: <em>"Ótimo! Todos os desvios foram tratados."</em></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 4. CONCLUÍDAS ══ -->
+  <section id="concluidas">
+    <h2><span class="section-num">4</span>Inspeções Concluídas</h2>
+    <p class="section-lead">Acesse pelo menu <strong>Inspeções</strong> (lista principal). Mostra apenas as inspeções em que todos os desvios foram fechados.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Tabela de Inspeções Concluídas</div>
+      <svg viewBox="0 0 780 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:780px;display:block;">
+        <rect width="780" height="200" fill="#111113" rx="10"/>
+        <rect x="12" y="12" width="756" height="176" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <!-- Table header -->
+        <rect x="12" y="12" width="756" height="28" rx="10" fill="#1c1c1e"/>
+        <text x="28" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">#</text>
+        <text x="68" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">ABERTURA</text>
+        <text x="148" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">FECHAMENTO</text>
+        <text x="228" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">DIAS</text>
+        <text x="272" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">OBRA</text>
+        <text x="380" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">TST</text>
+        <text x="460" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">ENCARREGADO</text>
+        <text x="570" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">DESVIOS</text>
+        <text x="628" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">RECONH.</text>
+        <text x="692" y="30" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">AÇÕES</text>
+        <!-- Row 1 -->
+        <text x="28" y="58" fill="#10B981" font-size="11" font-weight="700" font-family="monospace">INS-0011</text>
+        <text x="68" y="58" fill="#a1a1aa" font-size="12" font-family="sans-serif">📅 28/05/25</text>
+        <text x="148" y="58" fill="#a1a1aa" font-size="12" font-family="sans-serif">03/06/25</text>
+        <text x="228" y="58" fill="#d4d4d8" font-size="12" font-weight="600" font-family="sans-serif">6d</text>
+        <text x="272" y="58" fill="#d4d4d8" font-size="12" font-family="sans-serif">Obra Norte</text>
+        <text x="380" y="58" fill="#a1a1aa" font-size="12" font-family="sans-serif">Carlos</text>
+        <text x="460" y="58" fill="#a1a1aa" font-size="12" font-family="sans-serif">João da Silva</text>
+        <text x="590" y="58" fill="#f87171" font-size="13" font-weight="700" font-family="sans-serif">5</text>
+        <text x="648" y="58" fill="#10B981" font-size="13" font-weight="700" font-family="sans-serif">3</text>
+        <rect x="690" y="44" width="28" height="24" rx="6" fill="transparent" stroke="#3f3f46" stroke-width="1"/>
+        <text x="704" y="60" fill="#a1a1aa" font-size="12" text-anchor="middle" font-family="sans-serif">👁</text>
+        <rect x="722" y="44" width="36" height="24" rx="6" fill="transparent" stroke="#3f3f46" stroke-width="1"/>
+        <text x="740" y="60" fill="#f87171" font-size="11" font-weight="600" text-anchor="middle" font-family="sans-serif">PDF</text>
+        <!-- Row 2 -->
+        <rect x="12" y="68" width="756" height="36" fill="rgba(255,255,255,0.01)"/>
+        <text x="28" y="90" fill="#10B981" font-size="11" font-weight="700" font-family="monospace">INS-0010</text>
+        <text x="68" y="90" fill="#a1a1aa" font-size="12" font-family="sans-serif">📅 20/05/25</text>
+        <text x="148" y="90" fill="#a1a1aa" font-size="12" font-family="sans-serif">22/05/25</text>
+        <text x="228" y="90" fill="#d4d4d8" font-size="12" font-weight="600" font-family="sans-serif">2d</text>
+        <text x="272" y="90" fill="#d4d4d8" font-size="12" font-family="sans-serif">Obra Sul</text>
+        <text x="380" y="90" fill="#a1a1aa" font-size="12" font-family="sans-serif">Maria</text>
+        <text x="460" y="90" fill="#a1a1aa" font-size="12" font-family="sans-serif">Pedro Costa</text>
+        <text x="590" y="90" fill="#f87171" font-size="13" font-weight="700" font-family="sans-serif">2</text>
+        <text x="648" y="90" fill="#10B981" font-size="13" font-weight="700" font-family="sans-serif">5</text>
+      </svg>
+    </div>
+
+    <h3>Colunas da Tabela</h3>
+    <table class="field-table">
+      <tr><th>Coluna</th><th>Descrição</th></tr>
+      <tr><td>#</td><td>Número único da inspeção no formato <code>INS-0001</code></td></tr>
+      <tr><td>Abertura</td><td>Data em que a inspeção foi realizada</td></tr>
+      <tr><td>Fechamento</td><td>Data em que o último desvio foi fechado</td></tr>
+      <tr><td>Dias</td><td>Quantos dias levou do lançamento até o fechamento completo</td></tr>
+      <tr><td>Obra</td><td>Obra inspecionada</td></tr>
+      <tr><td>TST</td><td>Quem realizou a inspeção</td></tr>
+      <tr><td>Encarregado</td><td>Encarregado responsável pela área</td></tr>
+      <tr><td>Desvios</td><td>Total de desvios registrados na inspeção (em vermelho)</td></tr>
+      <tr><td>Reconh.</td><td>Total de reconhecimentos positivos (em verde)</td></tr>
+      <tr><td>Ações</td><td>Botão 👁 para ver detalhe + botão PDF para exportar</td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 5. NOVA INSPEÇÃO — STEP 1 ══ -->
+  <section id="nova-step1">
+    <h2><span class="section-num">5</span>Nova Inspeção — Etapa 1: Identificação</h2>
+    <p class="section-lead">Clique em <strong>"Nova Inspeção"</strong> no menu. Na primeira etapa, você informa os dados gerais da inspeção. A data e hora são preenchidas automaticamente com o momento atual.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Etapa 1 — Cabeçalho da Inspeção</div>
+      <svg viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:520px;display:block;">
+        <rect width="520" height="260" fill="#111113" rx="12"/>
+        <!-- MSE Header -->
+        <rect x="16" y="16" width="488" height="56" rx="12" fill="#E8291C"/>
+        <rect x="16" y="54" width="488" height="18" fill="#E8291C"/>
+        <!-- Logo mse + separador + título alinhados verticalmente -->
+        <text x="30" y="49" fill="white" font-size="13" font-weight="900" font-family="sans-serif">mse</text>
+        <rect x="58" y="29" width="1" height="26" fill="rgba(255,255,255,0.35)"/>
+        <text x="66" y="42" fill="white" font-size="13" font-weight="700" font-family="sans-serif">Nova Inspeção HSE</text>
+        <text x="66" y="57" fill="rgba(255,255,255,0.75)" font-size="11" font-family="sans-serif">MSE Engenharia</text>
+        <text x="492" y="40" fill="rgba(255,255,255,0.9)" font-size="12" font-weight="600" text-anchor="end" font-family="sans-serif">06/06/2025</text>
+        <text x="492" y="56" fill="rgba(255,255,255,0.7)" font-size="11" text-anchor="end" font-family="sans-serif">09:42</text>
+        <!-- Form card -->
+        <rect x="16" y="82" width="488" height="162" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="30" y="104" fill="#d4d4d8" font-size="13" font-weight="700" font-family="sans-serif">Informações da Inspeção</text>
+        <!-- Obra -->
+        <text x="30" y="122" fill="#a1a1aa" font-size="11" font-family="sans-serif">Obra *</text>
+        <rect x="30" y="127" width="472" height="32" rx="8" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="46" y="147" fill="#d4d4d8" font-size="12" font-family="sans-serif">Obra Norte — São Paulo ▾</text>
+        <!-- TST, Encarregado, Coordenador -->
+        <text x="30" y="174" fill="#a1a1aa" font-size="11" font-family="sans-serif">TST (Inspetor) *</text>
+        <rect x="30" y="179" width="148" height="32" rx="8" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="104" y="199" fill="#d4d4d8" font-size="11" text-anchor="middle" font-family="sans-serif">Carlos Silva ▾</text>
+        <text x="192" y="174" fill="#a1a1aa" font-size="11" font-family="sans-serif">Encarregado *</text>
+        <rect x="192" y="179" width="148" height="32" rx="8" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="266" y="199" fill="#d4d4d8" font-size="11" text-anchor="middle" font-family="sans-serif">João da Silva ▾</text>
+        <text x="354" y="174" fill="#a1a1aa" font-size="11" font-family="sans-serif">Coordenador *</text>
+        <rect x="354" y="179" width="148" height="32" rx="8" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="428" y="199" fill="#d4d4d8" font-size="11" text-anchor="middle" font-family="sans-serif">Marcos Lima ▾</text>
+        <!-- Button -->
+        <rect x="30" y="224" width="472" height="34" rx="10" fill="#E8291C"/>
+        <text x="266" y="245" fill="white" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">Adicionar Evidências →</text>
+      </svg>
+    </div>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Observação</th></tr>
+      <tr><td>Obra</td><td class="required">Sim</td><td>Somente obras ativas. Ao selecionar, os demais campos são filtrados.</td></tr>
+      <tr><td>TST (Inspetor)</td><td class="required">Sim</td><td>O técnico de segurança que está realizando a inspeção.</td></tr>
+      <tr><td>Encarregado</td><td class="required">Sim</td><td>O encarregado responsável pela área inspecionada.</td></tr>
+      <tr><td>Coordenador</td><td class="required">Sim</td><td>O coordenador da obra.</td></tr>
+      <tr><td>Data/Hora</td><td class="optional">Auto</td><td>Preenchida automaticamente com o momento do lançamento.</td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 6. NOVA INSPEÇÃO — STEP 2 ══ -->
+  <section id="nova-step2">
+    <h2><span class="section-num">6</span>Nova Inspeção — Etapa 2: Evidências</h2>
+    <p class="section-lead">Após clicar em "Adicionar Evidências", você entra na etapa principal da inspeção. Aqui você cadastra cada ponto visitado como uma evidência.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Etapa 2 — Lista de Evidências</div>
+      <svg viewBox="0 0 540 310" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:540px;display:block;">
+        <rect width="540" height="310" fill="#111113" rx="12"/>
+        <!-- Summary bar -->
+        <rect x="12" y="12" width="516" height="36" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="26" y="34" fill="#d4d4d8" font-size="13" font-weight="600" font-family="sans-serif">Obra Norte</text>
+        <text x="148" y="34" fill="#3f3f46" font-size="16" font-family="sans-serif">|</text>
+        <text x="160" y="34" fill="#71717a" font-size="12" font-family="sans-serif">TST: Carlos Silva</text>
+        <text x="316" y="34" fill="#3f3f46" font-size="16" font-family="sans-serif">|</text>
+        <text x="328" y="34" fill="#71717a" font-size="12" font-family="sans-serif">Enc: João da Silva</text>
+        <text x="510" y="34" fill="#10B981" font-size="12" text-anchor="end" font-family="sans-serif">Editar</text>
+        <!-- Evidence card 1 — altura suficiente para conter os botões de tipo -->
+        <rect x="12" y="56" width="516" height="172" rx="12" fill="#18181b" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+        <text x="26" y="76" fill="#d4d4d8" font-size="13" font-weight="700" font-family="sans-serif">Evidência #1</text>
+        <text x="500" y="76" fill="#52525b" font-size="14" text-anchor="end" font-family="sans-serif">🗑</text>
+        <!-- Local -->
+        <text x="26" y="96" fill="#a1a1aa" font-size="11" font-family="sans-serif">📍 Local *</text>
+        <rect x="26" y="101" width="496" height="28" rx="8" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="40" y="119" fill="#d4d4d8" font-size="12" font-family="sans-serif">Bloco A — 2º andar, escada central</text>
+        <!-- Fotos -->
+        <rect x="26" y="138" width="44" height="44" rx="8" fill="#1a2e1a"/>
+        <text x="48" y="165" fill="#4ade80" font-size="20" text-anchor="middle" font-family="sans-serif">📷</text>
+        <rect x="78" y="138" width="44" height="44" rx="8" fill="#1c1c1e" stroke="#3f3f46" stroke-width="1.5" stroke-dasharray="4,2"/>
+        <text x="100" y="165" fill="#3f3f46" font-size="18" text-anchor="middle" font-family="sans-serif">📷</text>
+        <!-- Type buttons — dentro do card -->
+        <rect x="26" y="192" width="130" height="30" rx="10" fill="rgba(239,68,68,0.2)" stroke="rgba(239,68,68,0.5)" stroke-width="1.5"/>
+        <text x="91" y="211" fill="#f87171" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">🛡 Desvio</text>
+        <rect x="166" y="192" width="160" height="30" rx="10" fill="transparent" stroke="#3f3f46" stroke-width="1"/>
+        <text x="246" y="211" fill="#71717a" font-size="12" text-anchor="middle" font-family="sans-serif">👍 Reconhecimento</text>
+        <!-- Add evidence -->
+        <rect x="12" y="238" width="516" height="44" rx="12" fill="transparent" stroke="#3f3f46" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <text x="270" y="264" fill="#71717a" font-size="13" text-anchor="middle" font-family="sans-serif">+ Evidência</text>
+        <!-- Launch hint -->
+        <text x="270" y="296" fill="#52525b" font-size="11" text-anchor="middle" font-family="sans-serif">— Lançar Inspeção (habilitado quando tudo preenchido)</text>
+      </svg>
+    </div>
+
+    <ul class="feature-list">
+      <li>Clique em <strong>"+ Evidência"</strong> para adicionar novos pontos visitados</li>
+      <li>Cada evidência tem: <strong>Local</strong> (onde foi), <strong>Fotos</strong> e <strong>Tipo</strong> (Desvio ou Reconhecimento)</li>
+      <li>O botão <strong>"Lançar Inspeção"</strong> só habilita quando todas as evidências estão completas</li>
+      <li>Evidências marcadas como Desvio ficam com borda vermelha; Reconhecimento com borda verde</li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠</div>
+      <div class="callout-body">
+        <div class="callout-title">Evidência incompleta</div>
+        <div class="callout-text">Se uma evidência for marcada como "Desvio" mas não tiver um desvio formalmente registrado, aparece um aviso: <em>"Há evidência(s) marcadas como Desvio sem desvio registrado."</em> Clique em "Registrar Desvio" antes de lançar.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 7. TIPO DESVIO ══ -->
+  <section id="tipo-desvio">
+    <h2><span class="section-num">7</span>Evidência Tipo: Desvio</h2>
+    <p class="section-lead">Quando você classifica uma evidência como <strong>Desvio</strong>, ela exige que o desvio seja formalmente registrado através do modal de registro.</p>
+
+    <div class="tipo-grid">
+      <div class="tipo-card desvio">
+        <h3>🔴 Caracterização</h3>
+        <p style="font-size:13px;">Use quando identificar qualquer condição ou comportamento que representa risco à segurança ou não-conformidade com as normas.</p>
+      </div>
+      <div class="tipo-card desvio" style="border-color:rgba(232,41,28,0.15);">
+        <h3 style="color:#fca5a5;">📋 O que acontece</h3>
+        <p style="font-size:13px;">O sistema cria automaticamente um desvio vinculado à inspeção, com os dados da obra, TST e encarregado já preenchidos. Fica disponível no Módulo Desvios.</p>
+      </div>
+    </div>
+
+    <h3>Campos da evidência tipo Desvio</h3>
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>Local</td><td class="required">Sim</td><td>Onde o desvio foi encontrado. Ex: "Bloco A, 2º andar"</td></tr>
+      <tr><td>Foto(s)</td><td class="optional">Não*</td><td>Foto do desvio na abertura. Obrigatória dentro do modal de registro do desvio.</td></tr>
+      <tr><td>Tipo</td><td class="required">Sim</td><td>Selecionar "Desvio"</td></tr>
+      <tr><td>Desvio Registrado</td><td class="required">Sim</td><td>Clicar em "Registrar Desvio" e preencher o modal completo</td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 8. TIPO RECONHECIMENTO ══ -->
+  <section id="tipo-reconh">
+    <h2><span class="section-num">8</span>Evidência Tipo: Reconhecimento</h2>
+    <p class="section-lead">Quando você classifica uma evidência como <strong>Reconhecimento</strong>, você está registrando algo positivo — uma boa prática, comportamento exemplar ou condição impecável.</p>
+
+    <div class="tipo-grid">
+      <div class="tipo-card reconhecimento">
+        <h3>🟢 Caracterização</h3>
+        <p style="font-size:13px;">Use quando encontrar trabalhadores utilizando EPI corretamente, áreas organizadas, documentação em dia, boas práticas de segurança sendo seguidas espontaneamente.</p>
+      </div>
+      <div class="tipo-card reconhecimento" style="border-color:rgba(16,185,129,0.15);">
+        <h3 style="color:#6ee7b7;">📋 O que acontece</h3>
+        <p style="font-size:13px;">O reconhecimento fica registrado apenas na inspeção, como informativo. Não gera registro no Módulo Desvios. Serve para relatórios positivos.</p>
+      </div>
+    </div>
+
+    <h3>Campos da evidência tipo Reconhecimento</h3>
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>Local</td><td class="required">Sim</td><td>Onde a boa prática foi observada</td></tr>
+      <tr><td>Foto(s)</td><td class="optional">Não</td><td>Foto opcional do comportamento/condição positiva</td></tr>
+      <tr><td>Tipo</td><td class="required">Sim</td><td>Selecionar "Reconhecimento"</td></tr>
+      <tr><td>Descrição</td><td class="required">Sim</td><td>Descrição do que foi observado de positivo</td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 9. MODAL DESVIO ══ -->
+  <section id="modal-desvio">
+    <h2><span class="section-num">9</span>Registrar Desvio (Modal)</h2>
+    <p class="section-lead">Ao clicar em <strong>"Registrar Desvio"</strong> dentro de uma evidência, um modal de 2 passos aparece sobre a tela. Os dados da obra, TST, encarregado e coordenador já vêm preenchidos da inspeção.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Modal de Registro de Desvio</div>
+      <svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:520px;display:block;">
+        <rect width="520" height="380" fill="#111113" rx="12"/>
+        <!-- Overlay -->
+        <rect width="520" height="380" fill="rgba(0,0,0,0.7)" rx="12"/>
+        <!-- Modal card -->
+        <rect x="20" y="20" width="480" height="340" rx="16" fill="#09090b" stroke="#3f3f46" stroke-width="1"/>
+        <!-- Modal header -->
+        <rect x="20" y="20" width="480" height="52" rx="12" fill="#111113" stroke="#27272a" stroke-width="1"/>
+        <rect x="36" y="36" width="28" height="28" rx="8" fill="rgba(239,68,68,0.2)"/>
+        <text x="50" y="54" fill="#f87171" font-size="14" text-anchor="middle" font-family="sans-serif">🛡</text>
+        <text x="74" y="42" fill="#f4f4f5" font-size="13" font-weight="700" font-family="sans-serif">Registrar Desvio</text>
+        <text x="74" y="58" fill="#71717a" font-size="11" font-family="sans-serif">Passo 1 de 2</text>
+        <text x="486" y="52" fill="#71717a" font-size="18" text-anchor="end" font-family="sans-serif">✕</text>
+        <!-- Pre-filled info -->
+        <rect x="36" y="80" width="448" height="50" rx="8" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="48" y="95" fill="#52525b" font-size="10" font-weight="700" font-family="sans-serif">DADOS DA INSPEÇÃO (PRÉ-PREENCHIDOS)</text>
+        <text x="48" y="111" fill="#71717a" font-size="11" font-family="sans-serif">Obra: <tspan fill="#d4d4d8">Obra Norte</tspan>   TST: <tspan fill="#d4d4d8">Carlos Silva</tspan>   Enc: <tspan fill="#d4d4d8">João da Silva</tspan></text>
+        <text x="48" y="123" fill="#71717a" font-size="11" font-family="sans-serif">Coordenador: <tspan fill="#d4d4d8">Marcos Lima</tspan></text>
+        <!-- Fields -->
+        <text x="36" y="148" fill="#a1a1aa" font-size="11" font-family="sans-serif">Local Exato *</text>
+        <rect x="36" y="153" width="448" height="28" rx="8" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="50" y="171" fill="#71717a" font-size="12" font-family="sans-serif">Bloco A, 2º andar (pré-preenchido)</text>
+        <text x="36" y="196" fill="#a1a1aa" font-size="11" font-family="sans-serif">Categoria(s) *</text>
+        <!-- Category chips -->
+        <rect x="36" y="201" width="68" height="22" rx="6" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>
+        <text x="70" y="216" fill="#f87171" font-size="11" font-weight="600" text-anchor="middle" font-family="sans-serif">EPI/EPC ✓</text>
+        <rect x="112" y="201" width="90" height="22" rx="6" fill="#27272a" stroke="#3f3f46" stroke-width="1"/>
+        <text x="157" y="216" fill="#71717a" font-size="11" text-anchor="middle" font-family="sans-serif">Trab. Altura</text>
+        <rect x="210" y="201" width="74" height="22" rx="6" fill="#27272a" stroke="#3f3f46" stroke-width="1"/>
+        <text x="247" y="216" fill="#71717a" font-size="11" text-anchor="middle" font-family="sans-serif">Ferramentas</text>
+        <!-- Gravidade -->
+        <text x="36" y="242" fill="#a1a1aa" font-size="11" font-family="sans-serif">Gravidade *</text>
+        <rect x="36" y="248" width="106" height="30" rx="8" fill="rgba(249,115,22,0.15)" stroke="rgba(249,115,22,0.5)" stroke-width="1.5"/>
+        <text x="89" y="267" fill="#fb923c" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">Alto</text>
+        <rect x="150" y="248" width="106" height="30" rx="8" fill="#27272a" stroke="#3f3f46" stroke-width="1"/>
+        <text x="203" y="267" fill="#71717a" font-size="12" text-anchor="middle" font-family="sans-serif">Médio</text>
+        <!-- Descrição -->
+        <text x="36" y="298" fill="#a1a1aa" font-size="11" font-family="sans-serif">Descrição *  (mín. 10 caracteres)</text>
+        <rect x="36" y="304" width="448" height="36" rx="8" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="50" y="319" fill="#71717a" font-size="12" font-family="sans-serif">Trabalhador sem capacete no 2º andar do Bloco A...</text>
+        <!-- Next button -->
+        <rect x="36" y="350" width="448" height="32" rx="10" fill="#E8291C"/>
+        <text x="260" y="370" fill="white" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">Próximo — Fotos →</text>
+      </svg>
+    </div>
+
+    <h3>Passo 1: Detalhes do Desvio</h3>
+    <table class="field-table">
+      <tr><th>Campo</th><th>Descrição</th></tr>
+      <tr><td>Local Exato</td><td>Pré-preenchido com o local da evidência. Pode ser editado.</td></tr>
+      <tr><td>Categoria(s)</td><td>Selecione uma ou mais categorias do desvio</td></tr>
+      <tr><td>Gravidade</td><td>Baixo, Médio, Alto ou Crítico</td></tr>
+      <tr><td>Descrição</td><td>Mínimo 10 caracteres. Descreva o que foi visto.</td></tr>
+      <tr><td>Prazo para Correção</td><td>Data limite para corrigir o desvio</td></tr>
+    </table>
+
+    <h3 style="margin-top:20px;">Passo 2: Fotos do Desvio</h3>
+    <p>No segundo passo do modal, adicione pelo menos 1 foto do desvio. Após isso, clique em <strong>"Registrar Desvio"</strong>. O desvio é criado e vinculado à evidência automaticamente.</p>
+
+    <div class="callout success">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body">
+        <div class="callout-title">Confirmação de vínculo</div>
+        <div class="callout-text">Após registrar, a evidência mostra: <em>"Desvio #00248 vinculado — Aparecerá na lista de desvios"</em>. O número do desvio fica visível, confirmando o vínculo.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 10. DETALHE ══ -->
+  <section id="detalhe">
+    <h2><span class="section-num">10</span>Abrindo o Detalhe da Inspeção</h2>
+    <p class="section-lead">Clique no botão 👁 em qualquer inspeção para abrir a tela de detalhe. Aqui você vê todas as evidências, pode fechar desvios e exportar o relatório.</p>
+
+    <ul class="feature-list">
+      <li>Resumo no topo: total de desvios, fechados e reconhecimentos (KPIs)</li>
+      <li>Lista de todas as evidências com foto, local, tipo e status</li>
+      <li>Para desvios: botão de fechamento com foto comprobatória</li>
+      <li>Barra de progresso de fechamentos</li>
+      <li>Botão de exportação PDF</li>
+    </ul>
+  </section>
+
+  <!-- ══ 11. FECHAR DESVIO ══ -->
+  <section id="fechar-desvio">
+    <h2><span class="section-num">11</span>Fechar Desvio na Inspeção</h2>
+    <p class="section-lead">Na tela de detalhe da inspeção, cada evidência do tipo Desvio tem um botão para fechá-la. O fechamento é feito na própria inspeção, com foto comprobatória.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Localize o desvio na lista de evidências</div>
+          <div class="step-desc">Os desvios em aberto aparecem com borda vermelha e badge "Em Aberto".</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Clique em "Fechar Desvio"</div>
+          <div class="step-desc">Um formulário de fechamento aparece abaixo da evidência.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Adicione a foto de fechamento</div>
+          <div class="step-desc">Tire uma foto ou selecione da galeria mostrando que o desvio foi corrigido. Obrigatório.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Informe a tratativa e o responsável</div>
+          <div class="step-desc">Descreva o que foi feito e quem realizou a correção.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:var(--accent-mid);border-color:var(--accent);">✓</div>
+        <div class="step-body">
+          <div class="step-title">Inspeção pode ser concluída</div>
+          <div class="step-desc">Quando todos os desvios forem fechados, a inspeção muda automaticamente para "Concluída".</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 12. PDF ══ -->
+  <section id="pdf">
+    <h2><span class="section-num">12</span>Exportar PDF da Inspeção</h2>
+    <p class="section-lead">Cada inspeção concluída pode ser exportada como um relatório PDF completo. Clique no botão <strong>"PDF"</strong> na lista ou no detalhe da inspeção.</p>
+
+    <div class="card">
+      <h3 style="color:var(--red);margin-bottom:10px;">O que o PDF inclui</h3>
+      <ul class="feature-list">
+        <li><strong>Capa</strong> com cabeçalho MSE, número da inspeção, data/hora de emissão</li>
+        <li><strong>Dados gerais</strong>: obra, TST/inspetor, encarregado, coordenador, data</li>
+        <li><strong>KPIs visuais</strong>: total de desvios, desvios fechados, reconhecimentos</li>
+        <li><strong>Tabela de evidências</strong>: listagem completa com local, tipo, status, prazo</li>
+        <li><strong>Página por evidência</strong>: foto de abertura + foto de fechamento (lado a lado para desvios)</li>
+        <li><strong>Info de fechamento</strong>: data, responsável e tratativa realizada</li>
+        <li><strong>Rodapé</strong> com "MSE Engenharia · Sistema de Gestão HSE" e paginação</li>
+      </ul>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Somente inspeções concluídas</div>
+        <div class="callout-text">O botão PDF só aparece para inspeções com status "Concluída". Enquanto houver desvios em aberto, o PDF não pode ser gerado.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 13. FILTROS ══ -->
+  <section id="filtros">
+    <h2><span class="section-num">13</span>Filtros</h2>
+    <p class="section-lead">Ambas as listas (Em Aberto e Concluídas) possuem filtros para localizar inspeções específicas.</p>
+
+    <table class="field-table">
+      <tr><th>Filtro</th><th>Descrição</th></tr>
+      <tr><td>Busca por texto</td><td>Pesquisa em número, obra, TST, encarregado, coordenador</td></tr>
+      <tr><td>Obra</td><td>Filtra por obra. Ao selecionar, TST/encarregado/coordenador ficam filtrados pela obra.</td></tr>
+      <tr><td>TST (Inspetor)</td><td>Filtra pelo TST que realizou a inspeção</td></tr>
+      <tr><td>Encarregado</td><td>Filtra pelo encarregado</td></tr>
+      <tr><td>Coordenador</td><td>Filtra pelo coordenador</td></tr>
+      <tr><td>Data início / Data fim</td><td>Somente disponível na lista de Concluídas. Filtra por data de inspeção.</td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 14. STATUS ══ -->
+  <section id="status">
+    <h2><span class="section-num">14</span>Status da Inspeção</h2>
+    <p class="section-lead">Uma inspeção possui apenas dois status possíveis, e a transição é automática.</p>
+
+    <div class="card-grid">
+      <div class="card" style="border-color:rgba(245,158,11,0.3)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--amber);"></div>
+          <h3 style="color:#fbbf24;">Em Aberto</h3>
+        </div>
+        <p>A inspeção foi lançada mas ainda existem desvios sem fechamento. A inspeção fica na lista "Em Aberto" e é visível para todos da obra.</p>
+      </div>
+      <div class="card" style="border-color:rgba(16,185,129,0.3)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--accent);"></div>
+          <h3 style="color:var(--accent);">Concluída</h3>
+        </div>
+        <p>Todos os desvios da inspeção foram fechados. Muda automaticamente para este status. O PDF fica disponível para exportação.</p>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Transição automática</div>
+        <div class="callout-text">Você não precisa "concluir" manualmente uma inspeção. Quando o último desvio é fechado, o sistema detecta automaticamente e muda o status para Concluída.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 15. NUMERAÇÃO ══ -->
+  <section id="numeracao">
+    <h2><span class="section-num">15</span>Numeração das Inspeções</h2>
+    <p class="section-lead">Cada inspeção recebe automaticamente um número sequencial no formato <code>INS-0001</code>, <code>INS-0002</code>, etc.</p>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;">Sobre a numeração</h3>
+      <ul class="feature-list">
+        <li>O número é atribuído automaticamente na ordem de criação</li>
+        <li>Nunca é reutilizado, mesmo se a inspeção for excluída</li>
+        <li>O número aparece em destaque em cor verde (<code style="color:var(--accent)">INS-0001</code>) em todas as telas</li>
+        <li>O PDF é salvo com o nome <code>Inspecao-INS0001-2025-06-06.pdf</code></li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>
