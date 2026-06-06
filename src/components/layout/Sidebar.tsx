@@ -6,25 +6,35 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
-  ClipboardCheck, AlertCircle,
+  ClipboardCheck, AlertCircle, BookOpen, FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ── Sistema detectado pelo pathname ──────────────────────────────────────────
 
-type Sistema = 'desvios' | 'indicadores' | 'inspecoes'
+type Sistema = 'desvios' | 'indicadores' | 'inspecoes' | 'tutorial'
 
 function getSistema(pathname: string): Sistema {
-  if (pathname.startsWith('/inspecoes')) return 'inspecoes'
+  if (pathname.startsWith('/tutorial'))   return 'tutorial'
+  if (pathname.startsWith('/inspecoes'))  return 'inspecoes'
   if (pathname.startsWith('/indicadores')) return 'indicadores'
   return 'desvios'
 }
 
 // ── Configuração dos menus ────────────────────────────────────────────────────
 
-const MENUS = [
+const MENUS: Array<{
+  key:      Sistema
+  label:    string
+  icon:     React.ElementType
+  cor:      string
+  corHover: string
+  homeHref: string
+  acao?:    { label: string; href: string }
+  subnav:   Array<{ href: string; icon: React.ElementType; label: string }>
+}> = [
   {
-    key:        'desvios' as Sistema,
+    key:        'desvios',
     label:      'Desvios',
     icon:       AlertTriangle,
     cor:        '#E8291C',
@@ -39,7 +49,7 @@ const MENUS = [
     ],
   },
   {
-    key:        'indicadores' as Sistema,
+    key:        'indicadores',
     label:      'Indicadores HSE',
     icon:       TrendingUp,
     cor:        '#3B82F6',
@@ -53,7 +63,7 @@ const MENUS = [
     ],
   },
   {
-    key:        'inspecoes' as Sistema,
+    key:        'inspecoes',
     label:      'Inspeções HSE',
     icon:       ClipboardCheck,
     cor:        '#10B981',
@@ -61,10 +71,23 @@ const MENUS = [
     homeHref:   '/inspecoes/dashboard',
     acao:       { label: 'Nova Inspeção', href: '/inspecoes/nova' },
     subnav: [
-      { href: '/inspecoes/dashboard',  icon: LayoutDashboard, label: 'Dashboard'      },
-      { href: '/inspecoes/em-aberto',  icon: AlertCircle,     label: 'Em Aberto'      },
-      { href: '/inspecoes',            icon: ClipboardList,   label: 'Inspeções'      },
-      { href: '/inspecoes/relatorios', icon: BarChart3,       label: 'Relatórios'     },
+      { href: '/inspecoes/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
+      { href: '/inspecoes/em-aberto',  icon: AlertCircle,     label: 'Em Aberto'  },
+      { href: '/inspecoes',            icon: ClipboardList,   label: 'Inspeções'  },
+      { href: '/inspecoes/relatorios', icon: BarChart3,       label: 'Relatórios' },
+    ],
+  },
+  {
+    key:        'tutorial',
+    label:      'Tutoriais',
+    icon:       BookOpen,
+    cor:        '#8B5CF6',
+    corHover:   '#7C3AED',
+    homeHref:   '/tutorial',
+    subnav: [
+      { href: '/tutorial/desvios',     icon: FileText, label: 'Manual Desvios'     },
+      { href: '/tutorial/inspecoes',   icon: FileText, label: 'Manual Inspeções'   },
+      { href: '/tutorial/indicadores', icon: FileText, label: 'Manual Indicadores' },
     ],
   },
 ]
@@ -187,30 +210,32 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
         })}
       </nav>
 
-      {/* ── Ação rápida contextual ── */}
-      <div className="px-3 pb-3 pt-3 border-t border-zinc-800">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`acao-${sistema}`}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
-          >
-            <Link
-              href={cfg.acao.href}
-              onClick={onClose}
-              className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 text-white"
-              style={{ background: cfg.cor }}
-              onMouseEnter={e => (e.currentTarget.style.background = cfg.corHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = cfg.cor)}
+      {/* ── Ação rápida contextual (não exibida no módulo Tutoriais) ── */}
+      {cfg.acao && (
+        <div className="px-3 pb-3 pt-3 border-t border-zinc-800">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`acao-${sistema}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15 }}
             >
-              <Plus className="w-4 h-4" />
-              {cfg.acao.label}
-            </Link>
-          </motion.div>
-        </AnimatePresence>
-      </div>
+              <Link
+                href={cfg.acao.href}
+                onClick={onClose}
+                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 text-white"
+                style={{ background: cfg.cor }}
+                onMouseEnter={e => (e.currentTarget.style.background = cfg.corHover!)}
+                onMouseLeave={e => (e.currentTarget.style.background = cfg.cor)}
+              >
+                <Plus className="w-4 h-4" />
+                {cfg.acao.label}
+              </Link>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* ── Footer ── */}
       <div className="p-3 border-t border-zinc-800">

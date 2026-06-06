@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual — Indicadores HSE | MSE HSE</title>
+<style>
+  :root {
+    --accent: #3B82F6;
+    --accent-dim: rgba(59,130,246,0.12);
+    --accent-mid: rgba(59,130,246,0.25);
+    --bg: #09090b;
+    --bg2: #111113;
+    --bg3: #18181b;
+    --bg4: #27272a;
+    --border: #3f3f46;
+    --border-soft: #27272a;
+    --text: #f4f4f5;
+    --text2: #a1a1aa;
+    --text3: #71717a;
+    --text4: #52525b;
+    --green: #10B981;
+    --amber: #F59E0B;
+    --red: #E8291C;
+    --sidebar-w: 260px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--bg2); border-right: 1px solid var(--border-soft);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid var(--border-soft); }
+  .brand-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent-dim); border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 10px; padding: 6px 10px; margin-bottom: 10px;
+  }
+  .brand-badge .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  .brand-badge span { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+  .brand-title { font-size: 15px; font-weight: 800; color: var(--text); }
+  .brand-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .nav-section { padding: 12px 12px 4px; font-size: 10px; font-weight: 700; color: var(--text4); letter-spacing: 0.08em; text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 8px; margin: 1px 8px;
+    font-size: 13px; color: var(--text2); text-decoration: none; transition: all 0.15s;
+  }
+  .nav-item:hover { background: var(--bg4); color: var(--text); }
+  .nav-item .num {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--bg4); font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border-soft); }
+  .sidebar-footer p { font-size: 11px; color: var(--text4); }
+  .sidebar-footer strong { color: var(--text3); }
+
+  .main { flex: 1; max-width: 900px; padding: 48px 48px 80px; }
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+
+  .cover {
+    background: linear-gradient(135deg, var(--bg3) 0%, #070d1c 100%);
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 20px; padding: 48px; margin-bottom: 64px; position: relative; overflow: hidden;
+  }
+  .cover::before {
+    content: ''; position: absolute; top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .cover-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .cover-title { font-size: 36px; font-weight: 900; line-height: 1.1; color: var(--text); margin-bottom: 12px; }
+  .cover-title span { color: var(--accent); }
+  .cover-desc { font-size: 15px; color: var(--text2); line-height: 1.6; max-width: 480px; margin-bottom: 28px; }
+  .cover-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  .cover-stat .val { font-size: 28px; font-weight: 900; color: var(--accent); line-height: 1; }
+  .cover-stat .lbl { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  h2 { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  h2 .section-num {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent-dim); color: var(--accent);
+    font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  p { font-size: 14px; line-height: 1.7; color: var(--text2); }
+  .section-lead { font-size: 15px; color: var(--text2); line-height: 1.6; margin-bottom: 24px; border-left: 3px solid var(--accent); padding-left: 14px; }
+
+  .card { background: var(--bg3); border: 1px solid var(--border-soft); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+  .kpi-card {
+    background: var(--bg3); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 16px; text-align: center;
+  }
+  .kpi-val { font-size: 28px; font-weight: 900; line-height: 1; margin: 6px 0 4px; }
+  .kpi-lbl { font-size: 11px; color: var(--text3); font-weight: 600; letter-spacing: 0.04em; }
+  .kpi-sub { font-size: 10px; color: var(--text4); margin-top: 2px; }
+
+  .steps { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+  .step { display: flex; gap: 16px; padding-bottom: 28px; position: relative; }
+  .step:not(:last-child)::before { content: ''; position: absolute; left: 18px; top: 38px; bottom: 0; width: 2px; background: var(--border-soft); }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-dim); border: 2px solid var(--accent);
+    color: var(--accent); font-size: 14px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .step-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  .callout { border-radius: 12px; padding: 14px 16px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start; }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { flex: 1; }
+  .callout-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .callout-text { font-size: 13px; line-height: 1.5; }
+  .callout.tip { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); }
+  .callout.tip .callout-title { color: var(--accent); }
+  .callout.tip .callout-text { color: #93c5fd; }
+  .callout.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); }
+  .callout.warn .callout-title { color: var(--amber); }
+  .callout.warn .callout-text { color: #fcd34d; }
+  .callout.danger { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); }
+  .callout.danger .callout-title { color: #ef4444; }
+  .callout.danger .callout-text { color: #fca5a5; }
+  .callout.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); }
+  .callout.success .callout-title { color: var(--green); }
+  .callout.success .callout-text { color: #6ee7b7; }
+
+  .field-table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+  .field-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--text4); text-transform: uppercase; letter-spacing: 0.06em; background: var(--bg4); border-bottom: 1px solid var(--border-soft); }
+  .field-table td { padding: 10px 12px; font-size: 13px; color: var(--text2); border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-table td:first-child { color: var(--text); font-weight: 600; }
+  .field-table .required { color: #ef4444; font-weight: 700; }
+  .field-table .optional { color: var(--text4); font-style: italic; }
+  .field-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  ul.feature-list { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+  ul.feature-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text2); line-height: 1.5; }
+  ul.feature-list li::before { content: '→'; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  .wireframe-wrap { background: var(--bg3); border: 1px solid var(--border-soft); border-radius: 16px; padding: 16px; margin: 20px 0; overflow-x: auto; }
+  .wireframe-label { font-size: 11px; font-weight: 700; color: var(--text4); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .wireframe-label::before { content: ''; display: block; width: 4px; height: 14px; background: var(--accent); border-radius: 2px; }
+
+  .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+  .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text3); }
+  .chart-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .section-block { background: var(--bg3); border: 1px solid var(--border-soft); border-radius: 14px; padding: 16px 20px; margin-bottom: 12px; }
+  .section-block-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .section-block-icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+
+  /* ── Custom Scrollbar ── */
+  .sidebar::-webkit-scrollbar { width: 5px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #3B82F6 0%, rgba(59,130,246,0.3) 100%);
+    border-radius: 10px;
+  }
+  .sidebar::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
+  .main::-webkit-scrollbar { width: 6px; }
+  .main::-webkit-scrollbar-track { background: transparent; }
+  .main::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 10px; }
+  .main::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+  /* ── MSE Logo ── */
+  .mse-logo {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .mse-logo-mark {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: #E8291C; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 2px 10px rgba(232,41,28,0.4);
+  }
+  .mse-logo-mark span {
+    font-size: 13px; font-weight: 900; color: white; letter-spacing: -0.03em;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .mse-logo-text { line-height: 1.2; }
+  .mse-logo-text .l1 { font-size: 13px; font-weight: 800; color: var(--text); }
+  .mse-logo-text .l2 { font-size: 10px; color: var(--text4); }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { padding: 24px 20px 60px; }
+    .card-grid, .card-grid-3, .card-grid-4 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="mse-logo">
+      <div class="mse-logo-mark"><span>mse</span></div>
+      <div class="mse-logo-text">
+        <div class="l1">Indicadores HSE</div>
+        <div class="l2">Manual do Usuário</div>
+      </div>
+    </div>
+    <div class="brand-badge"><span class="dot"></span><span>MSE ENGENHARIA · HSE</span></div>
+  </div>
+  <div style="padding:8px 0;">
+    <div class="nav-section">Introdução</div>
+    <a href="#visao-geral" class="nav-item"><span class="num">1</span>Visão Geral</a>
+    <a href="#filtros" class="nav-item"><span class="num">2</span>Filtros do Dashboard</a>
+    <div class="nav-section">KPIs</div>
+    <a href="#kpis" class="nav-item"><span class="num">3</span>8 Cartões KPI</a>
+    <div class="nav-section">Gráficos</div>
+    <a href="#grafico-efetivo" class="nav-item"><span class="num">4</span>Efetivo MSE</a>
+    <a href="#grafico-gauges" class="nav-item"><span class="num">5</span>Gauges HHT e Acidentes</a>
+    <a href="#grafico-donut" class="nav-item"><span class="num">6</span>Taxa de Solução de Desvios</a>
+    <a href="#grafico-apr" class="nav-item"><span class="num">7</span>APR × PT (Documentos)</a>
+    <a href="#grafico-desvios" class="nav-item"><span class="num">8</span>Desvios Ocorridos×Resolvidos</a>
+    <a href="#grafico-aloj" class="nav-item"><span class="num">9</span>Alojamentos</a>
+    <a href="#grafico-hht" class="nav-item"><span class="num">10</span>HHT Semanal</a>
+    <div class="nav-section">Lançar Indicadores</div>
+    <a href="#lancar" class="nav-item"><span class="num">11</span>Acessar o Formulário</a>
+    <a href="#sec-identificacao" class="nav-item"><span class="num">12</span>Identificação</a>
+    <a href="#sec-efetivo" class="nav-item"><span class="num">13</span>Efetivo MSE</a>
+    <a href="#sec-docseg" class="nav-item"><span class="num">14</span>Documentos de Segurança</a>
+    <a href="#sec-desvios" class="nav-item"><span class="num">15</span>Desvios</a>
+    <a href="#sec-aloj" class="nav-item"><span class="num">16</span>Alojamentos</a>
+    <a href="#sec-treinamento" class="nav-item"><span class="num">17</span>Treinamento</a>
+    <a href="#sec-acoes" class="nav-item"><span class="num">18</span>Ações de Segurança</a>
+    <a href="#sec-acidentes" class="nav-item"><span class="num">19</span>Acidentes e Incidentes</a>
+    <div class="nav-section">Relatório</div>
+    <a href="#pdf" class="nav-item"><span class="num">20</span>Exportar PDF</a>
+    <a href="#referencia" class="nav-item"><span class="num">21</span>Referência de Campos</a>
+  </div>
+  <div class="sidebar-footer">
+    <p>MSE Engenharia</p>
+    <p><strong>Sistema de Gestão HSE</strong></p>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="cover">
+    <div class="cover-kicker">Manual do Usuário · MSE HSE</div>
+    <div class="cover-title">Indicadores<br><span>HSE</span></div>
+    <div class="cover-desc">Guia completo para o dashboard de indicadores semanais: acompanhe efetivo, HHT, acidentes, desvios, alojamentos e treinamentos em tempo real por obra, ano e semana.</div>
+    <div class="cover-stats">
+      <div class="cover-stat"><div class="val">8</div><div class="lbl">KPI cards no topo</div></div>
+      <div class="cover-stat"><div class="val">7</div><div class="lbl">Gráficos analíticos</div></div>
+      <div class="cover-stat"><div class="val">20+</div><div class="lbl">Campos de lançamento</div></div>
+      <div class="cover-stat"><div class="val">1</div><div class="lbl">PDF do dashboard inteiro</div></div>
+    </div>
+  </div>
+
+  <!-- ══ 1. VISÃO GERAL ══ -->
+  <section id="visao-geral">
+    <h2><span class="section-num">1</span>Visão Geral</h2>
+    <p class="section-lead">Os Indicadores HSE consolidam todos os dados de segurança da semana — efetivo, horas trabalhadas, documentos emitidos, desvios, alojamentos, treinamentos e acidentes — em um único dashboard visual e exportável em PDF.</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3 style="margin-bottom:8px;color:var(--accent);">📊 Dashboard Interativo</h3>
+        <p>Filtre por obra, ano e intervalo de semanas para ver a evolução de qualquer período. Todos os gráficos se atualizam instantaneamente ao mudar os filtros.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:8px;color:var(--amber);">📋 Lançamento Semanal</h3>
+        <p>A cada semana, o coordenador ou TST preenche o formulário de indicadores para cada obra. O sistema não permite duplicar lançamentos da mesma semana/obra.</p>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Quem usa</div>
+        <div class="callout-text">O dashboard é acessado por coordenadores, gestores e direção para acompanhar a evolução da segurança nas obras. O formulário de lançamento é preenchido pelos coordenadores ou TSTs responsáveis por cada obra.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 2. FILTROS ══ -->
+  <section id="filtros">
+    <h2><span class="section-num">2</span>Filtros do Dashboard</h2>
+    <p class="section-lead">A barra de filtros fica no topo do dashboard. Ao mudar qualquer filtro, todos os KPIs e gráficos são recalculados imediatamente.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Barra de Filtros do Dashboard</div>
+      <svg viewBox="0 0 720 64" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:720px;display:block;">
+        <rect width="720" height="64" fill="#111113" rx="12"/>
+        <rect x="10" y="10" width="700" height="44" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <!-- Obra filter -->
+        <text x="22" y="25" fill="#52525b" font-size="10" font-family="sans-serif">OBRA</text>
+        <rect x="22" y="29" width="200" height="18" rx="5" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="34" y="42" fill="#d4d4d8" font-size="11" font-family="sans-serif">Todas as obras ▾</text>
+        <!-- Ano filter -->
+        <text x="232" y="25" fill="#52525b" font-size="10" font-family="sans-serif">ANO</text>
+        <rect x="232" y="29" width="80" height="18" rx="5" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="244" y="42" fill="#d4d4d8" font-size="11" font-family="sans-serif">2025 ▾</text>
+        <!-- Semana De -->
+        <text x="324" y="25" fill="#52525b" font-size="10" font-family="sans-serif">SEMANA DE</text>
+        <rect x="324" y="29" width="100" height="18" rx="5" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="336" y="42" fill="#d4d4d8" font-size="11" font-family="sans-serif">Sem 1 ▾</text>
+        <!-- Semana Até -->
+        <text x="436" y="25" fill="#52525b" font-size="10" font-family="sans-serif">SEMANA ATÉ</text>
+        <rect x="436" y="29" width="100" height="18" rx="5" fill="#111113" stroke="#3f3f46" stroke-width="1"/>
+        <text x="448" y="42" fill="#d4d4d8" font-size="11" font-family="sans-serif">Sem 22 ▾</text>
+        <!-- PDF button -->
+        <rect x="606" y="17" width="104" height="28" rx="8" fill="#3B82F6"/>
+        <text x="658" y="35" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">📄 Exportar PDF</text>
+      </svg>
+    </div>
+
+    <table class="field-table">
+      <tr><th>Filtro</th><th>Valores possíveis</th><th>Efeito</th></tr>
+      <tr><td>Obra</td><td>Todas as obras / obra específica</td><td>Quando "todas", agrega dados de todas as obras. Quando específica, mostra só aquela obra.</td></tr>
+      <tr><td>Ano</td><td>Qualquer ano com dados (ex: 2024, 2025)</td><td>Filtra os indicadores pelo ano escolhido.</td></tr>
+      <tr><td>Semana De</td><td>1 a 53</td><td>Semana inicial do intervalo de análise.</td></tr>
+      <tr><td>Semana Até</td><td>1 a 53</td><td>Semana final. Quando "De = Até", mostra apenas aquela semana.</td></tr>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Exemplo de uso: ver o acumulado do ano</div>
+        <div class="callout-text">Defina "Semana De = 1" e "Semana Até = 52" para ver todos os indicadores do ano. Para a semana atual, defina De = Até = número da semana atual (ex: Sem 23 a Sem 23).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 3. KPIS ══ -->
+  <section id="kpis">
+    <h2><span class="section-num">3</span>8 Cartões KPI</h2>
+    <p class="section-lead">Imediatamente abaixo dos filtros, oito cartões mostram os principais indicadores acumulados do período selecionado. Cada cartão tem o valor destacado e um rótulo que explica o que representa.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Faixa de KPI Cards</div>
+      <svg viewBox="0 0 720 90" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:720px;display:block;">
+        <rect width="720" height="90" fill="#111113" rx="10"/>
+        <!-- Card 1: HHT -->
+        <rect x="8" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="49" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">HHT ACUM.</text>
+        <text x="49" y="52" fill="#3B82F6" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">12.4k</text>
+        <text x="49" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">horas</text>
+        <!-- Card 2: Acidentes -->
+        <rect x="98" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="rgba(239,68,68,0.25)" stroke-width="1"/>
+        <text x="139" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">ACIDENTES</text>
+        <text x="139" y="52" fill="#ef4444" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">0</text>
+        <text x="139" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">com afastamento</text>
+        <!-- Card 3: DDS -->
+        <rect x="188" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="229" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">DDS</text>
+        <text x="229" y="52" fill="#3B82F6" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">18</text>
+        <text x="229" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">realizados</text>
+        <!-- Card 4: Campanhas -->
+        <rect x="278" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="319" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">CAMPANHAS</text>
+        <text x="319" y="52" fill="#3B82F6" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">4</text>
+        <text x="319" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">realizadas</text>
+        <!-- Card 5: P. Treinadas -->
+        <rect x="368" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="409" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">P. TREINADAS</text>
+        <text x="409" y="52" fill="#3B82F6" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">312</text>
+        <text x="409" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">pessoas</text>
+        <!-- Card 6: Inspeções -->
+        <rect x="458" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="499" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">INSPEÇÕES</text>
+        <text x="499" y="52" fill="#10B981" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">27</text>
+        <text x="499" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">realizadas</text>
+        <!-- Card 7: Primeiros Socorros -->
+        <rect x="548" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="589" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">1ºS SOCORROS</text>
+        <text x="589" y="52" fill="#F59E0B" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">2</text>
+        <text x="589" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">atendimentos</text>
+        <!-- Card 8: Quase Acidentes -->
+        <rect x="630" y="8" width="82" height="74" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+        <text x="671" y="30" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">QUASE ACID.</text>
+        <text x="671" y="52" fill="#F59E0B" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">3</text>
+        <text x="671" y="70" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">registrados</text>
+      </svg>
+    </div>
+
+    <table class="field-table">
+      <tr><th>Card</th><th>O que mostra</th><th>Cor</th></tr>
+      <tr><td>HHT Acum.</td><td>Total de horas-homem trabalhadas no período. Mostra em "k" se for maior que 1.000.</td><td style="color:#3B82F6">Azul</td></tr>
+      <tr><td>Acidentes</td><td>Total de acidentes com afastamento. Zero é o objetivo — o card fica vermelho se houver algum.</td><td style="color:#ef4444">Vermelho</td></tr>
+      <tr><td>DDS</td><td>Total de Diálogos Diários de Segurança realizados no período.</td><td style="color:#3B82F6">Azul</td></tr>
+      <tr><td>Campanhas</td><td>Campanhas de segurança realizadas no período.</td><td style="color:#3B82F6">Azul</td></tr>
+      <tr><td>P. Treinadas</td><td>Total de pessoas que passaram por treinamentos no período.</td><td style="color:#3B82F6">Azul</td></tr>
+      <tr><td>Inspeções</td><td>Inspeções HSE semanais realizadas (campo <code>inspecoes_semanais</code>).</td><td style="color:#10B981">Verde</td></tr>
+      <tr><td>1ºs Socorros</td><td>Atendimentos de primeiros socorros registrados.</td><td style="color:#F59E0B">Âmbar</td></tr>
+      <tr><td>Quase Acid.</td><td>Quase acidentes (near misses) reportados no período.</td><td style="color:#F59E0B">Âmbar</td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 4. GRÁFICO EFETIVO ══ -->
+  <section id="grafico-efetivo">
+    <h2><span class="section-num">4</span>Gráfico: Efetivo MSE</h2>
+    <p class="section-lead">O primeiro gráfico do dashboard é uma área mostrando a evolução do efetivo (total de trabalhadores) semana a semana no período filtrado.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">AreaChart — Efetivo MSE por Semana</div>
+      <svg viewBox="0 0 560 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;display:block;">
+        <rect width="560" height="160" fill="#18181b" rx="10"/>
+        <text x="16" y="26" fill="#d4d4d8" font-size="13" font-weight="700" font-family="sans-serif">Efetivo MSE</text>
+        <text x="16" y="40" fill="#71717a" font-size="11" font-family="sans-serif">Evolução semanal do efetivo</text>
+        <!-- Chart area — single series: Efetivo -->
+        <polyline points="50,120 120,100 190,90 260,82 330,85 400,78 470,72 540,68" fill="none" stroke="#3B82F6" stroke-width="2"/>
+        <polygon points="50,120 120,100 190,90 260,82 330,85 400,78 470,72 540,68 540,140 50,140" fill="rgba(59,130,246,0.15)"/>
+        <!-- Dots -->
+        <circle cx="50" cy="120" r="4" fill="#3B82F6" stroke="#18181b" stroke-width="2"/>
+        <circle cx="190" cy="90" r="4" fill="#3B82F6" stroke="#18181b" stroke-width="2"/>
+        <circle cx="400" cy="78" r="4" fill="#3B82F6" stroke="#18181b" stroke-width="2"/>
+        <circle cx="540" cy="68" r="4" fill="#3B82F6" stroke="#18181b" stroke-width="2"/>
+        <!-- X axis labels -->
+        <text x="50" y="153" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S1</text>
+        <text x="190" y="153" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S5</text>
+        <text x="330" y="153" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S10</text>
+        <text x="470" y="153" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S15</text>
+        <text x="540" y="153" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S18</text>
+        <!-- Legend -->
+        <circle cx="450" cy="26" r="5" fill="#3B82F6"/>
+        <text x="459" y="30" fill="#71717a" font-size="10" font-family="sans-serif">Efetivo</text>
+      </svg>
+    </div>
+
+    <ul class="feature-list">
+      <li>Área azul: efetivo total semanal (número de trabalhadores registrado no lançamento de indicadores)</li>
+      <li>O eixo X mostra as semanas no formato "S1", "S2", etc.</li>
+      <li>Passar o mouse sobre qualquer ponto mostra um tooltip com o valor exato da semana</li>
+      <li>Muda ao alterar os filtros de obra, ano ou intervalo de semanas</li>
+    </ul>
+  </section>
+
+  <!-- ══ 5. GAUGES ══ -->
+  <section id="grafico-gauges">
+    <h2><span class="section-num">5</span>Gauges: HHT Semanal e Acidentes</h2>
+    <p class="section-lead">Os gauges (medidores radiais) mostram os valores da semana mais recente selecionada, com escala visual para leitura rápida.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">Radial Gauges — HHT Semanal e Acidentes</div>
+      <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;display:block;">
+        <rect width="560" height="165" fill="#18181b" rx="10"/>
+
+        <!-- Card 1: HHT Semanal -->
+        <rect x="10" y="10" width="260" height="148" rx="10" fill="#111113" stroke="#27272a" stroke-width="1"/>
+        <text x="140" y="32" fill="#71717a" font-size="11" text-anchor="middle" font-family="sans-serif">HHT Semanal</text>
+        <!-- Background arc: center(140,108) r=50 from (90,108) to (190,108) -->
+        <path d="M 90,108 A 50,50 0 0,1 190,108" fill="none" stroke="#27272a" stroke-width="10" stroke-linecap="round"/>
+        <!-- Fill arc ~80%: 80% of 180° = 144°; end = (140+50·cos36°, 108−50·sin36°) = (180,79) -->
+        <path d="M 90,108 A 50,50 0 0,1 180,79" fill="none" stroke="#3B82F6" stroke-width="10" stroke-linecap="round"/>
+        <text x="140" y="100" fill="#3B82F6" font-size="22" font-weight="900" text-anchor="middle" font-family="sans-serif">4,200</text>
+        <text x="140" y="116" fill="#71717a" font-size="10" text-anchor="middle" font-family="sans-serif">horas esta semana</text>
+        <text x="90" y="132" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">0</text>
+        <text x="190" y="132" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">5.2k</text>
+
+        <!-- Card 2: Acidentes -->
+        <rect x="290" y="10" width="260" height="148" rx="10" fill="#111113" stroke="#27272a" stroke-width="1"/>
+        <text x="420" y="32" fill="#71717a" font-size="11" text-anchor="middle" font-family="sans-serif">Acidentes (período)</text>
+        <!-- Background arc: center(420,108) r=50 -->
+        <path d="M 370,108 A 50,50 0 0,1 470,108" fill="none" stroke="#27272a" stroke-width="10" stroke-linecap="round"/>
+        <!-- No accidents → tiny start dot in green to show 0% -->
+        <circle cx="370" cy="108" r="6" fill="#10B981"/>
+        <text x="420" y="100" fill="#10B981" font-size="22" font-weight="900" text-anchor="middle" font-family="sans-serif">0</text>
+        <text x="420" y="116" fill="#71717a" font-size="10" text-anchor="middle" font-family="sans-serif">acidentes registrados</text>
+        <text x="370" y="132" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">0</text>
+        <text x="470" y="132" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">max 5</text>
+      </svg>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3 style="color:var(--accent);margin-bottom:8px;">HHT Semanal</h3>
+        <p>Exibe as horas-homem trabalhadas na semana. O arco azul vai de 0 até a meta máxima. Permite visualizar se o ritmo de horas está dentro do esperado.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--green);margin-bottom:8px;">Acidentes</h3>
+        <p>Mostra o total de acidentes do período. O gauge fica verde quando é 0 (ideal) e muda para vermelho proporcional à quantidade de acidentes registrados.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 6. DONUT ══ -->
+  <section id="grafico-donut">
+    <h2><span class="section-num">6</span>Taxa de Solução de Desvios</h2>
+    <p class="section-lead">Um gráfico de rosca (donut) mostra a proporção entre desvios solucionados e desvios ocorridos no período filtrado.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">DonutChart — Taxa de Solução</div>
+      <svg viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:400px;display:block;">
+        <rect width="400" height="160" fill="#18181b" rx="10"/>
+        <text x="200" y="26" fill="#d4d4d8" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">Taxa de Solução de Desvios</text>
+        <!-- Donut -->
+        <circle cx="120" cy="95" r="50" fill="none" stroke="#27272a" stroke-width="18"/>
+        <!-- 75% arc (270 degrees) -->
+        <circle cx="120" cy="95" r="50" fill="none" stroke="#10B981" stroke-width="18" stroke-dasharray="236 78" stroke-dashoffset="78" transform="rotate(-90,120,95)"/>
+        <text x="120" y="90" fill="#10B981" font-size="20" font-weight="900" text-anchor="middle" font-family="sans-serif">75%</text>
+        <text x="120" y="107" fill="#71717a" font-size="10" text-anchor="middle" font-family="sans-serif">solucionados</text>
+        <!-- Legend -->
+        <rect x="200" y="55" width="10" height="10" rx="3" fill="#10B981"/>
+        <text x="216" y="65" fill="#a1a1aa" font-size="12" font-family="sans-serif">Solucionados: <tspan font-weight="700" fill="#d4d4d8">30</tspan></text>
+        <rect x="200" y="75" width="10" height="10" rx="3" fill="#3f3f46"/>
+        <text x="216" y="85" fill="#a1a1aa" font-size="12" font-family="sans-serif">Pendentes: <tspan font-weight="700" fill="#d4d4d8">10</tspan></text>
+        <text x="200" y="110" fill="#52525b" font-size="11" font-family="sans-serif">Total: 40 desvios ocorridos</text>
+        <text x="200" y="127" fill="#52525b" font-size="11" font-family="sans-serif">no período selecionado</text>
+      </svg>
+    </div>
+
+    <ul class="feature-list">
+      <li>O donut verde representa a fatia dos desvios solucionados</li>
+      <li>A porcentagem no centro é calculada como: <code>(solucionados / ocorridos) × 100</code></li>
+      <li>Se 100%: donut totalmente verde (excelente)</li>
+      <li>Se 0% (sem desvios): exibe "Sem dados"</li>
+    </ul>
+  </section>
+
+  <!-- ══ 7. APR × PT ══ -->
+  <section id="grafico-apr">
+    <h2><span class="section-num">7</span>Gráfico: APR × PT (Documentos de Segurança)</h2>
+    <p class="section-lead">Um gráfico de barras agrupadas mostra, semana a semana, a quantidade de APR (Análise Preliminar de Risco) e PT (Permissão de Trabalho) emitidas.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">BarChart Agrupado — APR × PT por Semana</div>
+      <svg viewBox="0 0 560 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;display:block;">
+        <rect width="560" height="160" fill="#18181b" rx="10"/>
+        <text x="16" y="22" fill="#d4d4d8" font-size="12" font-weight="700" font-family="sans-serif">APR × PT Realizadas</text>
+        <!-- Grid -->
+        <line x1="40" y1="30" x2="40" y2="135" stroke="#27272a" stroke-width="1"/>
+        <line x1="40" y1="135" x2="540" y2="135" stroke="#27272a" stroke-width="1"/>
+        <!-- Group 1 -->
+        <rect x="60" y="80" width="16" height="55" rx="3" fill="rgba(59,130,246,0.7)"/>
+        <rect x="78" y="95" width="16" height="40" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <!-- Group 2 -->
+        <rect x="140" y="65" width="16" height="70" rx="3" fill="rgba(59,130,246,0.7)"/>
+        <rect x="158" y="80" width="16" height="55" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <!-- Group 3 -->
+        <rect x="220" y="55" width="16" height="80" rx="3" fill="rgba(59,130,246,0.7)"/>
+        <rect x="238" y="70" width="16" height="65" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <!-- Group 4 -->
+        <rect x="300" y="75" width="16" height="60" rx="3" fill="rgba(59,130,246,0.7)"/>
+        <rect x="318" y="90" width="16" height="45" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <!-- Group 5 -->
+        <rect x="380" y="60" width="16" height="75" rx="3" fill="rgba(59,130,246,0.7)"/>
+        <rect x="398" y="78" width="16" height="57" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <!-- X labels -->
+        <text x="77" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S1</text>
+        <text x="157" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S2</text>
+        <text x="237" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S3</text>
+        <text x="317" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S4</text>
+        <text x="397" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S5</text>
+        <!-- Legend -->
+        <rect x="440" y="30" width="10" height="10" rx="2" fill="rgba(59,130,246,0.7)"/>
+        <text x="454" y="40" fill="#71717a" font-size="10" font-family="sans-serif">APR</text>
+        <rect x="440" y="46" width="10" height="10" rx="2" fill="rgba(16,185,129,0.7)"/>
+        <text x="454" y="56" fill="#71717a" font-size="10" font-family="sans-serif">PT</text>
+      </svg>
+    </div>
+
+    <ul class="feature-list">
+      <li>Barras azuis: APRs realizadas na semana</li>
+      <li>Barras verdes: PTs emitidas na semana</li>
+      <li>Quanto maiores as barras, mais documentos de segurança foram gerados</li>
+      <li>Ideal: APR e PT crescendo junto com o efetivo (sinal de controle de risco)</li>
+    </ul>
+  </section>
+
+  <!-- ══ 8. DESVIOS CHART ══ -->
+  <section id="grafico-desvios">
+    <h2><span class="section-num">8</span>Gráfico: Desvios Ocorridos × Resolvidos</h2>
+    <p class="section-lead">Um gráfico de barras + linha combina as barras de desvios ocorridos com uma linha de desvios solucionados, permitindo ver o "gap" de pendências semana a semana.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">BarChart + LineChart — Desvios</div>
+      <svg viewBox="0 0 560 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;display:block;">
+        <rect width="560" height="160" fill="#18181b" rx="10"/>
+        <text x="16" y="22" fill="#d4d4d8" font-size="12" font-weight="700" font-family="sans-serif">Desvios Ocorridos × Resolvidos</text>
+        <!-- Grid -->
+        <line x1="40" y1="30" x2="40" y2="135" stroke="#27272a" stroke-width="1"/>
+        <line x1="40" y1="135" x2="540" y2="135" stroke="#27272a" stroke-width="1"/>
+        <!-- Bars (ocorridos) -->
+        <rect x="60" y="70" width="26" height="65" rx="3" fill="rgba(239,68,68,0.5)"/>
+        <rect x="140" y="50" width="26" height="85" rx="3" fill="rgba(239,68,68,0.5)"/>
+        <rect x="220" y="60" width="26" height="75" rx="3" fill="rgba(239,68,68,0.5)"/>
+        <rect x="300" y="80" width="26" height="55" rx="3" fill="rgba(239,68,68,0.5)"/>
+        <rect x="380" y="55" width="26" height="80" rx="3" fill="rgba(239,68,68,0.5)"/>
+        <!-- Line (resolvidos) -->
+        <polyline points="73,90 153,76 233,84 313,102 393,78" fill="none" stroke="#10B981" stroke-width="2.5"/>
+        <circle cx="73" cy="90" r="4" fill="#10B981" stroke="#18181b" stroke-width="2"/>
+        <circle cx="153" cy="76" r="4" fill="#10B981" stroke="#18181b" stroke-width="2"/>
+        <circle cx="233" cy="84" r="4" fill="#10B981" stroke="#18181b" stroke-width="2"/>
+        <circle cx="313" cy="102" r="4" fill="#10B981" stroke="#18181b" stroke-width="2"/>
+        <circle cx="393" cy="78" r="4" fill="#10B981" stroke="#18181b" stroke-width="2"/>
+        <!-- X labels -->
+        <text x="73" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S1</text>
+        <text x="153" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S2</text>
+        <text x="233" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S3</text>
+        <text x="313" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S4</text>
+        <text x="393" y="148" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S5</text>
+        <!-- Legend -->
+        <rect x="440" y="30" width="10" height="10" rx="2" fill="rgba(239,68,68,0.5)"/>
+        <text x="454" y="40" fill="#71717a" font-size="10" font-family="sans-serif">Ocorridos</text>
+        <line x1="440" y1="51" x2="450" y2="51" stroke="#10B981" stroke-width="2.5"/>
+        <circle cx="445" cy="51" r="3" fill="#10B981"/>
+        <text x="454" y="55" fill="#71717a" font-size="10" font-family="sans-serif">Resolvidos</text>
+      </svg>
+    </div>
+
+    <ul class="feature-list">
+      <li>Barras vermelhas: desvios que ocorreram naquela semana</li>
+      <li>Linha verde: desvios solucionados naquela semana</li>
+      <li>Quanto menor a diferença entre barras e linha, melhor o desempenho de tratativa</li>
+      <li>Se a linha verde supera a barra vermelha: a equipe está tratando desvios de semanas anteriores (bom sinal)</li>
+    </ul>
+  </section>
+
+  <!-- ══ 9. ALOJAMENTOS ══ -->
+  <section id="grafico-aloj">
+    <h2><span class="section-num">9</span>Gráfico: Alojamentos</h2>
+    <p class="section-lead">Barras agrupadas mostrando a proporção semanal de alojamentos conformes × não-conformes × total.</p>
+
+    <div class="wireframe-wrap">
+      <div class="wireframe-label">BarChart — Alojamentos</div>
+      <svg viewBox="0 0 560 140" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;display:block;">
+        <rect width="560" height="140" fill="#18181b" rx="10"/>
+        <text x="16" y="22" fill="#d4d4d8" font-size="12" font-weight="700" font-family="sans-serif">Condições de Alojamento</text>
+        <line x1="40" y1="28" x2="40" y2="115" stroke="#27272a" stroke-width="1"/>
+        <line x1="40" y1="115" x2="540" y2="115" stroke="#27272a" stroke-width="1"/>
+        <!-- Group 1 -->
+        <rect x="55" y="60" width="20" height="55" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <rect x="77" y="80" width="20" height="35" rx="3" fill="rgba(239,68,68,0.6)"/>
+        <rect x="99" y="50" width="20" height="65" rx="3" fill="rgba(59,130,246,0.4)"/>
+        <!-- Group 2 -->
+        <rect x="175" y="55" width="20" height="60" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <rect x="197" y="85" width="20" height="30" rx="3" fill="rgba(239,68,68,0.6)"/>
+        <rect x="219" y="45" width="20" height="70" rx="3" fill="rgba(59,130,246,0.4)"/>
+        <!-- Group 3 -->
+        <rect x="295" y="65" width="20" height="50" rx="3" fill="rgba(16,185,129,0.7)"/>
+        <rect x="317" y="75" width="20" height="40" rx="3" fill="rgba(239,68,68,0.6)"/>
+        <rect x="339" y="55" width="20" height="60" rx="3" fill="rgba(59,130,246,0.4)"/>
+        <!-- X labels -->
+        <text x="90" y="129" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S1</text>
+        <text x="210" y="129" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S2</text>
+        <text x="330" y="129" fill="#52525b" font-size="9" text-anchor="middle" font-family="sans-serif">S3</text>
+        <!-- Legend -->
+        <rect x="440" y="38" width="10" height="10" rx="2" fill="rgba(16,185,129,0.7)"/>
+        <text x="454" y="48" fill="#71717a" font-size="10" font-family="sans-serif">Conformes</text>
+        <rect x="440" y="54" width="10" height="10" rx="2" fill="rgba(239,68,68,0.6)"/>
+        <text x="454" y="64" fill="#71717a" font-size="10" font-family="sans-serif">Não conformes</text>
+        <rect x="440" y="70" width="10" height="10" rx="2" fill="rgba(59,130,246,0.4)"/>
+        <text x="454" y="80" fill="#71717a" font-size="10" font-family="sans-serif">Total</text>
+      </svg>
+    </div>
+
+    <ul class="feature-list">
+      <li>Verde: alojamentos em conformidade com os requisitos de habitabilidade</li>
+      <li>Vermelho: alojamentos não-conformes (precisam de ação)</li>
+      <li>Azul: total de alojamentos verificados na semana</li>
+    </ul>
+  </section>
+
+  <!-- ══ 10. HHT SEMANAL CHART ══ -->
+  <section id="grafico-hht">
+    <h2><span class="section-num">10</span>Gráfico: HHT Semanal (Área)</h2>
+    <p class="section-lead">Um segundo gráfico de área, no fim do dashboard, mostra a evolução semanal das horas-homem trabalhadas semana a semana para análise de tendência.</p>
+
+    <ul class="feature-list">
+      <li>Área azul preenchida: HHT real semana a semana</li>
+      <li>Útil para detectar semanas com queda de efetivo ou paradas de obra</li>
+      <li>O tooltip ao passar o mouse mostra o valor exato de horas</li>
+    </ul>
+  </section>
+
+  <!-- ══ 11. LANÇAR ══ -->
+  <section id="lancar">
+    <h2><span class="section-num">11</span>Lançar Indicadores Semanais</h2>
+    <p class="section-lead">Acesse <strong>Indicadores &gt; Novo Indicador</strong>. O formulário é dividido em seções temáticas para facilitar o preenchimento. Ao final, clique em "Salvar Indicadores".</p>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠</div>
+      <div class="callout-body">
+        <div class="callout-title">Uma entrada por obra/semana/ano</div>
+        <div class="callout-text">Não é possível lançar dois indicadores para a mesma obra na mesma semana e ano. Se já existe um lançamento, o sistema exibe: <em>"Já existe um indicador para esta obra nesta semana."</em> Para corrigir, você deve editar o registro existente.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 12. IDENTIFICAÇÃO ══ -->
+  <section id="sec-identificacao">
+    <h2><span class="section-num">12</span>Seção: Identificação</h2>
+    <p class="section-lead">Primeira seção do formulário. Define o contexto do indicador: qual obra, qual semana e qual ano.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>Obra</td><td class="required">Sim</td><td>A obra para qual o indicador se refere. Filtra os campos de TST/encarregado/coordenador.</td></tr>
+      <tr><td>Semana</td><td class="required">Sim</td><td>Número da semana (1–53). Semana ISO do ano.</td></tr>
+      <tr><td>Ano</td><td class="required">Sim</td><td>O ano de referência (ex: 2025). Padrão é o ano atual.</td></tr>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Como saber o número da semana?</div>
+        <div class="callout-text">Use a semana ISO: a semana 1 começa na segunda-feira que cai em janeiro. Na prática, cada lançamento semanal ocorre toda segunda-feira referente à semana anterior. Ex: segunda-feira dia 09/06 → semana 23 de 2025.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 13. EFETIVO ══ -->
+  <section id="sec-efetivo">
+    <h2><span class="section-num">13</span>Seção: Efetivo MSE</h2>
+    <p class="section-lead">Dados sobre quantas pessoas trabalharam na obra naquela semana e quantas horas totais foram registradas.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição / Exemplo</th></tr>
+      <tr><td>Efetivo</td><td class="required">Sim</td><td>Total de trabalhadores presentes na obra na semana. Ex: <code>120</code></td></tr>
+      <tr><td>HHT (Hora Homem Trabalhada)</td><td class="required">Sim</td><td>Total de horas-homem trabalhadas na semana. Ex: <code>4200</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 14. DOC SEG ══ -->
+  <section id="sec-docseg">
+    <h2><span class="section-num">14</span>Seção: Documentos de Segurança</h2>
+    <p class="section-lead">Contagem de APR e PT emitidas na semana. Esses documentos são obrigatórios antes de iniciar trabalhos de risco.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>APR realizadas</td><td class="required">Sim</td><td>Análises Preliminares de Risco preenchidas na semana. Ex: <code>45</code></td></tr>
+      <tr><td>PT realizadas</td><td class="required">Sim</td><td>Permissões de Trabalho emitidas na semana. Ex: <code>12</code></td></tr>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">APR × PT</div>
+        <div class="callout-text">APR é obrigatória para todo início de atividade. PT é específica para trabalhos de alto risco (altura, espaço confinado, eletricidade). O gráfico APR × PT do dashboard monitora a evolução desses indicadores.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 15. DESVIOS ══ -->
+  <section id="sec-desvios">
+    <h2><span class="section-num">15</span>Seção: Desvios</h2>
+    <p class="section-lead">Registra o balanço de desvios da semana. Deve ser consistente com os dados do Módulo Desvios.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>Desvios ocorridos</td><td class="required">Sim</td><td>Quantos desvios foram identificados naquela semana. Ex: <code>7</code></td></tr>
+      <tr><td>Desvios solucionados</td><td class="required">Sim</td><td>Quantos desvios foram fechados naquela semana. Ex: <code>5</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 16. ALOJAMENTOS ══ -->
+  <section id="sec-aloj">
+    <h2><span class="section-num">16</span>Seção: Alojamentos</h2>
+    <p class="section-lead">Verificação das condições dos alojamentos da obra, se houver trabalhadores residindo no canteiro.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>Conformes</td><td class="required">Sim</td><td>Número de alojamentos que passaram na vistoria. Ex: <code>8</code></td></tr>
+      <tr><td>Não conformes</td><td class="required">Sim</td><td>Número de alojamentos com problemas identificados. Ex: <code>2</code></td></tr>
+      <tr><td>Total</td><td class="required">Sim</td><td>Total de alojamentos verificados. Deve ser ≥ conformes + não-conformes. Ex: <code>10</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 17. TREINAMENTO ══ -->
+  <section id="sec-treinamento">
+    <h2><span class="section-num">17</span>Seção: Treinamento</h2>
+    <p class="section-lead">Dados de capacitação realizados na semana: horas de treinamento e quantidade de pessoas treinadas.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>Hora Homem Treinado</td><td class="required">Sim</td><td>Total de horas de treinamento realizadas na semana (aceita decimais). Ex: <code>24.5</code></td></tr>
+      <tr><td>Pessoas treinadas</td><td class="required">Sim</td><td>Quantas pessoas participaram de treinamentos na semana. Ex: <code>45</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 18. AÇÕES ══ -->
+  <section id="sec-acoes">
+    <h2><span class="section-num">18</span>Seção: Ações</h2>
+    <p class="section-lead">Diálogos de segurança e campanhas de conscientização realizados na semana.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>DDS realizados</td><td class="required">Sim</td><td>Diálogos Diários de Segurança (reuniões matinais de 5–10 min com a equipe). Ex: <code>5</code></td></tr>
+      <tr><td>Campanhas HSE</td><td class="required">Sim</td><td>Campanhas temáticas, palestras e eventos de segurança realizados na semana. Ex: <code>1</code></td></tr>
+    </table>
+  </section>
+
+  <!-- ══ 19. ACIDENTES ══ -->
+  <section id="sec-acidentes">
+    <h2><span class="section-num">19</span>Seção: Acidentes e Incidentes</h2>
+    <p class="section-lead">Dados de ocorrências que resultaram em lesão, dano ou situações de risco na semana. O objetivo é sempre zero acidentes com afastamento.</p>
+
+    <table class="field-table">
+      <tr><th>Campo</th><th>Obrig.?</th><th>Descrição</th></tr>
+      <tr><td>Acidentes com afastamento</td><td class="required">Sim</td><td>Acidentes que geraram afastamento do trabalho. Impacta o gauge de acidentes. Ex: <code>0</code></td></tr>
+      <tr><td>Acidentes sem afastamento</td><td class="required">Sim</td><td>Acidentes que não geraram afastamento mas foram registrados. Ex: <code>1</code></td></tr>
+      <tr><td>Primeiros socorros</td><td class="required">Sim</td><td>Atendimentos de primeiros socorros realizados na semana. Ex: <code>2</code></td></tr>
+      <tr><td>Quase acidentes</td><td class="required">Sim</td><td>Near misses — situações que quase geraram acidentes. Ex: <code>3</code></td></tr>
+      <tr><td>Danos materiais</td><td class="required">Sim</td><td>Ocorrências que causaram dano a equipamentos ou estrutura. Ex: <code>0</code></td></tr>
+      <tr><td>Observações</td><td class="optional">Não</td><td>Texto livre com comentários gerais sobre a semana de segurança.</td></tr>
+    </table>
+
+    <div class="callout danger">
+      <div class="callout-icon">🚨</div>
+      <div class="callout-body">
+        <div class="callout-title">Acidente com afastamento: ação obrigatória</div>
+        <div class="callout-text">Qualquer acidente com afastamento deve ser investigado formalmente (CAT emitida, análise de causa raiz, plano de ação). Registre o ocorrido no campo "Acidentes" e documente a investigação fora do sistema.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 20. PDF ══ -->
+  <section id="pdf">
+    <h2><span class="section-num">20</span>Exportar PDF do Dashboard</h2>
+    <p class="section-lead">O botão <strong>"📄 Exportar PDF"</strong> no topo do dashboard captura uma imagem do dashboard completo e gera um PDF de alta resolução.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Configure os filtros desejados</div>
+          <div class="step-desc">Escolha a obra, o ano e o intervalo de semanas que deseja documentar. O dashboard exibirá exatamente o que será exportado.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Clique em "📄 Exportar PDF"</div>
+          <div class="step-desc">O sistema entra em "modo PDF": os botões de filtro e ação são substituídos pela data/hora de emissão para uma captura limpa.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Aguarde a geração</div>
+          <div class="step-desc">O sistema captura o dashboard com html2canvas (escala 1.5x, fundo preto #09090b) e gera o PDF automaticamente. Esse processo pode levar alguns segundos.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:rgba(59,130,246,0.2);border-color:var(--accent);">✓</div>
+        <div class="step-body">
+          <div class="step-title">Download automático</div>
+          <div class="step-desc">O PDF é baixado automaticamente com o nome <code>Indicadores-HSE-[Obra]-[Data].pdf</code>. Nenhuma janela de impressão é aberta.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--accent);margin-bottom:10px;">O que o PDF captura</h3>
+      <ul class="feature-list">
+        <li>Toda a barra de filtros com as seleções ativas</li>
+        <li>Todos os 8 KPI cards com os valores do período</li>
+        <li>Todos os 7 gráficos em alta resolução (AreaChart, Gauges, Donut, BarCharts)</li>
+        <li>Fundo escuro preservado (tema dark do sistema)</li>
+        <li>Data e hora de emissão no cabeçalho</li>
+      </ul>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Melhores práticas para o PDF</div>
+        <div class="callout-text">Para um PDF mais limpo, defina os filtros com clareza antes de exportar. Escolha um intervalo específico (ex: Sem 1 a Sem 22 de 2025) para que o período fique claramente documentado no relatório.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 21. REFERÊNCIA ══ -->
+  <section id="referencia">
+    <h2><span class="section-num">21</span>Referência Completa de Campos</h2>
+    <p class="section-lead">Todos os campos do formulário de lançamento semanal, em uma única tabela de referência.</p>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(59,130,246,0.15);">🏗</div>Identificação</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>Obra</td><td>Select</td><td class="required">Sim</td></tr>
+        <tr><td>Semana (1–53)</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Ano</td><td>Número</td><td class="required">Sim</td></tr>
+      </table>
+    </div>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(16,185,129,0.15);">👷</div>Efetivo MSE</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>Efetivo</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>HHT (Hora Homem Trabalhada)</td><td>Número</td><td class="required">Sim</td></tr>
+      </table>
+    </div>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(245,158,11,0.15);">📋</div>Documentos de Segurança</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>APR realizadas</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>PT realizadas</td><td>Número</td><td class="required">Sim</td></tr>
+      </table>
+    </div>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(239,68,68,0.15);">🛡</div>Desvios</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>Desvios ocorridos</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Desvios solucionados</td><td>Número</td><td class="required">Sim</td></tr>
+      </table>
+    </div>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(99,102,241,0.15);">🏠</div>Alojamentos</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>Conformes</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Não conformes</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Total</td><td>Número</td><td class="required">Sim</td></tr>
+      </table>
+    </div>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(59,130,246,0.15);">🎓</div>Treinamento</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>Hora Homem Treinado</td><td>Número (decimal)</td><td class="required">Sim</td></tr>
+        <tr><td>Pessoas treinadas</td><td>Número</td><td class="required">Sim</td></tr>
+      </table>
+    </div>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(16,185,129,0.15);">⭐</div>Ações</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>DDS realizados</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Campanhas HSE</td><td>Número</td><td class="required">Sim</td></tr>
+      </table>
+    </div>
+
+    <div class="section-block">
+      <div class="section-block-title"><div class="section-block-icon" style="background:rgba(239,68,68,0.15);">🚨</div>Acidentes e Incidentes</div>
+      <table class="field-table">
+        <tr><th>Campo</th><th>Tipo</th><th>Obrig.?</th></tr>
+        <tr><td>Acidentes com afastamento</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Acidentes sem afastamento</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Primeiros socorros</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Quase acidentes</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Danos materiais</td><td>Número</td><td class="required">Sim</td></tr>
+        <tr><td>Observações</td><td>Texto livre</td><td class="optional">Não</td></tr>
+      </table>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>
