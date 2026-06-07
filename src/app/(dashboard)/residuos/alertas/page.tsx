@@ -4,14 +4,14 @@ import { useEffect, useState, useCallback } from 'react'
 import { Bell, RefreshCw, Plus, Trash2, X, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-react'
 import { alertasDB, tiposDB } from '@/lib/db-residuos'
 import { obrasDB } from '@/lib/db'
-import type { AlertaEstoque, TipoResiduo } from '@/types/residuos'
+import type { ResAlerta, TipoResiduo } from '@/types/residuos'
 import type { Obra } from '@/types'
 import { cn } from '@/lib/utils'
 
 const COR = '#22C55E'
 
 export default function AlertasPage() {
-  const [alertas, setAlertas] = useState<AlertaEstoque[]>([])
+  const [alertas, setAlertas] = useState<ResAlerta[]>([])
   const [obras, setObras] = useState<Obra[]>([])
   const [tipos, setTipos] = useState<TipoResiduo[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,7 +19,7 @@ export default function AlertasPage() {
   const [salvando, setSalvando] = useState(false)
 
   const [form, setForm] = useState({
-    obra_id: '', residuo_id: '', minimo: '', emails: '',
+    obra_id: '', tipo_id: '', minimo: '', emails: '',
   })
 
   const carregar = useCallback(async () => {
@@ -33,16 +33,13 @@ export default function AlertasPage() {
 
   useEffect(() => { carregar() }, [carregar])
 
-  const nomeObra = (id: string) => obras.find(o => o.id === id)?.nome ?? id
-  const nomeResiduo = (id: string) => tipos.find(t => t.id === id)?.nome ?? id
-
   async function salvar() {
-    if (!form.obra_id || !form.residuo_id || !form.minimo) return
+    if (!form.obra_id || !form.tipo_id || !form.minimo) return
     setSalvando(true)
     try {
-      await alertasDB.upsert(form.obra_id, form.residuo_id, Number(form.minimo), form.emails || undefined)
+      await alertasDB.upsert(form.obra_id, form.tipo_id, Number(form.minimo), form.emails || undefined)
       setModal(false)
-      setForm({ obra_id: '', residuo_id: '', minimo: '', emails: '' })
+      setForm({ obra_id: '', tipo_id: '', minimo: '', emails: '' })
       await carregar()
     } finally { setSalvando(false) }
   }
@@ -117,13 +114,9 @@ export default function AlertasPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     {violado && <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
-                    <p className="text-sm font-medium text-zinc-200">
-                      {a.obra_nome ?? nomeObra(a.obra_id)}
-                    </p>
+                    <p className="text-sm font-medium text-zinc-200">{a.obra_nome ?? a.obra_id}</p>
                   </div>
-                  <p className="text-xs text-zinc-400">
-                    {a.residuo_nome ?? nomeResiduo(a.residuo_id)}
-                  </p>
+                  <p className="text-xs text-zinc-400">{a.tipo_nome ?? a.tipo_id}</p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-zinc-500">
                       Mínimo: <span className="font-semibold text-zinc-300">{a.minimo}</span>
@@ -170,7 +163,7 @@ export default function AlertasPage() {
                 <option value="">Obra…</option>
                 {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
               </select>
-              <select value={form.residuo_id} onChange={e => setForm(f => ({ ...f, residuo_id: e.target.value }))}
+              <select value={form.tipo_id} onChange={e => setForm(f => ({ ...f, tipo_id: e.target.value }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500">
                 <option value="">Tipo de resíduo…</option>
                 {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -182,7 +175,7 @@ export default function AlertasPage() {
                 onChange={e => setForm(f => ({ ...f, emails: e.target.value }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500" />
             </div>
-            <button onClick={salvar} disabled={salvando || !form.obra_id || !form.residuo_id || !form.minimo}
+            <button onClick={salvar} disabled={salvando || !form.obra_id || !form.tipo_id || !form.minimo}
               className="w-full py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-50"
               style={{ background: COR }}>
               {salvando ? 'Salvando…' : 'Criar Alerta'}

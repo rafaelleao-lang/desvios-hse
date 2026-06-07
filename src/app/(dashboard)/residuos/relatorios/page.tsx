@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { BarChart3, RefreshCw, Download, FileText } from 'lucide-react'
 import { saldosDB, retiradasDB, tiposDB } from '@/lib/db-residuos'
 import { obrasDB } from '@/lib/db'
-import type { Saldo, Retirada, TipoResiduo } from '@/types/residuos'
+import type { ResSaldo, ResRetirada, TipoResiduo } from '@/types/residuos'
 import type { Obra } from '@/types'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
 
 const COR = '#22C55E'
@@ -19,13 +19,13 @@ function fmt(n: number) {
 
 export default function RelatoriosResiduosPage() {
   const [aba, setAba] = useState<Aba>('tabela')
-  const [entradas, setEntradas] = useState<Saldo[]>([])
-  const [retiradas, setRetiradas] = useState<Retirada[]>([])
+  const [entradas, setEntradas] = useState<ResSaldo[]>([])
+  const [retiradas, setRetiradas] = useState<ResRetirada[]>([])
   const [obras, setObras] = useState<Obra[]>([])
   const [tipos, setTipos] = useState<TipoResiduo[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroObra, setFiltroObra] = useState('')
-  const [filtroResiduo, setFiltroResiduo] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroInicio, setFiltroInicio] = useState('')
   const [filtroFim, setFiltroFim] = useState('')
 
@@ -40,15 +40,12 @@ export default function RelatoriosResiduosPage() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { carregar() }, [carregar] )
+  useEffect(() => { carregar() }, [carregar])
 
-  const nomeObra = (id: string) => obras.find(o => o.id === id)?.nome ?? id
-  const nomeResiduo = (id: string) => tipos.find(t => t.id === id)?.nome ?? id
-
-  function aplicarFiltros<T extends Saldo | Retirada>(lista: T[]): T[] {
+  function aplicarFiltros<T extends ResSaldo | ResRetirada>(lista: T[]): T[] {
     return lista.filter(item => {
       if (filtroObra && item.obra_id !== filtroObra) return false
-      if (filtroResiduo && item.residuo_id !== filtroResiduo) return false
+      if (filtroTipo && item.tipo_id !== filtroTipo) return false
       if (filtroInicio && item.data < filtroInicio) return false
       if (filtroFim && item.data > filtroFim) return false
       return true
@@ -65,8 +62,8 @@ export default function RelatoriosResiduosPage() {
   // Dados para o gráfico: saldo por tipo de resíduo
   const dadosGrafico = tipos
     .map(t => {
-      const ent = entradasF.filter(e => e.residuo_id === t.id).reduce((a, e) => a + e.quantidade, 0)
-      const ret = retiradasF.filter(r => r.residuo_id === t.id).reduce((a, r) => a + r.quantidade, 0)
+      const ent = entradasF.filter(e => e.tipo_id === t.id).reduce((a, e) => a + e.quantidade, 0)
+      const ret = retiradasF.filter(r => r.tipo_id === t.id).reduce((a, r) => a + r.quantidade, 0)
       return { nome: t.nome.slice(0, 18), entrada: ent, retirada: ret, saldo: ent - ret }
     })
     .filter(d => d.entrada > 0 || d.retirada > 0)
@@ -74,8 +71,8 @@ export default function RelatoriosResiduosPage() {
   async function exportarCSV() {
     const linhas = [
       ['Tipo', 'Data', 'Obra', 'Resíduo', 'Quantidade', 'Unidade', 'Valor Total'],
-      ...entradasF.map(e => ['Entrada', e.data, nomeObra(e.obra_id), nomeResiduo(e.residuo_id), e.quantidade, e.unidade_medida, '']),
-      ...retiradasF.map(r => ['Retirada', r.data, nomeObra(r.obra_id), nomeResiduo(r.residuo_id), r.quantidade, r.unidade_medida ?? '', r.valor_total ?? '']),
+      ...entradasF.map(e => ['Entrada', e.data, e.obra_nome ?? e.obra_id, e.tipo_nome ?? e.tipo_id, e.quantidade, e.unidade_medida, '']),
+      ...retiradasF.map(r => ['Retirada', r.data, r.obra_nome ?? r.obra_id, r.tipo_nome ?? r.tipo_id, r.quantidade, r.unidade_medida ?? '', r.valor_total ?? '']),
     ]
     const csv = linhas.map(l => l.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -112,7 +109,7 @@ export default function RelatoriosResiduosPage() {
           <option value="">Todas as obras</option>
           {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
         </select>
-        <select value={filtroResiduo} onChange={e => setFiltroResiduo(e.target.value)}
+        <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
           className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-green-500">
           <option value="">Todos resíduos</option>
           {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -177,8 +174,8 @@ export default function RelatoriosResiduosPage() {
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {[
-                  ...entradasF.map(e => ({ tipo: 'E', data: e.data, obra: e.obra_nome ?? nomeObra(e.obra_id), residuo: e.residuo_nome ?? nomeResiduo(e.residuo_id), qtd: e.quantidade, un: e.unidade_medida, valor: null as number | null })),
-                  ...retiradasF.map(r => ({ tipo: 'R', data: r.data, obra: r.obra_nome ?? nomeObra(r.obra_id), residuo: r.residuo_nome ?? nomeResiduo(r.residuo_id), qtd: r.quantidade, un: r.unidade_medida ?? '', valor: r.valor_total ?? null })),
+                  ...entradasF.map(e => ({ tipo: 'E', data: e.data, obra: e.obra_nome ?? e.obra_id, residuo: e.tipo_nome ?? e.tipo_id, qtd: e.quantidade, un: e.unidade_medida, valor: null as number | null })),
+                  ...retiradasF.map(r => ({ tipo: 'R', data: r.data, obra: r.obra_nome ?? r.obra_id, residuo: r.tipo_nome ?? r.tipo_id, qtd: r.quantidade, un: r.unidade_medida ?? '', valor: r.valor_total ?? null })),
                 ].sort((a, b) => b.data.localeCompare(a.data)).map((row, i) => (
                   <tr key={i} className="hover:bg-zinc-800/40 transition-colors">
                     <td className="px-4 py-3">

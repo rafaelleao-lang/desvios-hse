@@ -3,9 +3,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Plus, Trash2, RefreshCw, ArrowDownUp, TrendingUp, TrendingDown, X, FileText } from 'lucide-react'
-import { saldosDB, retiradasDB, tiposDB, fornecedoresResiduosDB } from '@/lib/db-residuos'
+import { saldosDB, retiradasDB, tiposDB, fornecedoresDB } from '@/lib/db-residuos'
 import { obrasDB } from '@/lib/db'
-import type { Saldo, Retirada, TipoResiduo, Fornecedor } from '@/types/residuos'
+import type { ResSaldo, ResRetirada, TipoResiduo, Fornecedor } from '@/types/residuos'
 import type { Obra } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -20,8 +20,8 @@ type Aba = 'entradas' | 'retiradas'
 export default function MovimentacoesPage() {
   const params = useSearchParams()
   const [aba, setAba] = useState<Aba>((params.get('aba') as Aba) ?? 'entradas')
-  const [entradas, setEntradas] = useState<Saldo[]>([])
-  const [retiradas, setRetiradas] = useState<Retirada[]>([])
+  const [entradas, setEntradas] = useState<ResSaldo[]>([])
+  const [retiradas, setRetiradas] = useState<ResRetirada[]>([])
   const [obras, setObras] = useState<Obra[]>([])
   const [tipos, setTipos] = useState<TipoResiduo[]>([])
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
@@ -33,10 +33,10 @@ export default function MovimentacoesPage() {
   const [obraFiltro, setObraFiltro] = useState('')
 
   const [formEntrada, setFormEntrada] = useState({
-    obra_id: '', residuo_id: '', quantidade: '', unidade_medida: '', data: new Date().toISOString().slice(0, 10), documento_url: '',
+    obra_id: '', tipo_id: '', quantidade: '', unidade_medida: '', data: new Date().toISOString().slice(0, 10), documento_url: '',
   })
   const [formRetirada, setFormRetirada] = useState({
-    obra_id: '', residuo_id: '', fornecedor_id: '', quantidade: '', unidade_medida: '', descricao_preco: '', valor_unitario: '', data: new Date().toISOString().slice(0, 10), observacoes: '',
+    obra_id: '', tipo_id: '', fornecedor_id: '', quantidade: '', unidade_medida: '', descricao_preco: '', valor_unitario: '', data: new Date().toISOString().slice(0, 10), observacoes: '',
   })
 
   const carregar = useCallback(async () => {
@@ -44,46 +44,43 @@ export default function MovimentacoesPage() {
     try {
       const [e, r, o, t, f] = await Promise.all([
         saldosDB.list(), retiradasDB.list(), obrasDB.list(),
-        tiposDB.list(), fornecedoresResiduosDB.list(),
+        tiposDB.list(), fornecedoresDB.list(),
       ])
       setEntradas(e); setRetiradas(r)
       setObras(o.filter(x => x.ativa)); setTipos(t)
-      setFornecedores(f.filter(x => x.status === 'ATIVO'))
+      setFornecedores(f.filter(x => x.ativo))
     } catch { /* silencia */ }
     finally { setLoading(false) }
   }, [])
 
   useEffect(() => { carregar() }, [carregar])
 
-  const nomeObra = (id: string) => obras.find(o => o.id === id)?.nome ?? id
-  const nomeResiduo = (id: string) => tipos.find(t => t.id === id)?.nome ?? id
-
   const entradasFiltradas = obraFiltro ? entradas.filter(e => e.obra_id === obraFiltro) : entradas
   const retiradasFiltradas = obraFiltro ? retiradas.filter(r => r.obra_id === obraFiltro) : retiradas
 
   async function salvarEntrada() {
-    if (!formEntrada.obra_id || !formEntrada.residuo_id || !formEntrada.quantidade) return
+    if (!formEntrada.obra_id || !formEntrada.tipo_id || !formEntrada.quantidade) return
     setSalvando(true)
     try {
       await saldosDB.insert({
-        obra_id: formEntrada.obra_id, residuo_id: formEntrada.residuo_id,
+        obra_id: formEntrada.obra_id, tipo_id: formEntrada.tipo_id,
         quantidade: Number(formEntrada.quantidade), unidade_medida: formEntrada.unidade_medida,
         documento_url: formEntrada.documento_url || undefined, data: formEntrada.data,
       })
       setModal(null)
-      setFormEntrada({ obra_id: '', residuo_id: '', quantidade: '', unidade_medida: '', data: new Date().toISOString().slice(0, 10), documento_url: '' })
+      setFormEntrada({ obra_id: '', tipo_id: '', quantidade: '', unidade_medida: '', data: new Date().toISOString().slice(0, 10), documento_url: '' })
       await carregar()
     } finally { setSalvando(false) }
   }
 
   async function salvarRetirada() {
-    if (!formRetirada.obra_id || !formRetirada.residuo_id || !formRetirada.fornecedor_id || !formRetirada.quantidade) return
+    if (!formRetirada.obra_id || !formRetirada.tipo_id || !formRetirada.fornecedor_id || !formRetirada.quantidade) return
     setSalvando(true)
     try {
       const vu = formRetirada.valor_unitario ? Number(formRetirada.valor_unitario) : undefined
       const qt = Number(formRetirada.quantidade)
       await retiradasDB.insert({
-        obra_id: formRetirada.obra_id, residuo_id: formRetirada.residuo_id,
+        obra_id: formRetirada.obra_id, tipo_id: formRetirada.tipo_id,
         fornecedor_id: formRetirada.fornecedor_id, quantidade: qt,
         unidade_medida: formRetirada.unidade_medida || undefined,
         descricao_preco: formRetirada.descricao_preco || undefined,
@@ -91,7 +88,7 @@ export default function MovimentacoesPage() {
         observacoes: formRetirada.observacoes || undefined, data: formRetirada.data,
       })
       setModal(null)
-      setFormRetirada({ obra_id: '', residuo_id: '', fornecedor_id: '', quantidade: '', unidade_medida: '', descricao_preco: '', valor_unitario: '', data: new Date().toISOString().slice(0, 10), observacoes: '' })
+      setFormRetirada({ obra_id: '', tipo_id: '', fornecedor_id: '', quantidade: '', unidade_medida: '', descricao_preco: '', valor_unitario: '', data: new Date().toISOString().slice(0, 10), observacoes: '' })
       await carregar()
     } finally { setSalvando(false) }
   }
@@ -185,8 +182,8 @@ export default function MovimentacoesPage() {
                   {entradasFiltradas.map(e => (
                     <tr key={e.id} className="hover:bg-zinc-800/40 transition-colors">
                       <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{e.data}</td>
-                      <td className="px-4 py-3 text-zinc-200 font-medium">{e.obra_nome ?? nomeObra(e.obra_id)}</td>
-                      <td className="px-4 py-3 text-zinc-300">{e.residuo_nome ?? nomeResiduo(e.residuo_id)}</td>
+                      <td className="px-4 py-3 text-zinc-200 font-medium">{e.obra_nome ?? e.obra_id}</td>
+                      <td className="px-4 py-3 text-zinc-300">{e.tipo_nome ?? e.tipo_id}</td>
                       <td className="px-4 py-3 text-right text-green-400 font-semibold">{fmt(e.quantidade)}</td>
                       <td className="px-4 py-3 text-zinc-500">{e.unidade_medida}</td>
                       <td className="px-4 py-3">
@@ -230,8 +227,8 @@ export default function MovimentacoesPage() {
                   {retiradasFiltradas.map(r => (
                     <tr key={r.id} className="hover:bg-zinc-800/40 transition-colors">
                       <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{r.data}</td>
-                      <td className="px-4 py-3 text-zinc-200 font-medium">{r.obra_nome ?? nomeObra(r.obra_id)}</td>
-                      <td className="px-4 py-3 text-zinc-300">{r.residuo_nome ?? nomeResiduo(r.residuo_id)}</td>
+                      <td className="px-4 py-3 text-zinc-200 font-medium">{r.obra_nome ?? r.obra_id}</td>
+                      <td className="px-4 py-3 text-zinc-300">{r.tipo_nome ?? r.tipo_id}</td>
                       <td className="px-4 py-3 text-zinc-400">{r.fornecedor_nome ?? r.fornecedor_id}</td>
                       <td className="px-4 py-3 text-right text-amber-400 font-semibold">{fmt(r.quantidade)}</td>
                       <td className="px-4 py-3 text-right text-zinc-300">
@@ -268,7 +265,7 @@ export default function MovimentacoesPage() {
                 <option value="">Selecione a obra…</option>
                 {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
               </select>
-              <select value={formEntrada.residuo_id} onChange={e => setFormEntrada(f => ({ ...f, residuo_id: e.target.value }))}
+              <select value={formEntrada.tipo_id} onChange={e => setFormEntrada(f => ({ ...f, tipo_id: e.target.value }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500">
                 <option value="">Tipo de resíduo…</option>
                 {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -288,7 +285,7 @@ export default function MovimentacoesPage() {
                 onChange={e => setFormEntrada(f => ({ ...f, documento_url: e.target.value }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500" />
             </div>
-            <button onClick={salvarEntrada} disabled={salvando || !formEntrada.obra_id || !formEntrada.residuo_id || !formEntrada.quantidade}
+            <button onClick={salvarEntrada} disabled={salvando || !formEntrada.obra_id || !formEntrada.tipo_id || !formEntrada.quantidade}
               className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all active:scale-95 disabled:opacity-50"
               style={{ background: COR }}>
               {salvando ? 'Salvando…' : 'Registrar Entrada'}
@@ -313,7 +310,7 @@ export default function MovimentacoesPage() {
                 <option value="">Selecione a obra…</option>
                 {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
               </select>
-              <select value={formRetirada.residuo_id} onChange={e => setFormRetirada(f => ({ ...f, residuo_id: e.target.value }))}
+              <select value={formRetirada.tipo_id} onChange={e => setFormRetirada(f => ({ ...f, tipo_id: e.target.value }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500">
                 <option value="">Tipo de resíduo…</option>
                 {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -343,7 +340,7 @@ export default function MovimentacoesPage() {
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500 resize-none" />
             </div>
             <button onClick={salvarRetirada}
-              disabled={salvando || !formRetirada.obra_id || !formRetirada.residuo_id || !formRetirada.fornecedor_id || !formRetirada.quantidade}
+              disabled={salvando || !formRetirada.obra_id || !formRetirada.tipo_id || !formRetirada.fornecedor_id || !formRetirada.quantidade}
               className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all active:scale-95 disabled:opacity-50"
               style={{ background: COR }}>
               {salvando ? 'Salvando…' : 'Registrar Retirada'}

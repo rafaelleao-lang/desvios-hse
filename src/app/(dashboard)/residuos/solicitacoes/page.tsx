@@ -1,24 +1,24 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, RefreshCw, ClipboardSignature, Trash2, X, Check, XCircle } from 'lucide-react'
+import { Plus, RefreshCw, ClipboardSignature, Trash2, X, Check, XCircle, PlayCircle } from 'lucide-react'
 import { solicitacoesDB, tiposDB } from '@/lib/db-residuos'
 import { obrasDB } from '@/lib/db'
-import type { Solicitacao, TipoResiduo } from '@/types/residuos'
+import type { ResSolicitacao, TipoResiduo } from '@/types/residuos'
 import type { Obra } from '@/types'
 import { cn } from '@/lib/utils'
 
 const COR = '#22C55E'
 
-const STATUS_MAP: Record<Solicitacao['status'], { label: string; cor: string }> = {
-  PENDENTE:  { label: 'Pendente',  cor: '#F59E0B' },
-  APROVADA:  { label: 'Aprovada',  cor: '#22C55E' },
-  RECUSADA:  { label: 'Recusada',  cor: '#EF4444' },
-  CONCLUIDA: { label: 'Concluída', cor: '#3B82F6' },
+const STATUS_MAP: Record<ResSolicitacao['status'], { label: string; cor: string }> = {
+  PENDENTE:     { label: 'Pendente',     cor: '#F59E0B' },
+  EM_ANDAMENTO: { label: 'Em Andamento', cor: '#3B82F6' },
+  CONCLUIDA:    { label: 'Concluída',    cor: '#22C55E' },
+  CANCELADA:    { label: 'Cancelada',    cor: '#EF4444' },
 }
 
 export default function SolicitacoesPage() {
-  const [itens, setItens] = useState<Solicitacao[]>([])
+  const [itens, setItens] = useState<ResSolicitacao[]>([])
   const [obras, setObras] = useState<Obra[]>([])
   const [tipos, setTipos] = useState<TipoResiduo[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,8 +27,8 @@ export default function SolicitacoesPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>('')
 
   const [form, setForm] = useState({
-    obra_id: '', residuo_id: '', quantidade: '', unidade_medida: '',
-    valor_unitario: '', data_prevista: '', observacoes: '', status: 'PENDENTE' as Solicitacao['status'],
+    obra_id: '', tipo_id: '', quantidade: '', unidade_medida: '',
+    valor_unitario: '', data_prevista: '', observacoes: '', status: 'PENDENTE' as ResSolicitacao['status'],
   })
 
   const carregar = useCallback(async () => {
@@ -42,17 +42,14 @@ export default function SolicitacoesPage() {
 
   useEffect(() => { carregar() }, [carregar])
 
-  const nomeObra = (id: string) => obras.find(o => o.id === id)?.nome ?? id
-  const nomeResiduo = (id: string) => tipos.find(t => t.id === id)?.nome ?? id
-
   const filtrados = filtroStatus ? itens.filter(i => i.status === filtroStatus) : itens
 
   async function salvar() {
-    if (!form.obra_id || !form.residuo_id || !form.quantidade || !form.data_prevista) return
+    if (!form.obra_id || !form.tipo_id || !form.quantidade || !form.data_prevista) return
     setSalvando(true)
     try {
       await solicitacoesDB.insert({
-        obra_id: form.obra_id, residuo_id: form.residuo_id,
+        obra_id: form.obra_id, tipo_id: form.tipo_id,
         quantidade: Number(form.quantidade), unidade_medida: form.unidade_medida || undefined,
         valor_unitario: form.valor_unitario ? Number(form.valor_unitario) : undefined,
         data_prevista: form.data_prevista,
@@ -60,12 +57,12 @@ export default function SolicitacoesPage() {
         observacoes: form.observacoes || undefined, status: form.status,
       })
       setModal(false)
-      setForm({ obra_id: '', residuo_id: '', quantidade: '', unidade_medida: '', valor_unitario: '', data_prevista: '', observacoes: '', status: 'PENDENTE' })
+      setForm({ obra_id: '', tipo_id: '', quantidade: '', unidade_medida: '', valor_unitario: '', data_prevista: '', observacoes: '', status: 'PENDENTE' })
       await carregar()
     } finally { setSalvando(false) }
   }
 
-  async function mudarStatus(id: string, status: Solicitacao['status']) {
+  async function mudarStatus(id: string, status: ResSolicitacao['status']) {
     await solicitacoesDB.updateStatus(id, status)
     await carregar()
   }
@@ -142,11 +139,9 @@ export default function SolicitacoesPage() {
                         </span>
                         <span className="text-xs text-zinc-500">Prev: {s.data_prevista}</span>
                       </div>
-                      <p className="text-sm font-medium text-zinc-200">
-                        {s.obra_nome ?? nomeObra(s.obra_id)}
-                      </p>
+                      <p className="text-sm font-medium text-zinc-200">{s.obra_nome ?? s.obra_id}</p>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        {s.residuo_nome ?? nomeResiduo(s.residuo_id)} · {s.quantidade} {s.unidade_medida}
+                        {s.tipo_nome ?? s.tipo_id} · {s.quantidade} {s.unidade_medida}
                         {s.valor_unitario ? ` · R$ ${s.valor_unitario}/un` : ''}
                       </p>
                       {s.observacoes && <p className="text-xs text-zinc-500 mt-1">{s.observacoes}</p>}
@@ -154,19 +149,19 @@ export default function SolicitacoesPage() {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {s.status === 'PENDENTE' && (
                         <>
-                          <button onClick={() => mudarStatus(s.id, 'APROVADA')}
-                            className="p-1.5 rounded-lg hover:bg-green-500/10 text-zinc-600 hover:text-green-400 transition-colors" title="Aprovar">
-                            <Check className="w-3.5 h-3.5" />
+                          <button onClick={() => mudarStatus(s.id, 'EM_ANDAMENTO')}
+                            className="p-1.5 rounded-lg hover:bg-blue-500/10 text-zinc-600 hover:text-blue-400 transition-colors" title="Iniciar">
+                            <PlayCircle className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => mudarStatus(s.id, 'RECUSADA')}
-                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors" title="Recusar">
+                          <button onClick={() => mudarStatus(s.id, 'CANCELADA')}
+                            className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors" title="Cancelar">
                             <XCircle className="w-3.5 h-3.5" />
                           </button>
                         </>
                       )}
-                      {s.status === 'APROVADA' && (
+                      {s.status === 'EM_ANDAMENTO' && (
                         <button onClick={() => mudarStatus(s.id, 'CONCLUIDA')}
-                          className="p-1.5 rounded-lg hover:bg-blue-500/10 text-zinc-600 hover:text-blue-400 transition-colors" title="Concluir">
+                          className="p-1.5 rounded-lg hover:bg-green-500/10 text-zinc-600 hover:text-green-400 transition-colors" title="Concluir">
                           <Check className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -198,9 +193,9 @@ export default function SolicitacoesPage() {
                 <option value="">Obra…</option>
                 {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
               </select>
-              <select value={form.residuo_id} onChange={e => setForm(f => ({ ...f, residuo_id: e.target.value }))}
+              <select value={form.tipo_id} onChange={e => setForm(f => ({ ...f, tipo_id: e.target.value }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500">
-                <option value="">Resíduo…</option>
+                <option value="">Tipo de resíduo…</option>
                 {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
               <div className="grid grid-cols-2 gap-3">
@@ -226,7 +221,7 @@ export default function SolicitacoesPage() {
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500 resize-none" />
             </div>
             <button onClick={salvar}
-              disabled={salvando || !form.obra_id || !form.residuo_id || !form.quantidade || !form.data_prevista}
+              disabled={salvando || !form.obra_id || !form.tipo_id || !form.quantidade || !form.data_prevista}
               className="w-full py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-50"
               style={{ background: COR }}>
               {salvando ? 'Salvando…' : 'Criar Solicitação'}

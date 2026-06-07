@@ -3,7 +3,16 @@ export interface TipoResiduo {
   nome: string
   tipo_controle: string
   unidade_medida: string
-  created_at: string
+  criado_em: string
+}
+
+export interface FornecedorPreco {
+  id: string
+  fornecedor_id: string
+  tipo_id: string
+  tipo_nome?: string
+  descricao?: string
+  valor: number
 }
 
 export interface Fornecedor {
@@ -13,39 +22,30 @@ export interface Fornecedor {
   contato?: string
   endereco?: string
   estado?: string
-  status: 'ATIVO' | 'INATIVO'
-  created_at: string
-  precos?: FornecedorResiduo[]
+  ativo: boolean
+  criado_em: string
+  precos?: FornecedorPreco[]
 }
 
-export interface FornecedorResiduo {
-  id: string
-  fornecedor_id: string
-  residuo_id: string
-  residuo_nome?: string
-  descricao?: string
-  valor: number
-}
-
-export interface Saldo {
+export interface ResSaldo {
   id: string
   obra_id: string
   obra_nome?: string
-  residuo_id: string
-  residuo_nome?: string
+  tipo_id: string
+  tipo_nome?: string
   quantidade: number
   unidade_medida: string
   documento_url?: string
   data: string
-  created_at: string
+  criado_em: string
 }
 
-export interface Retirada {
+export interface ResRetirada {
   id: string
   obra_id: string
   obra_nome?: string
-  residuo_id: string
-  residuo_nome?: string
+  tipo_id: string
+  tipo_nome?: string
   fornecedor_id: string
   fornecedor_nome?: string
   quantidade: number
@@ -56,15 +56,15 @@ export interface Retirada {
   foto_url?: string
   observacoes?: string
   data: string
-  created_at: string
+  criado_em: string
 }
 
-export interface Solicitacao {
+export interface ResSolicitacao {
   id: string
   obra_id: string
   obra_nome?: string
-  residuo_id: string
-  residuo_nome?: string
+  tipo_id: string
+  tipo_nome?: string
   quantidade: number
   unidade_medida?: string
   descricao_preco?: string
@@ -73,27 +73,28 @@ export interface Solicitacao {
   data_solicitacao?: string
   data_finalizacao?: string
   observacoes?: string
-  status: 'PENDENTE' | 'APROVADA' | 'RECUSADA' | 'CONCLUIDA'
-  created_at: string
+  status: 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA'
+  criado_em: string
 }
 
-export interface AlertaEstoque {
+export interface ResAlerta {
   id: string
   obra_id: string
   obra_nome?: string
-  residuo_id: string
-  residuo_nome?: string
+  tipo_id: string
+  tipo_nome?: string
   minimo: number
   emails?: string
   ativo: boolean
-  created_at: string
+  criado_em: string
   saldo_atual?: number
 }
 
 export interface SaldoObra {
   obra_id: string
-  residuo_id: string
-  residuo_nome: string
+  obra_nome: string
+  tipo_id: string
+  tipo_nome: string
   unidade_medida: string
   total_entrada: number
   total_retirada: number

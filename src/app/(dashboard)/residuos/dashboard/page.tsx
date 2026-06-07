@@ -97,27 +97,28 @@ export default function DashboardResiduosPage() {
 
       {/* Cards por obra */}
       {!loading && obraIds.map(obraId => {
+        const saldosObra = saldos.filter(s => s.obra_id === obraId)
+        const obraNome = saldosObra[0]?.obra_nome
         const obra = obras.find(o => o.id === obraId)
-        const itens = saldos.filter(s => s.obra_id === obraId)
         return (
           <div key={obraId} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COR }} />
               <h2 className="font-semibold text-zinc-200 text-sm">
-                {obra?.nome ?? `Obra ${obraId.slice(0, 8)}…`}
+                {obraNome ?? `Obra ${obraId.slice(0, 8)}…`}
               </h2>
               {obra?.codigo && (
                 <span className="ml-auto text-xs text-zinc-600 font-mono">{obra.codigo}</span>
               )}
             </div>
             <div className="divide-y divide-zinc-800/60">
-              {itens.map(item => {
+              {saldosObra.map(item => {
                 const negativo = item.saldo < 0
                 return (
-                  <div key={`${item.residuo_id}-${item.unidade_medida}`}
+                  <div key={`${item.tipo_id}-${item.unidade_medida}`}
                     className="px-4 py-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-200 truncate">{item.residuo_nome}</p>
+                      <p className="text-sm font-medium text-zinc-200 truncate">{item.tipo_nome}</p>
                       <p className="text-xs text-zinc-500 mt-0.5">{item.unidade_medida}</p>
                     </div>
                     <div className="text-right flex-shrink-0 space-y-0.5">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { ClipboardList, RefreshCw, Plus, Trash2, X, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
-import { tiposDB, fornecedoresResiduosDB } from '@/lib/db-residuos'
+import { tiposDB, fornecedoresDB } from '@/lib/db-residuos'
 import type { TipoResiduo, Fornecedor } from '@/types/residuos'
 import { cn } from '@/lib/utils'
 
@@ -20,12 +20,12 @@ export default function CadastrosPage() {
   const [modalForn, setModalForn] = useState<'novo' | Fornecedor | null>(null)
 
   const [formTipo, setFormTipo] = useState({ nome: '', tipo_controle: 'cacamba', unidade_medida: 'caçamba' })
-  const [formForn, setFormForn] = useState({ nome: '', cnpj: '', contato: '', endereco: '', estado: '', status: 'ATIVO' as 'ATIVO' | 'INATIVO' })
+  const [formForn, setFormForn] = useState({ nome: '', cnpj: '', contato: '', endereco: '', estado: '' })
 
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      const [t, f] = await Promise.all([tiposDB.list(), fornecedoresResiduosDB.list()])
+      const [t, f] = await Promise.all([tiposDB.list(), fornecedoresDB.list()])
       setTipos(t); setFornecedores(f)
     } catch { /* silencia */ }
     finally { setLoading(false) }
@@ -69,13 +69,13 @@ export default function CadastrosPage() {
     setSalvando(true)
     try {
       if (modalForn === 'novo') {
-        await fornecedoresResiduosDB.create({
+        await fornecedoresDB.create({
           nome: formForn.nome, cnpj: formForn.cnpj || undefined,
           contato: formForn.contato || undefined, endereco: formForn.endereco || undefined,
-          estado: formForn.estado || undefined, status: formForn.status,
+          estado: formForn.estado || undefined, ativo: true,
         })
       } else if (modalForn) {
-        await fornecedoresResiduosDB.update(modalForn.id, {
+        await fornecedoresDB.update(modalForn.id, {
           nome: formForn.nome, cnpj: formForn.cnpj || undefined,
           contato: formForn.contato || undefined, endereco: formForn.endereco || undefined,
           estado: formForn.estado || undefined,
@@ -87,21 +87,21 @@ export default function CadastrosPage() {
   }
 
   async function toggleForn(id: string) {
-    await fornecedoresResiduosDB.toggleStatus(id); await carregar()
+    await fornecedoresDB.toggleAtivo(id); await carregar()
   }
 
   async function excluirForn(id: string) {
     if (!confirm('Excluir este fornecedor? Todos os preços vinculados serão removidos.')) return
-    await fornecedoresResiduosDB.delete(id); await carregar()
+    await fornecedoresDB.delete(id); await carregar()
   }
 
   function abrirEditarForn(f: Fornecedor) {
-    setFormForn({ nome: f.nome, cnpj: f.cnpj ?? '', contato: f.contato ?? '', endereco: f.endereco ?? '', estado: f.estado ?? '', status: f.status })
+    setFormForn({ nome: f.nome, cnpj: f.cnpj ?? '', contato: f.contato ?? '', endereco: f.endereco ?? '', estado: f.estado ?? '' })
     setModalForn(f)
   }
 
   function abrirNovoForn() {
-    setFormForn({ nome: '', cnpj: '', contato: '', endereco: '', estado: '', status: 'ATIVO' })
+    setFormForn({ nome: '', cnpj: '', contato: '', endereco: '', estado: '' })
     setModalForn('novo')
   }
 
@@ -157,8 +157,8 @@ export default function CadastrosPage() {
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-zinc-200">{f.nome}</p>
                   <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-semibold',
-                    f.status === 'ATIVO' ? 'bg-green-500/15 text-green-400' : 'bg-zinc-700 text-zinc-500')}>
-                    {f.status}
+                    f.ativo ? 'bg-green-500/15 text-green-400' : 'bg-zinc-700 text-zinc-500')}>
+                    {f.ativo ? 'ATIVO' : 'INATIVO'}
                   </span>
                 </div>
                 {(f.cnpj || f.contato || f.estado) && (
@@ -174,7 +174,7 @@ export default function CadastrosPage() {
                 </button>
                 <button onClick={() => toggleForn(f.id)}
                   className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors" title="Alternar status">
-                  {f.status === 'ATIVO' ? <ToggleRight className="w-3.5 h-3.5 text-green-500" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                  {f.ativo ? <ToggleRight className="w-3.5 h-3.5 text-green-500" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                 </button>
                 <button onClick={() => excluirForn(f.id)}
                   className="p-1.5 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors">
@@ -262,7 +262,7 @@ export default function CadastrosPage() {
                 onChange={e => setFormForn(f => ({ ...f, contato: e.target.value }))}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500" />
               <div className="grid grid-cols-3 gap-2">
-                <input type="text" placeholder="Estado (UF)" value={formForn.estado}
+                <input type="text" placeholder="UF" value={formForn.estado}
                   onChange={e => setFormForn(f => ({ ...f, estado: e.target.value.toUpperCase().slice(0, 2) }))}
                   className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-green-500" />
                 <input type="text" placeholder="Endereço" value={formForn.endereco}
