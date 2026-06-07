@@ -8,6 +8,15 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- Corrige collation de tabelas criadas em tentativas anteriores
+ALTER TABLE IF EXISTS res_tipos              CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE IF EXISTS res_fornecedores       CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE IF EXISTS res_fornecedor_precos  CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE IF EXISTS res_saldos             CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE IF EXISTS res_retiradas          CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE IF EXISTS res_solicitacoes       CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE IF EXISTS res_alertas            CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- ── Tipos de resíduo ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS res_tipos (
   id             VARCHAR(64)  NOT NULL,
