@@ -8,17 +8,17 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
--- Corrige collation de tabelas criadas em tentativas anteriores
-ALTER TABLE IF EXISTS res_tipos              CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE IF EXISTS res_fornecedores       CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE IF EXISTS res_fornecedor_precos  CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE IF EXISTS res_saldos             CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE IF EXISTS res_retiradas          CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE IF EXISTS res_solicitacoes       CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE IF EXISTS res_alertas            CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- Drop na ordem inversa de dependência (seguro com FK_CHECKS = 0)
+DROP TABLE IF EXISTS res_alertas;
+DROP TABLE IF EXISTS res_solicitacoes;
+DROP TABLE IF EXISTS res_retiradas;
+DROP TABLE IF EXISTS res_saldos;
+DROP TABLE IF EXISTS res_fornecedor_precos;
+DROP TABLE IF EXISTS res_fornecedores;
+DROP TABLE IF EXISTS res_tipos;
 
 -- ── Tipos de resíduo ──────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS res_tipos (
+CREATE TABLE res_tipos (
   id             VARCHAR(64)  NOT NULL,
   nome           VARCHAR(500) NOT NULL,
   tipo_controle  VARCHAR(50)  NOT NULL DEFAULT 'cacamba',
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS res_tipos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Fornecedores ──────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS res_fornecedores (
+CREATE TABLE res_fornecedores (
   id        VARCHAR(64)  NOT NULL,
   nome      VARCHAR(500) NOT NULL,
   cnpj      VARCHAR(32)  DEFAULT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS res_fornecedores (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Preços por fornecedor + tipo de resíduo ───────────────────────────────────
-CREATE TABLE IF NOT EXISTS res_fornecedor_precos (
+CREATE TABLE res_fornecedor_precos (
   id            VARCHAR(64)    NOT NULL,
   fornecedor_id VARCHAR(64)    NOT NULL,
   tipo_id       VARCHAR(64)    NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS res_fornecedor_precos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Entradas de resíduos (saldos) ────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS res_saldos (
+CREATE TABLE res_saldos (
   id             VARCHAR(64)    NOT NULL,
   obra_id        VARCHAR(64)    NOT NULL,
   tipo_id        VARCHAR(64)    NOT NULL,
@@ -73,30 +73,30 @@ CREATE TABLE IF NOT EXISTS res_saldos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Retiradas de resíduos ─────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS res_retiradas (
-  id             VARCHAR(64)    NOT NULL,
-  obra_id        VARCHAR(64)    NOT NULL,
-  tipo_id        VARCHAR(64)    NOT NULL,
-  fornecedor_id  VARCHAR(64)    NOT NULL,
-  quantidade     DECIMAL(16,4)  NOT NULL DEFAULT 0,
-  unidade_medida VARCHAR(200)   DEFAULT NULL,
-  descricao_preco VARCHAR(200)  DEFAULT NULL,
-  valor_unitario DECIMAL(12,4)  DEFAULT NULL,
-  valor_total    DECIMAL(12,2)  DEFAULT NULL,
-  foto_url       TEXT           DEFAULT NULL,
-  observacoes    TEXT           DEFAULT NULL,
-  data           DATE           NOT NULL,
-  criado_em      VARCHAR(64)    NOT NULL,
+CREATE TABLE res_retiradas (
+  id              VARCHAR(64)    NOT NULL,
+  obra_id         VARCHAR(64)    NOT NULL,
+  tipo_id         VARCHAR(64)    NOT NULL,
+  fornecedor_id   VARCHAR(64)    NOT NULL,
+  quantidade      DECIMAL(16,4)  NOT NULL DEFAULT 0,
+  unidade_medida  VARCHAR(200)   DEFAULT NULL,
+  descricao_preco VARCHAR(200)   DEFAULT NULL,
+  valor_unitario  DECIMAL(12,4)  DEFAULT NULL,
+  valor_total     DECIMAL(12,2)  DEFAULT NULL,
+  foto_url        TEXT           DEFAULT NULL,
+  observacoes     TEXT           DEFAULT NULL,
+  data            DATE           NOT NULL,
+  criado_em       VARCHAR(64)    NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT fk_rr_obra FOREIGN KEY (obra_id)       REFERENCES obras(id)             ON DELETE CASCADE  ON UPDATE CASCADE,
-  CONSTRAINT fk_rr_tipo FOREIGN KEY (tipo_id)       REFERENCES res_tipos(id)         ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_rr_forn FOREIGN KEY (fornecedor_id) REFERENCES res_fornecedores(id)  ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_rr_obra FOREIGN KEY (obra_id)       REFERENCES obras(id)            ON DELETE CASCADE  ON UPDATE CASCADE,
+  CONSTRAINT fk_rr_tipo FOREIGN KEY (tipo_id)       REFERENCES res_tipos(id)        ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_rr_forn FOREIGN KEY (fornecedor_id) REFERENCES res_fornecedores(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   KEY idx_rr_obra (obra_id),
   KEY idx_rr_data (data)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Solicitações de retirada ──────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS res_solicitacoes (
+CREATE TABLE res_solicitacoes (
   id               VARCHAR(64)    NOT NULL,
   obra_id          VARCHAR(64)    NOT NULL,
   tipo_id          VARCHAR(64)    NOT NULL,
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS res_solicitacoes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Alertas de estoque mínimo ─────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS res_alertas (
+CREATE TABLE res_alertas (
   id        VARCHAR(64) NOT NULL,
   obra_id   VARCHAR(64) NOT NULL,
   tipo_id   VARCHAR(64) NOT NULL,
