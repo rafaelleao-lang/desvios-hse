@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, Plus, History, ClipboardList, AlertCircle, ClipboardCheck,
-  BookOpen, FileText, List,
+  BookOpen, FileText, List, Recycle, ArrowDownUp, ClipboardSignature, Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -35,6 +35,7 @@ const TABS_INSP_RIGHT = [
 
 function getSistema(pathname: string) {
   if (pathname.startsWith('/tutorial'))    return 'tutorial'
+  if (pathname.startsWith('/residuos'))    return 'residuos'
   if (pathname.startsWith('/inspecoes'))   return 'inspecoes'
   if (pathname.startsWith('/indicadores')) return 'indicadores'
   if (pathname.startsWith('/obras'))       return 'obras'
@@ -255,6 +256,72 @@ function ObrasNav({ pathname }: { pathname: string }) {
   )
 }
 
+// ── Nav Resíduos (Dashboard | Movimentos | FAB | Solicitações | Relatórios) ──
+
+function ResiduosNav({ pathname }: { pathname: string }) {
+  const router = useRouter()
+  const cor = '#22C55E'
+
+  const tabs = [
+    { href: '/residuos/dashboard',     icon: LayoutDashboard,    label: 'Dashboard',   exact: true  },
+    { href: '/residuos/movimentacoes', icon: ArrowDownUp,        label: 'Movimentos',  exact: false },
+    { href: '/residuos/solicitacoes',  icon: ClipboardSignature, label: 'Solicitações',exact: false },
+    { href: '/residuos/relatorios',    icon: BarChart3,          label: 'Relatórios',  exact: false },
+  ]
+
+  return (
+    <div className="flex items-center h-16">
+      {tabs.slice(0, 2).map(tab => {
+        const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href)
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+            {isActive && (
+              <motion.div layoutId="mob-res-indicator"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                style={{ background: cor }}
+                transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+            )}
+            <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}} />
+            <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}}>
+              {tab.label}
+            </span>
+          </Link>
+        )
+      })}
+
+      <div className="flex-shrink-0 px-2">
+        <button onClick={() => router.push('/residuos/movimentacoes?aba=entradas&novo=1')}
+          className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95"
+          style={{ background: cor }}>
+          <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {tabs.slice(2).map(tab => {
+        const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href)
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+            {isActive && (
+              <motion.div layoutId="mob-res-indicator"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                style={{ background: cor }}
+                transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+            )}
+            <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}} />
+            <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}}>
+              {tab.label}
+            </span>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Nav Tutoriais (4 tabs sem FAB) ───────────────────────────────────────────
 
 const TABS_TUTORIAL = [
@@ -309,13 +376,15 @@ export function MobileNav() {
         >
           {sistema === 'obras'
             ? <ObrasNav pathname={pathname} />
-            : sistema === 'tutorial'
-              ? <TutorialNav pathname={pathname} />
-              : sistema === 'inspecoes'
-                ? <InspecoesNav pathname={pathname} />
-                : sistema === 'indicadores'
-                  ? <IndicadoresNav pathname={pathname} />
-                  : <DesviosNav pathname={pathname} />
+            : sistema === 'residuos'
+              ? <ResiduosNav pathname={pathname} />
+              : sistema === 'tutorial'
+                ? <TutorialNav pathname={pathname} />
+                : sistema === 'inspecoes'
+                  ? <InspecoesNav pathname={pathname} />
+                  : sistema === 'indicadores'
+                    ? <IndicadoresNav pathname={pathname} />
+                    : <DesviosNav pathname={pathname} />
           }
         </motion.div>
       </AnimatePresence>
