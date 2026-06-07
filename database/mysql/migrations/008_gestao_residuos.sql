@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS res_tipos (
   criado_em      VARCHAR(64)  NOT NULL,
   PRIMARY KEY (id),
   KEY idx_res_tipos_nome (nome(191))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Fornecedores ──────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS res_fornecedores (
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS res_fornecedores (
   criado_em VARCHAR(64)  NOT NULL,
   PRIMARY KEY (id),
   KEY idx_res_forn_nome (nome(191))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Preços por fornecedor + tipo de resíduo ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS res_fornecedor_precos (
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS res_fornecedor_precos (
   CONSTRAINT fk_rfp_forn FOREIGN KEY (fornecedor_id) REFERENCES res_fornecedores(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_rfp_tipo FOREIGN KEY (tipo_id)       REFERENCES res_tipos(id)        ON DELETE RESTRICT ON UPDATE CASCADE,
   KEY idx_rfp_lookup (fornecedor_id, tipo_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Entradas de resíduos (saldos) ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS res_saldos (
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS res_saldos (
   CONSTRAINT fk_rs_tipo FOREIGN KEY (tipo_id) REFERENCES res_tipos(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   KEY idx_rs_obra (obra_id),
   KEY idx_rs_data (data)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Retiradas de resíduos ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS res_retiradas (
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS res_retiradas (
   CONSTRAINT fk_rr_forn FOREIGN KEY (fornecedor_id) REFERENCES res_fornecedores(id)  ON DELETE RESTRICT ON UPDATE CASCADE,
   KEY idx_rr_obra (obra_id),
   KEY idx_rr_data (data)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Solicitações de retirada ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS res_solicitacoes (
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS res_solicitacoes (
   CONSTRAINT fk_rsol_tipo FOREIGN KEY (tipo_id) REFERENCES res_tipos(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   KEY idx_rsol_obra   (obra_id),
   KEY idx_rsol_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Alertas de estoque mínimo ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS res_alertas (
@@ -121,6 +121,6 @@ CREATE TABLE IF NOT EXISTS res_alertas (
   CONSTRAINT fk_ra_obra FOREIGN KEY (obra_id) REFERENCES obras(id)     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_ra_tipo FOREIGN KEY (tipo_id) REFERENCES res_tipos(id) ON DELETE CASCADE ON UPDATE CASCADE,
   UNIQUE KEY uq_alerta_obra_tipo (obra_id, tipo_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
