@@ -516,7 +516,7 @@ export default function IndicadoresPage() {
 
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPICard label="HHT Acum." value={fmt(Math.round(totaisKPI.hht))} icon={BookOpen} color={BLUE} sub="horas homem" />
+            <KPICard label="HHT Acum." value={fmt(Math.round(totaisKPI.hht))} icon={BookOpen} color={BLUE} />
             <KPICard label="Acidentes" value={totaisKPI.acidentes} icon={AlertTriangle} color={RED} />
             <KPICard label="DDS" value={fmt(totaisKPI.dds)} icon={ShieldCheck} color={GREEN} />
             <KPICard label="Campanhas" value={totaisKPI.campanhas} icon={Activity} color={PURPLE} />
@@ -543,7 +543,7 @@ export default function IndicadoresPage() {
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 20, right: 4, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradEfetivo" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={BLUE} stopOpacity={0.25} />
@@ -561,7 +561,9 @@ export default function IndicadoresPage() {
                   <YAxis tick={tick} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="efetivo" name="Efetivo" stroke={BLUE} strokeWidth={2}
-                    fill="url(#gradEfetivo)" dot={{ fill: BLUE, r: 3 }} activeDot={{ r: 5 }} />
+                    fill="url(#gradEfetivo)" dot={{ fill: BLUE, r: 3 }} activeDot={{ r: 5 }}>
+                    <LabelList dataKey="efetivo" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
+                  </Area>
                   {indicadores.some(d => d.ausentes > 0) && (
                     <Area type="monotone" dataKey="ausentes" name="Ausentes" stroke={AMBER} strokeWidth={2}
                       fill="url(#gradAusentes)" dot={false} />
@@ -705,12 +707,15 @@ export default function IndicadoresPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <p className="text-sm font-bold text-zinc-200 mb-0.5">HHT Semanal</p>
               <p className="text-xs text-zinc-500 mb-4">Homem Hora de Treinamento</p>
-              <div className="text-2xl font-black mb-3" style={{ color: BLUE }}>
-                {fmt(Math.round(totais.hht))}
-                <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+              <div className="mb-3">
+                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Acumulado</span>
+                <div className="text-2xl font-black" style={{ color: BLUE }}>
+                  {fmt(Math.round(totais.hht))}
+                  <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+                </div>
               </div>
-              <ResponsiveContainer width="100%" height={120}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={140}>
+                <AreaChart data={chartData} margin={{ top: 18, right: 4, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradHHT" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={PURPLE} stopOpacity={0.3} />
@@ -721,7 +726,10 @@ export default function IndicadoresPage() {
                   <YAxis tick={{ ...tick, fontSize: 8 }} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="hht" name="HHT" stroke={PURPLE} strokeWidth={2}
-                    fill="url(#gradHHT)" dot={{ fill: PURPLE, r: 2 }} />
+                    fill="url(#gradHHT)" dot={{ fill: PURPLE, r: 2 }}>
+                    <LabelList dataKey="hht" position="top" style={{ fill: '#71717A', fontSize: 8 }}
+                      formatter={(v: number) => fmt(Math.round(v))} />
+                  </Area>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -731,12 +739,15 @@ export default function IndicadoresPage() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
             <p className="text-sm font-bold text-zinc-200 mb-0.5">HHT Trabalhada</p>
             <p className="text-xs text-zinc-500 mb-4">Homem Hora Trabalhada</p>
-            <div className="text-2xl font-black mb-3" style={{ color: CYAN }}>
-              {fmt(Math.round(totais.hhtTrabalhada))}
-              <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+            <div className="mb-3">
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Acumulado</span>
+              <div className="text-2xl font-black" style={{ color: CYAN }}>
+                {fmt(Math.round(totais.hhtTrabalhada))}
+                <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+              </div>
             </div>
-            <ResponsiveContainer width="100%" height={120}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={140}>
+              <AreaChart data={chartData} margin={{ top: 18, right: 16, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradHHTrab" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={CYAN} stopOpacity={0.3} />
@@ -747,7 +758,10 @@ export default function IndicadoresPage() {
                 <YAxis tick={{ ...tick, fontSize: 8 }} />
                 <Tooltip content={<ChartTooltip />} />
                 <Area type="monotone" dataKey="hhtTrabalhada" name="HHT Trabalhada" stroke={CYAN} strokeWidth={2}
-                  fill="url(#gradHHTrab)" dot={{ fill: CYAN, r: 2 }} />
+                  fill="url(#gradHHTrab)" dot={{ fill: CYAN, r: 2 }}>
+                  <LabelList dataKey="hhtTrabalhada" position="top" style={{ fill: '#71717A', fontSize: 8 }}
+                    formatter={(v: number) => fmt(Math.round(v))} />
+                </Area>
               </AreaChart>
             </ResponsiveContainer>
           </div>
