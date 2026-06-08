@@ -26,7 +26,7 @@ interface ChartPoint {
   apr: number; pt: number
   desvOcorridos: number; desvSolucionados: number
   aloConformes: number; aloNaoConformes: number; aloTotais: number
-  hht: number; acidentes: number; dds: number
+  hht: number; hhtTrabalhada: number; acidentes: number; dds: number
   campanhas: number; pessoasTreinadas: number; primeirosSocorros: number
   quaseAcidentes: number; inspecoes: number
 }
@@ -209,6 +209,7 @@ export default function IndicadoresPage() {
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear())
   const [filtroSemIni, setFiltroSemIni] = useState(1)
   const [filtroSemFim, setFiltroSemFim] = useState(53)
+  const [filtroSemKPI, setFiltroSemKPI] = useState<number | null>(null)
 
   const carregarDados = async () => {
     setLoadingData(true)
@@ -238,7 +239,7 @@ export default function IndicadoresPage() {
         efetivo: 0, ausentes: 0, apr: 0, pt: 0,
         desvOcorridos: 0, desvSolucionados: 0,
         aloConformes: 0, aloNaoConformes: 0, aloTotais: 0,
-        hht: 0, acidentes: 0, dds: 0, campanhas: 0,
+        hht: 0, hhtTrabalhada: 0, acidentes: 0, dds: 0, campanhas: 0,
         pessoasTreinadas: 0, primeirosSocorros: 0,
         quaseAcidentes: 0, inspecoes: 0,
       }
@@ -252,6 +253,7 @@ export default function IndicadoresPage() {
       ex.aloNaoConformes  += item.alojamentos_nao_conformes
       ex.aloTotais        += item.alojamentos_totais
       ex.hht              += Number(item.hht_semanal)
+      ex.hhtTrabalhada    += Number(item.hht_trabalhada)
       ex.acidentes        += item.acidentes
       ex.dds              += item.dds
       ex.campanhas        += item.campanhas
@@ -278,6 +280,7 @@ export default function IndicadoresPage() {
 
   const totais = useMemo(() => ({
     hht: indicadores.reduce((s, d) => s + Number(d.hht_semanal), 0),
+    hhtTrabalhada: indicadores.reduce((s, d) => s + Number(d.hht_trabalhada), 0),
     acidentes: indicadores.reduce((s, d) => s + d.acidentes, 0),
     dds: indicadores.reduce((s, d) => s + d.dds, 0),
     campanhas: indicadores.reduce((s, d) => s + d.campanhas, 0),
@@ -288,6 +291,22 @@ export default function IndicadoresPage() {
     desvOcorridos: indicadores.reduce((s, d) => s + d.desvios_ocorridos, 0),
     desvSolucionados: indicadores.reduce((s, d) => s + d.desvios_solucionados, 0),
   }), [indicadores])
+
+  const indicadoresKPI = useMemo(
+    () => filtroSemKPI !== null ? indicadores.filter(d => d.semana === filtroSemKPI) : indicadores,
+    [indicadores, filtroSemKPI]
+  )
+
+  const totaisKPI = useMemo(() => ({
+    hht: indicadoresKPI.reduce((s, d) => s + Number(d.hht_semanal), 0),
+    acidentes: indicadoresKPI.reduce((s, d) => s + d.acidentes, 0),
+    dds: indicadoresKPI.reduce((s, d) => s + d.dds, 0),
+    campanhas: indicadoresKPI.reduce((s, d) => s + d.campanhas, 0),
+    pessoasTreinadas: indicadoresKPI.reduce((s, d) => s + d.pessoas_treinadas, 0),
+    inspecoes: indicadoresKPI.reduce((s, d) => s + d.inspecoes_semanais, 0),
+    primeirosSocorros: indicadoresKPI.reduce((s, d) => s + d.primeiros_socorros, 0),
+    quaseAcidentes: indicadoresKPI.reduce((s, d) => s + d.quase_acidentes, 0),
+  }), [indicadoresKPI])
 
   const ultimaSemana = chartData[chartData.length - 1]
   const obraAtual = obras.find(o => o.id === filtroObra)
@@ -470,16 +489,41 @@ export default function IndicadoresPage() {
         </div>
       ) : (
         <>
+          {/* ── Filtrar semana de envio ── */}
+          {!pdfMode && (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Filtrar semana de envio</span>
+              <select
+                value={filtroSemKPI ?? ''}
+                onChange={e => setFiltroSemKPI(e.target.value ? +e.target.value : null)}
+                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-blue-600"
+              >
+                <option value="">Todas</option>
+                {Array.from(new Set(indicadores.map(d => d.semana))).sort((a, b) => a - b).map(sem => (
+                  <option key={sem} value={sem}>Se{String(sem).padStart(2, '0')}</option>
+                ))}
+              </select>
+              {filtroSemKPI !== null && (
+                <button
+                  onClick={() => setFiltroSemKPI(null)}
+                  className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+                >
+                  <X className="w-3 h-3" /> Limpar
+                </button>
+              )}
+            </div>
+          )}
+
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPICard label="HHT Acum." value={fmt(Math.round(totais.hht))} icon={BookOpen} color={BLUE} sub="horas homem" />
-            <KPICard label="Acidentes" value={totais.acidentes} icon={AlertTriangle} color={RED} />
-            <KPICard label="DDS" value={fmt(totais.dds)} icon={ShieldCheck} color={GREEN} />
-            <KPICard label="Campanhas" value={totais.campanhas} icon={Activity} color={PURPLE} />
-            <KPICard label="P. Treinadas" value={fmt(totais.pessoasTreinadas)} icon={Users} color={AMBER} />
-            <KPICard label="Inspeções" value={fmt(totais.inspecoes)} icon={ShieldCheck} color={CYAN} />
-            <KPICard label="1ºs Socorros" value={totais.primeirosSocorros} icon={AlertTriangle} color="#EC4899" />
-            <KPICard label="Quase Acid." value={totais.quaseAcidentes} icon={AlertTriangle} color="#F97316" />
+            <KPICard label="Hora Homem de Treinamento" value={fmt(Math.round(totaisKPI.hht))} icon={BookOpen} color={BLUE} />
+            <KPICard label="Acidentes" value={totaisKPI.acidentes} icon={AlertTriangle} color={RED} />
+            <KPICard label="DDS" value={fmt(totaisKPI.dds)} icon={ShieldCheck} color={GREEN} />
+            <KPICard label="Campanhas" value={totaisKPI.campanhas} icon={Activity} color={PURPLE} />
+            <KPICard label="P. Treinadas" value={fmt(totaisKPI.pessoasTreinadas)} icon={Users} color={AMBER} />
+            <KPICard label="Inspeções" value={fmt(totaisKPI.inspecoes)} icon={ShieldCheck} color={CYAN} />
+            <KPICard label="1ºs Socorros" value={totaisKPI.primeirosSocorros} icon={AlertTriangle} color="#EC4899" />
+            <KPICard label="Quase Acid." value={totaisKPI.quaseAcidentes} icon={AlertTriangle} color="#F97316" />
           </div>
 
           {/* ── Efetivo (Area) + Taxa de Desvios (Donut) ── */}
@@ -499,7 +543,7 @@ export default function IndicadoresPage() {
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 20, right: 4, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradEfetivo" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={BLUE} stopOpacity={0.25} />
@@ -517,7 +561,9 @@ export default function IndicadoresPage() {
                   <YAxis tick={tick} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="efetivo" name="Efetivo" stroke={BLUE} strokeWidth={2}
-                    fill="url(#gradEfetivo)" dot={{ fill: BLUE, r: 3 }} activeDot={{ r: 5 }} />
+                    fill="url(#gradEfetivo)" dot={{ fill: BLUE, r: 3 }} activeDot={{ r: 5 }}>
+                    <LabelList dataKey="efetivo" position="top" style={{ fill: '#71717A', fontSize: 9 }} />
+                  </Area>
                   {indicadores.some(d => d.ausentes > 0) && (
                     <Area type="monotone" dataKey="ausentes" name="Ausentes" stroke={AMBER} strokeWidth={2}
                       fill="url(#gradAusentes)" dot={false} />
@@ -661,12 +707,15 @@ export default function IndicadoresPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <p className="text-sm font-bold text-zinc-200 mb-0.5">HHT Semanal</p>
               <p className="text-xs text-zinc-500 mb-4">Homem Hora de Treinamento</p>
-              <div className="text-2xl font-black mb-3" style={{ color: BLUE }}>
-                {fmt(Math.round(totais.hht))}
-                <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+              <div className="mb-3">
+                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Acumulado</span>
+                <div className="text-2xl font-black" style={{ color: BLUE }}>
+                  {fmt(Math.round(totais.hht))}
+                  <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+                </div>
               </div>
-              <ResponsiveContainer width="100%" height={120}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={140}>
+                <AreaChart data={chartData} margin={{ top: 18, right: 4, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradHHT" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={PURPLE} stopOpacity={0.3} />
@@ -677,10 +726,44 @@ export default function IndicadoresPage() {
                   <YAxis tick={{ ...tick, fontSize: 8 }} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="hht" name="HHT" stroke={PURPLE} strokeWidth={2}
-                    fill="url(#gradHHT)" dot={{ fill: PURPLE, r: 2 }} />
+                    fill="url(#gradHHT)" dot={{ fill: PURPLE, r: 2 }}>
+                    <LabelList dataKey="hht" position="top" style={{ fill: '#71717A', fontSize: 8 }}
+                      formatter={(v: number) => fmt(Math.round(v))} />
+                  </Area>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* ── HHT Trabalhada ── */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <p className="text-sm font-bold text-zinc-200 mb-0.5">HHT Trabalhada</p>
+            <p className="text-xs text-zinc-500 mb-4">Homem Hora Trabalhada</p>
+            <div className="mb-3">
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Acumulado</span>
+              <div className="text-2xl font-black" style={{ color: CYAN }}>
+                {fmt(Math.round(totais.hhtTrabalhada))}
+                <span className="text-sm font-normal text-zinc-500 ml-1">horas</span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
+              <AreaChart data={chartData} margin={{ top: 18, right: 16, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradHHTrab" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CYAN} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={CYAN} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="label" tick={{ ...tick, fontSize: 8 }} />
+                <YAxis tick={{ ...tick, fontSize: 8 }} />
+                <Tooltip content={<ChartTooltip />} />
+                <Area type="monotone" dataKey="hhtTrabalhada" name="HHT Trabalhada" stroke={CYAN} strokeWidth={2}
+                  fill="url(#gradHHTrab)" dot={{ fill: CYAN, r: 2 }}>
+                  <LabelList dataKey="hhtTrabalhada" position="top" style={{ fill: '#71717A', fontSize: 8 }}
+                    formatter={(v: number) => fmt(Math.round(v))} />
+                </Area>
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
 
         </>
