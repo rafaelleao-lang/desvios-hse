@@ -325,10 +325,11 @@ function ResiduosNav({ pathname }: { pathname: string }) {
 // ── Nav Tutoriais (4 tabs sem FAB) ───────────────────────────────────────────
 
 const TABS_TUTORIAL = [
-  { href: '/tutorial',             icon: BookOpen,  label: 'Tutoriais',  exact: true  },
-  { href: '/tutorial/desvios',     icon: FileText,  label: 'Desvios',    exact: true  },
-  { href: '/tutorial/inspecoes',   icon: FileText,  label: 'Inspeções',  exact: true  },
-  { href: '/tutorial/indicadores', icon: FileText,  label: 'Indicadores', exact: true },
+  { href: '/tutorial',             icon: BookOpen, label: 'Início',      exact: true },
+  { href: '/tutorial/desvios',     icon: FileText, label: 'Desvios',     exact: true },
+  { href: '/tutorial/inspecoes',   icon: FileText, label: 'Inspeções',   exact: true },
+  { href: '/tutorial/indicadores', icon: FileText, label: 'Indicadores', exact: true },
+  { href: '/tutorial/residuos',    icon: FileText, label: 'Resíduos',    exact: true },
 ]
 
 function TutorialNav({ pathname }: { pathname: string }) {

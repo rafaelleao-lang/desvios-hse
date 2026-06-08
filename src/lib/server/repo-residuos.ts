@@ -166,7 +166,21 @@ const tiposRepo = {
 const fornecedoresRepo = {
   async list(): Promise<Fornecedor[]> {
     const rows = await query<RowDataPacket[]>('SELECT * FROM res_fornecedores ORDER BY nome ASC')
-    return rows.map(mapFornecedor)
+    const fornecedores = rows.map(mapFornecedor)
+    if (fornecedores.length === 0) return fornecedores
+    const precoRows = await query<RowDataPacket[]>(
+      `SELECT fp.*, t.nome AS tipo_nome
+       FROM res_fornecedor_precos fp
+       LEFT JOIN res_tipos t ON t.id = fp.tipo_id`,
+    )
+    const porForn: Record<string, FornecedorPreco[]> = {}
+    for (const p of precoRows) {
+      const fp = mapPreco(p)
+      if (!porForn[fp.fornecedor_id]) porForn[fp.fornecedor_id] = []
+      porForn[fp.fornecedor_id].push(fp)
+    }
+    for (const f of fornecedores) f.precos = porForn[f.id] ?? []
+    return fornecedores
   },
   async find(id: string): Promise<Fornecedor | undefined> {
     const rows = await query<RowDataPacket[]>('SELECT * FROM res_fornecedores WHERE id=? LIMIT 1', [id])
@@ -203,13 +217,18 @@ const fornecedoresRepo = {
     await query('DELETE FROM res_fornecedores WHERE id=?', [id])
   },
   async setPrecos(fornecedorId: string, precos: Array<{ tipo_id: string; descricao?: string; valor: number }>): Promise<void> {
-    await query('DELETE FROM res_fornecedor_precos WHERE fornecedor_id=?', [fornecedorId])
+    await query<ResultSetHeader>('DELETE FROM res_fornecedor_precos WHERE fornecedor_id=?', [fornecedorId])
+    if (precos.length === 0) return
+    // Monta um único INSERT com N linhas de valores
+    const placeholders = precos.map(() => '(?,?,?,?,?)').join(', ')
+    const flat: unknown[] = []
     for (const p of precos) {
-      await query(
-        'INSERT INTO res_fornecedor_precos (id, fornecedor_id, tipo_id, descricao, valor) VALUES (?,?,?,?,?)',
-        [uid(), fornecedorId, p.tipo_id, p.descricao ?? null, p.valor],
-      )
+      flat.push(uid(), fornecedorId, p.tipo_id, p.descricao ?? null, p.valor)
     }
+    await query<ResultSetHeader>(
+      `INSERT INTO res_fornecedor_precos (id, fornecedor_id, tipo_id, descricao, valor) VALUES ${placeholders}`,
+      flat,
+    )
   },
 }
 

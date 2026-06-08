@@ -187,7 +187,7 @@ export default function InspecoesEmAbertoPage() {
                       </span>
                       <span className="text-xs text-zinc-500 ml-auto">{dias}d em aberto</span>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                       <div>
                         <p className="text-[10px] text-zinc-600 uppercase tracking-wide">Obra</p>
                         <p className="text-xs text-zinc-200 font-medium truncate">{insp.obra_nome || '—'}</p>

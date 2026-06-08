@@ -191,7 +191,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
           {/* Pre-filled info */}
           <div className="mx-5 mt-4 bg-zinc-900 border border-zinc-800 rounded-xl p-3">
             <p className="text-[10px] text-zinc-600 uppercase tracking-wide mb-1">Dados da Inspeção (pré-preenchidos)</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
               <p className="text-zinc-400">Obra: <span className="text-zinc-200">{obra_nome}</span></p>
               <p className="text-zinc-400">TST: <span className="text-zinc-200">{tst?.nome || '—'}</span></p>
               <p className="text-zinc-400">Encarregado: <span className="text-zinc-200">{encarregado?.nome || '—'}</span></p>
@@ -209,7 +209,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
 
               <div>
                 <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Categoria(s) *</label>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {CATEGORIAS_PADRAO.map(cat => (
                     <button
                       key={cat}
@@ -236,7 +236,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
 
               <div>
                 <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Gravidade *</label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {GRAVIDADES.map(g => (
                     <button
                       key={g.value}
@@ -295,7 +295,7 @@ function DesvioModal({ obra_id, obra_nome, tst, encarregado, coordenador, localP
                 <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Fotos do Desvio * (mín. 1)</label>
                 <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => addFoto(e.target.files)} />
                 <input ref={fotoRef} type="file" accept="image/*" multiple className="hidden" onChange={e => addFoto(e.target.files)} />
-                <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                   {form.fotos.map((foto, i) => (
                     <div key={foto.id} className="relative aspect-square bg-zinc-800 rounded-xl overflow-hidden group">
                       <img src={foto.data_url} alt="" className="w-full h-full object-cover" />

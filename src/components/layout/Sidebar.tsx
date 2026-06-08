@@ -7,7 +7,7 @@ import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
   ClipboardCheck, AlertCircle, BookOpen, FileText, Recycle,
-  ArrowDownUp, ClipboardSignature, Bell,
+  ArrowDownUp, ClipboardSignature, Bell, Scale,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -101,8 +101,9 @@ const MENUS: Array<{
     subnav: [
       { href: '/residuos/dashboard',    icon: LayoutDashboard,    label: 'Dashboard'       },
       { href: '/residuos/movimentacoes',icon: ArrowDownUp,        label: 'Movimentações'   },
-      { href: '/residuos/solicitacoes', icon: ClipboardSignature, label: 'Solicitações'    },
-      { href: '/residuos/relatorios',   icon: BarChart3,          label: 'Relatórios'      },
+      { href: '/residuos/saldo',        icon: Scale,              label: 'Saldo'           },
+      { href: '/residuos/solicitacoes', icon: ClipboardSignature, label: 'Solicitações' },
+      { href: '/residuos/relatorios',   icon: BarChart3,          label: 'Relatórios'   },
       { href: '/residuos/cadastros',    icon: ClipboardList,      label: 'Cadastros'       },
       { href: '/residuos/alertas',      icon: Bell,               label: 'Alertas'         },
     ],
@@ -118,6 +119,7 @@ const MENUS: Array<{
       { href: '/tutorial/desvios',     icon: FileText, label: 'Manual Desvios'     },
       { href: '/tutorial/inspecoes',   icon: FileText, label: 'Manual Inspeções'   },
       { href: '/tutorial/indicadores', icon: FileText, label: 'Manual Indicadores' },
+      { href: '/tutorial/residuos',    icon: FileText, label: 'Manual Resíduos'    },
     ],
   },
 ]

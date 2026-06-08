@@ -395,7 +395,7 @@ export default function IndicadoresPage() {
             <p className="text-sm font-bold text-zinc-200">{emissaoData}</p>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setShowFiltros(v => !v)}
               className="border-zinc-700 text-zinc-400 hover:text-zinc-200 gap-2 h-9">
               <Filter className="w-4 h-4" />
@@ -471,7 +471,7 @@ export default function IndicadoresPage() {
       ) : (
         <>
           {/* ── KPI Cards ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KPICard label="HHT Acum." value={fmt(Math.round(totais.hht))} icon={BookOpen} color={BLUE} sub="horas homem" />
             <KPICard label="Acidentes" value={totais.acidentes} icon={AlertTriangle} color={RED} />
             <KPICard label="DDS" value={fmt(totais.dds)} icon={ShieldCheck} color={GREEN} />
