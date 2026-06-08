@@ -305,12 +305,12 @@ export default function NovoDesvioPage() {
                 <MapPin className="w-4 h-4 text-amber-400" />
                 <p className="text-sm font-semibold text-zinc-200">Local do Desvio</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Setor</Label>
                   <Input value={setor} onChange={e => setSetor(e.target.value)} placeholder="Ex: Estrutura" />
                 </div>
-                <div className="space-y-1.5 col-span-2">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label>Local Exato <span className="text-red-400">*</span></Label>
                   <Input value={localExato} onChange={e => setLocalExato(e.target.value)}
                     placeholder="Ex: Bloco B, 3º andar, escada" />
@@ -333,7 +333,7 @@ export default function NovoDesvioPage() {
                 )}
               </div>
               <p className="text-[11px] text-zinc-500">Selecione uma ou mais categorias</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {CATEGORIAS_PADRAO.map(cat => {
                   const selected = categorias.includes(cat)
                   return (
@@ -377,7 +377,7 @@ export default function NovoDesvioPage() {
             {/* Gravidade */}
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-3">
               <p className="text-sm font-semibold text-zinc-200">Gravidade</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {GRAVIDADES.map(g => (
                   <button key={g.value} type="button" onClick={() => setGravidade(g.value)}
                     className={cn('flex flex-col p-3 rounded-xl border-2 text-left transition-all',
@@ -448,7 +448,7 @@ export default function NovoDesvioPage() {
 
               {/* Preview grid */}
               {fotos.length > 0 && (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {fotos.map(foto => (
                     <div key={foto.id} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800">
                       <img src={foto.data_url} alt="" className="w-full h-full object-cover" />

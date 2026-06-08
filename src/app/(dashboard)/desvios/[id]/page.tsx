@@ -50,6 +50,7 @@ export default function DesvioDetailPage() {
   const [conclusaoComentario, setConclusaoComentario] = useState('')
   const [loadingConclusaoFoto, setLoadingConclusaoFoto] = useState(false)
   const fileRefConclusao = useRef<HTMLInputElement>(null)
+  const fileRefConclusaoCamera = useRef<HTMLInputElement>(null)
 
   if (!desvio) {
     return (
@@ -196,7 +197,7 @@ export default function DesvioDetailPage() {
         <div className="flex gap-2 overflow-x-auto pb-1">
           {transitions.map(t => (
             <button key={t.to} onClick={() => handleStatusChange(t.to)}
-              className={cn('flex-shrink-0 flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold transition-all active:scale-95', t.cls)}>
+              className={cn('flex-shrink-0 flex items-center gap-1.5 h-10 px-4 rounded-xl text-xs font-semibold transition-all active:scale-95', t.cls)}>
               <CheckCircle2 className="w-3.5 h-3.5" />
               {t.label}
             </button>
@@ -230,17 +231,27 @@ export default function DesvioDetailPage() {
                 <p className="text-xs font-semibold text-zinc-300">Foto do desvio corrigido</p>
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/15 text-red-400">OBRIGATÓRIO</span>
               </div>
-              <button
-                onClick={() => fileRefConclusao.current?.click()}
-                disabled={loadingConclusaoFoto}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
-                style={{ background: '#16a34a' }}
-              >
-                {loadingConclusaoFoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                Adicionar foto
-              </button>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => fileRefConclusaoCamera.current?.click()}
+                  disabled={loadingConclusaoFoto}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors disabled:opacity-50"
+                >
+                  {loadingConclusaoFoto ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                  Câmera
+                </button>
+                <button
+                  onClick={() => fileRefConclusao.current?.click()}
+                  disabled={loadingConclusaoFoto}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors disabled:opacity-50"
+                >
+                  <ImageIcon className="w-3 h-3" />
+                  Galeria
+                </button>
+              </div>
             </div>
             <input ref={fileRefConclusao} type="file" accept="image/*" multiple className="sr-only" onChange={handleFotoConclusao} />
+            <input ref={fileRefConclusaoCamera} type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleFotoConclusao} />
             {conclusaoFotos.length === 0 ? (
               <p className="text-xs text-red-400">Adicione pelo menos 1 foto comprovando a correção do desvio</p>
             ) : (

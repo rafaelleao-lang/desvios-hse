@@ -117,7 +117,7 @@ function EvidenciaCard({ ev, index }: { ev: InspecaoEvidencia; index: number }) 
             <CheckCircle2 className="w-3 h-3" />
             Desvio Fechado
           </p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             {ev.prazo_correcao && (
               <div>
                 <p className="text-zinc-600">Prazo</p>
@@ -234,7 +234,7 @@ export default function InspecaoDetailPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex items-start gap-2">
               <User className="w-4 h-4 text-zinc-500 mt-0.5" />
               <div>
@@ -266,7 +266,7 @@ export default function InspecaoDetailPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-zinc-800">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-zinc-800">
             <div className="text-center">
               <p className="text-2xl font-black text-red-400">{desvios.length}</p>
               <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Desvios</p>

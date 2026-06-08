@@ -31,6 +31,15 @@ const MANUAIS = [
     border:  'rgba(59,130,246,0.25)',
     secoes:  '21 seções',
   },
+  {
+    href:    '/tutorial/residuos',
+    label:   'Manual de Gestão de Resíduos',
+    desc:    'Aprenda a registrar entradas e retiradas, acompanhar o saldo por obra, configurar fornecedores, gerar relatórios PDF e configurar alertas por e-mail.',
+    cor:     '#22C55E',
+    corDim:  'rgba(34,197,94,0.1)',
+    border:  'rgba(34,197,94,0.25)',
+    secoes:  '8 seções',
+  },
 ]
 
 export default function TutorialPage() {

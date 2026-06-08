@@ -6,16 +6,18 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
-  ClipboardCheck, AlertCircle, BookOpen, FileText,
+  ClipboardCheck, AlertCircle, BookOpen, FileText, Recycle,
+  ArrowDownUp, ClipboardSignature, Bell, Scale,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ── Sistema detectado pelo pathname ──────────────────────────────────────────
 
-type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'tutorial'
+type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'residuos' | 'tutorial'
 
 function getSistema(pathname: string): Sistema {
   if (pathname.startsWith('/tutorial'))    return 'tutorial'
+  if (pathname.startsWith('/residuos'))    return 'residuos'
   if (pathname.startsWith('/inspecoes'))   return 'inspecoes'
   if (pathname.startsWith('/indicadores')) return 'indicadores'
   if (pathname.startsWith('/obras'))       return 'obras'
@@ -90,6 +92,23 @@ const MENUS: Array<{
     ],
   },
   {
+    key:        'residuos',
+    label:      'Gestão de Resíduos',
+    icon:       Recycle,
+    cor:        '#22C55E',
+    corHover:   '#16A34A',
+    homeHref:   '/residuos/dashboard',
+    subnav: [
+      { href: '/residuos/dashboard',    icon: LayoutDashboard,    label: 'Dashboard'       },
+      { href: '/residuos/movimentacoes',icon: ArrowDownUp,        label: 'Movimentações'   },
+      { href: '/residuos/saldo',        icon: Scale,              label: 'Saldo'           },
+      { href: '/residuos/solicitacoes', icon: ClipboardSignature, label: 'Solicitações' },
+      { href: '/residuos/relatorios',   icon: BarChart3,          label: 'Relatórios'   },
+      { href: '/residuos/cadastros',    icon: ClipboardList,      label: 'Cadastros'       },
+      { href: '/residuos/alertas',      icon: Bell,               label: 'Alertas'         },
+    ],
+  },
+  {
     key:        'tutorial',
     label:      'Tutoriais',
     icon:       BookOpen,
@@ -100,6 +119,7 @@ const MENUS: Array<{
       { href: '/tutorial/desvios',     icon: FileText, label: 'Manual Desvios'     },
       { href: '/tutorial/inspecoes',   icon: FileText, label: 'Manual Inspeções'   },
       { href: '/tutorial/indicadores', icon: FileText, label: 'Manual Indicadores' },
+      { href: '/tutorial/residuos',    icon: FileText, label: 'Manual Resíduos'    },
     ],
   },
 ]

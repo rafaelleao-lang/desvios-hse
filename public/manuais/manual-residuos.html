@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual · Gestão de Resíduos · MSE Engenharia</title>
+<style>
+:root{
+  --accent:#22C55E;
+  --accent-light:#4ADE80;
+  --accent-dim:rgba(34,197,94,0.12);
+  --accent-mid:rgba(34,197,94,0.25);
+  --bg:#09090b;--bg2:#111113;--bg3:#18181b;--bg4:#27272a;
+  --border:#3f3f46;--border-soft:#27272a;
+  --text:#f4f4f5;--text2:#a1a1aa;--text3:#71717a;--text4:#52525b;
+  --green:#22C55E;--amber:#F59E0B;--red:#E8291C;--blue:#3b82f6;
+  --sidebar-w:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+code{background:var(--bg4);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;font-size:12px;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--accent-light)}
+
+/* ── Layout ── */
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--accent-dim);border-radius:10px}
+.main{flex:1;overflow-y:auto;padding:40px 48px 80px;max-width:860px}
+.main::-webkit-scrollbar{width:6px}
+.main::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:10px}
+
+/* ── Sidebar brand ── */
+.sidebar-brand{padding:20px 16px 16px;border-bottom:1px solid var(--border-soft)}
+.brand-mark{width:36px;height:36px;background:#E8291C;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;letter-spacing:-1px;box-shadow:0 4px 12px rgba(232,41,28,0.4);margin-bottom:10px}
+.brand-title{font-size:15px;font-weight:800;color:var(--text);line-height:1.2}
+.brand-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.brand-badge{margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:var(--accent-dim);border:1px solid var(--accent-mid);border-radius:20px;font-size:10px;font-weight:700;color:var(--accent)}
+.brand-badge::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;display:inline-block}
+
+/* ── Sidebar nav ── */
+.nav-section{padding:16px 16px 4px;font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.08em}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 16px;cursor:pointer;transition:all .15s;color:var(--text3);font-size:13px;border-left:2px solid transparent}
+.nav-item:hover{background:var(--bg4);color:var(--text);border-left-color:var(--border)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent)}
+.nav-num{width:20px;height:20px;border-radius:6px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;transition:all .15s}
+.nav-item.active .nav-num{background:var(--accent-mid);color:var(--accent)}
+.sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid var(--border-soft);font-size:11px;color:var(--text4)}
+.sidebar-footer strong{color:var(--text3);font-weight:700;display:block}
+
+/* ── Cover ── */
+.cover{background:linear-gradient(135deg,rgba(34,197,94,0.08) 0%,rgba(34,197,94,0.03) 60%,transparent 100%);border:1px solid rgba(34,197,94,0.2);border-radius:20px;padding:36px 40px;margin-bottom:56px;position:relative;overflow:hidden}
+.cover::after{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(34,197,94,0.15) 0%,transparent 70%);pointer-events:none}
+.cover-kicker{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cover-kicker::before{content:'';width:20px;height:2px;background:var(--accent);border-radius:2px}
+.cover-title{font-size:32px;font-weight:900;color:var(--text);line-height:1.15;margin-bottom:14px}
+.cover-title span{color:var(--accent)}
+.cover-desc{font-size:15px;color:var(--text2);line-height:1.7;max-width:540px;margin-bottom:28px}
+.stats{display:flex;gap:32px;flex-wrap:wrap}
+.stat-val{font-size:26px;font-weight:900;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── Sections ── */
+section{margin-bottom:64px;scroll-margin-top:24px}
+h2{font-size:22px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.section-num{width:30px;height:30px;border-radius:8px;background:var(--accent-dim);color:var(--accent);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.section-lead{font-size:15px;color:var(--text2);border-left:3px solid var(--accent);padding-left:14px;margin:16px 0 24px;line-height:1.7}
+h3{font-size:16px;font-weight:700;color:var(--text);margin:28px 0 10px;display:flex;align-items:center;gap:8px}
+h3 .icon{font-size:14px}
+p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+
+/* ── Cards ── */
+.card{background:var(--bg3);border:1px solid var(--border-soft);border-radius:16px;padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.card-accent{border-left:3px solid var(--accent)}
+
+/* ── Steps ── */
+.steps{display:flex;flex-direction:column;gap:0;margin:24px 0}
+.step{display:flex;gap:16px;padding-bottom:28px;position:relative}
+.step:not(:last-child)::before{content:'';position:absolute;left:17px;top:38px;bottom:0;width:2px;background:var(--border-soft)}
+.step-num{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);border:2px solid var(--accent);color:var(--accent);font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-body{flex:1;padding-top:6px}
+.step-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px}
+.step-desc{font-size:13px;color:var(--text2);line-height:1.65}
+
+/* ── Callouts ── */
+.callout{border-radius:12px;padding:14px 16px;margin:16px 0;display:flex;gap:12px;align-items:flex-start}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{flex:1}
+.callout-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout-text{font-size:13px;line-height:1.6}
+.callout.tip{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2)}
+.callout.tip .callout-title{color:var(--blue)}
+.callout.tip .callout-text{color:#93c5fd}
+.callout.warn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)}
+.callout.warn .callout-title{color:var(--amber)}
+.callout.warn .callout-text{color:#fcd34d}
+.callout.danger{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)}
+.callout.danger .callout-title{color:#ef4444}
+.callout.danger .callout-text{color:#fca5a5}
+.callout.success{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2)}
+.callout.success .callout-title{color:var(--green)}
+.callout.success .callout-text{color:#86efac}
+
+/* ── Tabelas ── */
+.field-table{width:100%;border-collapse:collapse;margin:12px 0 20px}
+.field-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.06em;background:var(--bg4);border-bottom:1px solid var(--border-soft)}
+.field-table td{padding:10px 12px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border-soft);vertical-align:top}
+.field-table td:first-child{color:var(--text);font-weight:600}
+.field-table .req{color:var(--red);font-weight:700}
+.field-table .opt{color:var(--text4);font-style:italic}
+
+/* ── Listas ── */
+ul.feature-list{list-style:none;padding:0;margin:12px 0;display:flex;flex-direction:column;gap:8px}
+ul.feature-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text2);line-height:1.5}
+ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;flex-shrink:0;margin-top:1px}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+.badge.verde{background:rgba(34,197,94,0.1);color:#4ade80;border-color:rgba(34,197,94,0.3)}
+.badge.amarelo{background:rgba(245,158,11,0.1);color:#fbbf24;border-color:rgba(245,158,11,0.3)}
+.badge.vermelho{background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.3)}
+.badge.azul{background:rgba(59,130,246,0.1);color:#93c5fd;border-color:rgba(59,130,246,0.3)}
+
+/* ── Wireframes ── */
+.wireframe-wrap{background:var(--bg3);border:1px solid var(--border-soft);border-radius:16px;padding:16px;margin:20px 0;overflow-x:auto}
+.wireframe-label{font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.wireframe-label::before{content:'';display:block;width:4px;height:14px;background:var(--accent);border-radius:2px}
+
+/* ── Divisor ── */
+.divider{height:1px;background:var(--border-soft);margin:40px 0}
+
+/* ── Mobile FAB nav ── */
+.mob-fab{
+  display:none;position:fixed;bottom:20px;right:20px;z-index:100;
+  width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;
+  border:none;cursor:pointer;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(34,197,94,0.45);font-size:18px;transition:transform .2s;
+}
+.mob-fab:active{transform:scale(.93)}
+.mob-panel{
+  display:none;position:fixed;bottom:76px;right:20px;z-index:99;
+  background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;
+  padding:8px;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.55);
+  max-height:60vh;overflow-y:auto;
+}
+.mob-panel.open{display:block}
+.mob-panel-title{
+  font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;
+  letter-spacing:.08em;padding:6px 10px 4px;
+}
+.mob-panel a{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;
+  font-size:13px;color:var(--text2);transition:all .12s;text-decoration:none;
+}
+.mob-panel a:hover{background:var(--bg4);color:var(--text)}
+.mob-panel a span{
+  width:20px;height:20px;border-radius:6px;background:var(--bg4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;
+}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .main{padding:20px 16px 80px;max-width:100%;overflow-x:hidden}
+  .card-grid,.card-grid-3{grid-template-columns:1fr}
+  .cover{padding:20px 16px}
+  .cover-title{font-size:22px}
+  .cover-desc{font-size:14px}
+  h2{font-size:18px}
+  h3{font-size:15px}
+  .section-lead{font-size:14px}
+  .stats{gap:16px}
+  .stat-val{font-size:22px}
+  .field-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  .field-table th,.field-table td{white-space:normal;min-width:80px}
+  .field-table td:last-child{min-width:160px}
+  .mob-fab{display:flex}
+  .step{gap:12px}
+  .callout{gap:10px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══════════════════════════════════════ SIDEBAR ═══════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-mark">mse</div>
+    <div class="brand-title">Gestão de Resíduos</div>
+    <div class="brand-sub">Manual do Módulo</div>
+    <div class="brand-badge">MSE Engenharia</div>
+  </div>
+
+  <div class="nav-section">Introdução</div>
+  <a href="#visao-geral" class="nav-item active">
+    <span class="nav-num">1</span> Visão Geral
+  </a>
+  <a href="#fluxo" class="nav-item">
+    <span class="nav-num">2</span> Fluxo do Módulo
+  </a>
+
+  <div class="nav-section">Submenus</div>
+  <a href="#dashboard" class="nav-item">
+    <span class="nav-num">3</span> Dashboard
+  </a>
+  <a href="#movimentacoes" class="nav-item">
+    <span class="nav-num">4</span> Movimentações
+  </a>
+  <a href="#saldo" class="nav-item">
+    <span class="nav-num">5</span> Saldo
+  </a>
+  <a href="#solicitacoes" class="nav-item">
+    <span class="nav-num">6</span> Solicitações
+  </a>
+  <a href="#relatorios" class="nav-item">
+    <span class="nav-num">7</span> Relatórios
+  </a>
+  <a href="#cadastros" class="nav-item">
+    <span class="nav-num">8</span> Cadastros
+  </a>
+  <a href="#alertas" class="nav-item">
+    <span class="nav-num">9</span> Alertas
+  </a>
+
+  <div class="sidebar-footer">
+    <strong>MSE Engenharia</strong>
+    Sistema de Gestão HSE
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════ MAIN ═══════════════════════════════════════ -->
+<main class="main">
+
+  <!-- Cover -->
+  <div class="cover">
+    <div class="cover-kicker">Manual Completo</div>
+    <h1 class="cover-title">Gestão de <span>Resíduos</span></h1>
+    <p class="cover-desc">
+      Controle completo de entradas e retiradas de resíduos por obra. Acompanhe o saldo em tempo real,
+      gerencie fornecedores, configure alertas automáticos por e-mail e exporte relatórios profissionais em PDF.
+    </p>
+    <div class="stats">
+      <div><div class="stat-val">8</div><div class="stat-label">Submenus</div></div>
+      <div><div class="stat-val">PDF</div><div class="stat-label">Exportação</div></div>
+      <div><div class="stat-val">E-mail</div><div class="stat-label">Alertas automáticos</div></div>
+      <div><div class="stat-val">∞</div><div class="stat-label">Obras monitoradas</div></div>
+    </div>
+  </div>
+
+  <!-- ─────────────────── 1. VISÃO GERAL ─────────────────── -->
+  <section id="visao-geral">
+    <h2><span class="section-num">1</span> Visão Geral</h2>
+    <p class="section-lead">
+      O módulo de Gestão de Resíduos permite controlar todo o ciclo de vida dos resíduos nas obras:
+      desde o registro de entradas (saldo inicial) até as retiradas pelos fornecedores,
+      com visualização do estoque atual em tempo real.
+    </p>
+
+    <div class="card-grid-3">
+      <div class="card card-accent">
+        <div class="card-title">📥 Entradas</div>
+        <p style="font-size:13px;color:var(--text2)">Registro da quantidade inicial de resíduos em cada obra, por tipo e unidade de medida.</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">📤 Retiradas</div>
+        <p style="font-size:13px;color:var(--text2)">Registro das coletas realizadas pelos fornecedores, com data, fornecedor, custo e foto.</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">⚖️ Saldo</div>
+        <p style="font-size:13px;color:var(--text2)">Cálculo automático: <strong>Entradas − Retiradas</strong> = estoque atual por obra e tipo.</p>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Conceito fundamental</div>
+        <div class="callout-text">O saldo é calculado automaticamente pelo sistema. Você nunca precisa digitar o saldo — ele resulta da diferença entre o que entrou e o que foi retirado.</div>
+      </div>
+    </div>
+
+    <h3>O que você pode fazer neste módulo</h3>
+    <ul class="feature-list">
+      <li>Registrar entradas de resíduos por obra e tipo</li>
+      <li>Registrar retiradas com fornecedor, quantidade, data e foto</li>
+      <li>Visualizar saldo atual de cada obra em cards com donut chart</li>
+      <li>Acompanhar KPIs e gráficos no Dashboard interativo</li>
+      <li>Cadastrar tipos de resíduos, fornecedores e preços por tipo</li>
+      <li>Configurar alertas com múltiplos e-mails quando o saldo cai abaixo do mínimo</li>
+      <li>Exportar relatórios e saldo atual em PDF no tema MSE</li>
+      <li>Gerenciar solicitações de obras externas</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────── 2. FLUXO ─────────────────── -->
+  <section id="fluxo">
+    <h2><span class="section-num">2</span> Fluxo do Módulo</h2>
+    <p class="section-lead">
+      O fluxo recomendado para começar a usar o módulo vai do cadastro até o monitoramento contínuo.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Cadastrar Tipos de Resíduo e Fornecedores</div>
+          <div class="step-desc">Acesse <strong>Cadastros</strong> e registre os tipos de resíduo que sua obra gera (ex: Madeira, Entulho, Óleo) e os fornecedores que fazem a coleta. Para cada fornecedor, cadastre o preço por tipo de resíduo.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Registrar as Entradas</div>
+          <div class="step-desc">Em <strong>Movimentações → aba Entradas</strong>, registre as quantidades iniciais de cada tipo de resíduo em cada obra. Isso define o "estoque" de partida.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Registrar Retiradas</div>
+          <div class="step-desc">Sempre que um fornecedor fizer uma coleta, acesse <strong>Movimentações → aba Retiradas</strong> e registre a obra, tipo, fornecedor, quantidade e data. O valor é calculado automaticamente com base no preço cadastrado.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Acompanhar o Saldo</div>
+          <div class="step-desc">Acesse <strong>Saldo</strong> para ver um card por obra com o saldo atual de cada tipo de resíduo e o donut chart de composição. Exporte em PDF para enviar aos gestores.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Configurar Alertas</div>
+          <div class="step-desc">Em <strong>Alertas</strong>, configure um nível mínimo por obra e tipo. Adicione quantos e-mails quiser como destinatários. Quando o saldo cair abaixo do mínimo, o sistema notifica automaticamente.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Analisar o Dashboard</div>
+          <div class="step-desc">Use o <strong>Dashboard</strong> para acompanhar gastos por obra e fornecedor, evolução temporal, taxa de consumo e exportar um relatório completo em PDF.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 3. DASHBOARD ─────────────────── -->
+  <section id="dashboard">
+    <h2><span class="section-num">3</span> Dashboard</h2>
+    <p class="section-lead">
+      Visão analítica completa do módulo com KPIs, gráficos interativos, filtros combinados e exportação em PDF.
+    </p>
+
+    <h3><span class="icon">📊</span> KPIs Principais</h3>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title">💰 Total Gasto</div>
+        <p style="font-size:13px;color:var(--text2)">Soma do valor de todas as retiradas no período filtrado.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">📦 Vol. Entradas</div>
+        <p style="font-size:13px;color:var(--text2)">Total de unidades registradas como entrada (estoque inicial).</p>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Solicitações</div>
+        <p style="font-size:13px;color:var(--text2)">Quantidade de solicitações pendentes de aprovação.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🔔 Alertas</div>
+        <p style="font-size:13px;color:var(--text2)">Alertas de estoque com saldo abaixo do mínimo configurado.</p>
+      </div>
+    </div>
+
+    <h3><span class="icon">🔍</span> Filtros Disponíveis</h3>
+    <table class="field-table">
+      <thead><tr><th>Filtro</th><th>Opções</th><th>Efeito</th></tr></thead>
+      <tbody>
+        <tr><td>Período</td><td>Este mês / Últ. 90d / Este ano / Tudo</td><td>Filtra as retiradas pelo período selecionado</td></tr>
+        <tr><td>Obra</td><td>Lista de obras cadastradas</td><td>Exibe somente os dados da obra selecionada</td></tr>
+        <tr><td>Resíduo</td><td>Lista de tipos cadastrados</td><td>Filtra por tipo de resíduo</td></tr>
+        <tr><td>Fornecedor</td><td>Lista de fornecedores</td><td>Exibe somente retiradas do fornecedor selecionado</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Gráfico de Evolução Temporal</div>
+        <div class="callout-text">O gráfico de evolução mensal de gastos <strong>não é afetado pelo filtro de período</strong> — ele sempre exibe o histórico completo para facilitar a análise de tendências.</div>
+      </div>
+    </div>
+
+    <h3><span class="icon">📄</span> Exportação em PDF</h3>
+    <p>Clique no botão <strong>"Exportar PDF"</strong> (canto superior direito) para gerar um relatório em PDF no tema MSE Vermelho com todos os dados filtrados, incluindo:</p>
+    <ul class="feature-list">
+      <li>KPIs e indicadores do período</li>
+      <li>Gastos por obra e por fornecedor (barras horizontais)</li>
+      <li>Distribuição por tipo de resíduo (donut chart)</li>
+      <li>Entradas vs Retiradas por obra</li>
+      <li>Taxa de consumo por obra</li>
+      <li>Saldo atual por tipo</li>
+      <li>Evolução temporal de gastos</li>
+      <li>Composição de resíduos por obra</li>
+      <li>Tabela detalhada de retiradas</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────── 4. MOVIMENTAÇÕES ─────────────────── -->
+  <section id="movimentacoes">
+    <h2><span class="section-num">4</span> Movimentações</h2>
+    <p class="section-lead">
+      Central de registro de entradas (saldo inicial) e retiradas (coletas pelos fornecedores).
+      Todo o cálculo de saldo parte dos registros feitos aqui.
+    </p>
+
+    <h3><span class="icon">📥</span> Registrar Entrada</h3>
+    <p>Clique em <strong>"+ Entrada"</strong> para registrar a quantidade de um tipo de resíduo que existe em uma obra.</p>
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Obra</td><td><span class="req">Sim</span></td><td>Selecione a obra onde o resíduo está</td></tr>
+        <tr><td>Tipo de resíduo</td><td><span class="req">Sim</span></td><td>Categoria do resíduo (ex: Madeira, Entulho)</td></tr>
+        <tr><td>Quantidade</td><td><span class="req">Sim</span></td><td>Número de unidades (ex: 5)</td></tr>
+        <tr><td>Unidade de medida</td><td><span class="req">Sim</span></td><td>Ex: Caçamba 5m³, Caçamba 30m³, Tonelada</td></tr>
+        <tr><td>Data</td><td><span class="req">Sim</span></td><td>Data do registro</td></tr>
+        <tr><td>Observações</td><td><span class="opt">Opcional</span></td><td>Anotações livres</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">📤</span> Registrar Retirada</h3>
+    <p>Clique em <strong>"+ Retirada"</strong> para registrar uma coleta realizada por um fornecedor.</p>
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Obra</td><td><span class="req">Sim</span></td><td>Obra de onde o resíduo foi retirado</td></tr>
+        <tr><td>Tipo de resíduo</td><td><span class="req">Sim</span></td><td>Tipo de resíduo coletado</td></tr>
+        <tr><td>Fornecedor</td><td><span class="req">Sim</span></td><td>Empresa que realizou a coleta</td></tr>
+        <tr><td>Quantidade</td><td><span class="req">Sim</span></td><td>Quantidade coletada</td></tr>
+        <tr><td>Data</td><td><span class="req">Sim</span></td><td>Data da coleta</td></tr>
+        <tr><td>Foto</td><td><span class="opt">Opcional</span></td><td>Foto do manifesto ou comprovante de coleta</td></tr>
+        <tr><td>Observações</td><td><span class="opt">Opcional</span></td><td>Anotações livres</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout success">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body">
+        <div class="callout-title">Preço calculado automaticamente</div>
+        <div class="callout-text">Ao selecionar o fornecedor e o tipo de resíduo, o sistema busca automaticamente o preço cadastrado no módulo de Cadastros e exibe o total estimado da retirada. Você não precisa digitar o valor.</div>
+      </div>
+    </div>
+
+    <h3><span class="icon">📋</span> Tabela de Retiradas</h3>
+    <p>Abaixo do formulário, a tabela exibe todas as retiradas registradas com:</p>
+    <ul class="feature-list">
+      <li>Data, obra, tipo, fornecedor e quantidade</li>
+      <li>Valor total (calculado ou salvo)</li>
+      <li>Ícone de exclusão visível ao passar o mouse na linha</li>
+      <li>Total geral no rodapé da tabela</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────── 5. SALDO ─────────────────── -->
+  <section id="saldo">
+    <h2><span class="section-num">5</span> Saldo</h2>
+    <p class="section-lead">
+      Visão do estoque atual por obra em cards inteligentes — ideal para o relatório semanal enviado aos gestores.
+    </p>
+
+    <h3><span class="icon">🃏</span> Cards por Obra</h3>
+    <p>Cada obra aparece em um card independente contendo:</p>
+    <ul class="feature-list">
+      <li><strong>Nome da obra</strong> em destaque com borda vermelha MSE</li>
+      <li><strong>Lista de tipos</strong> com o saldo atual à direita (ex: "3 Caçamba 5m³")</li>
+      <li><strong>Donut chart</strong> mostrando a proporção de cada tipo de resíduo no estoque</li>
+      <li><strong>Legenda</strong> com cor, nome e quantidade por tipo</li>
+    </ul>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title" style="color:var(--green)">⬤ Saldo positivo</div>
+        <p style="font-size:13px;color:var(--text2)">Tipos com saldo > 0 aparecem no donut e na lista com suas respectivas quantidades.</p>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--text3)">○ Obra zerada</div>
+        <p style="font-size:13px;color:var(--text2)">Se todos os tipos da obra foram retirados, o card exibe "Sem saldo disponível".</p>
+      </div>
+    </div>
+
+    <h3><span class="icon">🔍</span> Filtro de Obra</h3>
+    <p>Use o seletor no topo para filtrar por uma obra específica. Útil quando você quer focar em um canteiro de obras.</p>
+
+    <h3><span class="icon">📄</span> Exportação em PDF</h3>
+    <p>O botão <strong>"Exportar PDF"</strong> gera um relatório no tema MSE Vermelho com todos os cards da tela atual (respeitando o filtro de obra). O PDF é perfeito para o envio semanal aos gestores.</p>
+
+    <div class="callout tip">
+      <div class="callout-icon">📅</div>
+      <div class="callout-body">
+        <div class="callout-title">Relatório semanal para gestores</div>
+        <div class="callout-text">Acesse Saldo → clique em "Exportar PDF" → envie por e-mail. O PDF traz o saldo atual de todas as obras com os donuts coloridos, nome da obra em vermelho MSE e legenda completa.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 6. SOLICITAÇÕES ─────────────────── -->
+  <section id="solicitacoes">
+    <h2><span class="section-num">6</span> Solicitações</h2>
+    <p class="section-lead">
+      Gerenciamento de pedidos de coleta feitos pelas obras ao setor de gestão de resíduos.
+    </p>
+    <p>As solicitações permitem que responsáveis de obra enviem pedidos de retirada sem ter acesso direto ao módulo de movimentações. O fluxo é:</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Obra solicita coleta</div>
+          <div class="step-desc">O responsável de obra cria uma solicitação informando tipo de resíduo, quantidade estimada e urgência.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Gestor analisa e aprova</div>
+          <div class="step-desc">O gestor visualiza as solicitações pendentes na lista e aprova ou rejeita cada uma.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Coleta realizada</div>
+          <div class="step-desc">Após aprovação, o gestor agenda com o fornecedor e registra a retirada em Movimentações.</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Solicitações não movimentam o saldo</div>
+        <div class="callout-text">Uma solicitação aprovada não altera automaticamente o saldo. A retirada precisa ser registrada manualmente em Movimentações após a coleta ser realizada.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 7. RELATÓRIOS ─────────────────── -->
+  <section id="relatorios">
+    <h2><span class="section-num">7</span> Relatórios</h2>
+    <p class="section-lead">
+      Geração de relatórios consolidados do módulo de resíduos.
+    </p>
+    <p>O submenu Relatórios oferece visões consolidadas do histórico de movimentações, permitindo análise por período, obra e tipo de resíduo. Os relatórios podem ser filtrados e exportados conforme necessário.</p>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">PDF do Dashboard vs PDF do Saldo</div>
+        <div class="callout-text">
+          <strong>Dashboard → PDF:</strong> relatório analítico com gráficos de gastos, evolução e ranking de fornecedores. Ideal para reuniões de gestão.<br><br>
+          <strong>Saldo → PDF:</strong> relatório operacional com o estoque atual por obra. Ideal para envio semanal aos gestores de campo.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 8. CADASTROS ─────────────────── -->
+  <section id="cadastros">
+    <h2><span class="section-num">8</span> Cadastros</h2>
+    <p class="section-lead">
+      Base de dados do módulo: tipos de resíduos e fornecedores com preços. Configure aqui antes de começar as movimentações.
+    </p>
+
+    <h3><span class="icon">♻️</span> Tipos de Resíduo</h3>
+    <p>Cadastre as categorias de resíduos que sua empresa gera. Exemplos comuns:</p>
+    <div class="card-grid-3">
+      <div class="card"><div class="card-title">🪵 Madeira</div><p style="font-size:12px;color:var(--text2)">Resíduos de madeira, painéis, formas</p></div>
+      <div class="card"><div class="card-title">🧱 RCC</div><p style="font-size:12px;color:var(--text2)">Resíduos de Construção Civil (entulho, gesso, concreto)</p></div>
+      <div class="card"><div class="card-title">♻️ Recicláveis</div><p style="font-size:12px;color:var(--text2)">Papel, plástico, metal</p></div>
+    </div>
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Nome</td><td><span class="req">Sim</span></td><td>Nome do tipo de resíduo</td></tr>
+        <tr><td>Descrição</td><td><span class="opt">Opcional</span></td><td>Detalhes sobre o tipo de resíduo</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">🏢</span> Fornecedores</h3>
+    <p>Cadastre as empresas coletoras. Para cada fornecedor você pode associar <strong>preços por tipo de resíduo</strong>, que serão usados automaticamente no cálculo do valor das retiradas.</p>
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Nome</td><td><span class="req">Sim</span></td><td>Razão social ou nome fantasia da empresa coletora</td></tr>
+        <tr><td>CNPJ</td><td><span class="opt">Opcional</span></td><td>CNPJ do fornecedor</td></tr>
+        <tr><td>Contato</td><td><span class="opt">Opcional</span></td><td>Telefone ou e-mail de contato</td></tr>
+        <tr><td>Preços por tipo</td><td><span class="opt">Opcional</span></td><td>Valor cobrado por unidade de cada tipo de resíduo</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout success">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body">
+        <div class="callout-title">Preço automático nas retiradas</div>
+        <div class="callout-text">Quando o preço do tipo de resíduo está cadastrado para o fornecedor, ao registrar uma retirada o sistema calcula automaticamente o valor total (preço × quantidade). Você não precisa digitar o valor manualmente.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 9. ALERTAS ─────────────────── -->
+  <section id="alertas">
+    <h2><span class="section-num">9</span> Alertas</h2>
+    <p class="section-lead">
+      Sistema de notificação automática por e-mail quando o saldo de um resíduo cai abaixo do mínimo configurado.
+    </p>
+
+    <h3><span class="icon">🔔</span> Como funciona</h3>
+    <p>Para cada combinação de obra + tipo de resíduo, você pode configurar uma quantidade mínima e uma lista de e-mails. O sistema verifica automaticamente após cada retirada registrada e, se o saldo estiver abaixo do mínimo, dispara o e-mail.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Criar um alerta</div>
+          <div class="step-desc">Clique em <strong>"+ Novo alerta"</strong> e selecione a obra, o tipo de resíduo e a quantidade mínima.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Adicionar e-mails</div>
+          <div class="step-desc">No campo de e-mails, digite um endereço e pressione <strong>Enter</strong> ou clique em <strong>"+ Add"</strong>. Repita para adicionar quantos destinatários quiser. Cada e-mail aparece como uma tag que pode ser removida com o X.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Monitoramento automático</div>
+          <div class="step-desc">A partir daí, toda vez que uma retirada for registrada, o sistema verifica se o saldo ficou abaixo do mínimo e envia o e-mail automaticamente para todos os destinatários.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3><span class="icon">📧</span> Campos do Alerta</h3>
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Obra</td><td><span class="req">Sim</span></td><td>Obra monitorada</td></tr>
+        <tr><td>Tipo de resíduo</td><td><span class="req">Sim</span></td><td>Resíduo monitorado nessa obra</td></tr>
+        <tr><td>Quantidade mínima</td><td><span class="req">Sim</span></td><td>Saldo mínimo aceitável — abaixo disto, o e-mail é disparado</td></tr>
+        <tr><td>E-mails</td><td><span class="opt">Opcional</span></td><td>Destinatários das notificações. Sem e-mail, o alerta aparece no sistema mas não envia nada</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">👁</span> Indicadores visuais</h3>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title"><span style="color:var(--green)">⬤</span> Ponto verde</div>
+        <p style="font-size:13px;color:var(--text2)">Alerta ativo e saldo dentro do limite configurado.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span style="color:var(--red)">⬤</span> Ponto vermelho (piscando)</div>
+        <p style="font-size:13px;color:var(--text2)">Alerta violado — saldo abaixo do mínimo. Atenção imediata necessária.</p>
+      </div>
+    </div>
+    <p>A barra de progresso exibe visualmente o percentual do saldo atual em relação ao mínimo:</p>
+    <ul class="feature-list">
+      <li><span class="badge verde">Verde</span> — saldo acima de 60% do mínimo</li>
+      <li><span class="badge amarelo">Amarelo</span> — saldo entre 40% e 60% do mínimo</li>
+      <li><span class="badge vermelho">Vermelho</span> — saldo abaixo de 40% do mínimo ou violado</li>
+    </ul>
+
+    <h3><span class="icon">📨</span> Notificar agora</h3>
+    <p>O botão <strong>"Notificar agora"</strong> força a verificação imediata de todos os alertas e envia os e-mails para os alertas violados. Use-o para testar a configuração ou quando quiser disparar as notificações manualmente.</p>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Pré-requisito: configuração de e-mail</div>
+        <div class="callout-text">Para que os e-mails sejam enviados, as variáveis <code>SMTP_HOST</code>, <code>SMTP_USER</code> e <code>SMTP_PASS</code> precisam estar configuradas no arquivo <code>.env.local</code> do servidor. Em caso de dúvida, consulte o administrador do sistema.</div>
+      </div>
+    </div>
+
+    <h3><span class="icon">🔕</span> Ativar e desativar alertas</h3>
+    <p>Cada alerta tem um <strong>toggle</strong> (botão liga/desliga) na lateral direita. Alertas desativados ficam opacos na lista e não disparam e-mails mesmo que o saldo seja violado. Para excluir um alerta definitivamente, clique no ícone de lixeira.</p>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Múltiplos destinatários</div>
+        <div class="callout-text">Você pode adicionar quantos e-mails quiser em cada alerta. Todos receberão a notificação simultaneamente quando o saldo for violado. Exemplo: gestor + encarregado + coordenador de meio ambiente.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+  <p style="font-size:12px;color:var(--text4);text-align:center">
+    MSE Engenharia · Manual de Gestão de Resíduos · Sistema HSE
+  </p>
+
+</main>
+</div>
+
+<!-- ── Mobile FAB nav ── -->
+<button class="mob-fab" id="mobFab" aria-label="Navegar seções">☰</button>
+<div class="mob-panel" id="mobPanel">
+  <div class="mob-panel-title">Seções do Manual</div>
+  <a href="#visao-geral"  onclick="closeMobNav()"><span>1</span> Visão Geral</a>
+  <a href="#fluxo"        onclick="closeMobNav()"><span>2</span> Fluxo do Módulo</a>
+  <a href="#dashboard"    onclick="closeMobNav()"><span>3</span> Dashboard</a>
+  <a href="#movimentacoes" onclick="closeMobNav()"><span>4</span> Movimentações</a>
+  <a href="#saldo"        onclick="closeMobNav()"><span>5</span> Saldo</a>
+  <a href="#solicitacoes" onclick="closeMobNav()"><span>6</span> Solicitações</a>
+  <a href="#relatorios"   onclick="closeMobNav()"><span>7</span> Relatórios</a>
+  <a href="#cadastros"    onclick="closeMobNav()"><span>8</span> Cadastros</a>
+  <a href="#alertas"      onclick="closeMobNav()"><span>9</span> Alertas</a>
+</div>
+
+<script>
+const mobFab   = document.getElementById('mobFab')
+const mobPanel = document.getElementById('mobPanel')
+
+function closeMobNav() {
+  mobPanel.classList.remove('open')
+  mobFab.textContent = '☰'
+}
+
+mobFab.addEventListener('click', () => {
+  const isOpen = mobPanel.classList.toggle('open')
+  mobFab.textContent = isOpen ? '✕' : '☰'
+})
+
+// Fecha ao clicar fora
+document.addEventListener('click', e => {
+  if (!mobFab.contains(e.target) && !mobPanel.contains(e.target)) closeMobNav()
+})
+
+// Destaca o item de nav ativo ao rolar
+const items = document.querySelectorAll('.nav-item')
+const sections = document.querySelectorAll('section, .cover')
+const main = document.querySelector('.main')
+
+main.addEventListener('scroll', () => {
+  let current = ''
+  sections.forEach(s => {
+    if (main.scrollTop >= s.offsetTop - 60) current = s.id
+  })
+  items.forEach(a => {
+    const href = a.getAttribute('href')?.slice(1)
+    a.classList.toggle('active', href === current)
+  })
+})
+
+items.forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault()
+    const id = a.getAttribute('href')?.slice(1)
+    const el = document.getElementById(id)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+})
+</script>
+</body>
+</html>
