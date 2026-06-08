@@ -168,11 +168,11 @@ export default function SaldoPage() {
       const R: [number,number,number] = [220, 38, 38]
       let y = 0
 
-      function h2r(hex: string): [number,number,number] {
+      const h2r = (hex: string): [number,number,number] => {
         return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)]
       }
 
-      function drawHeader() {
+      const drawHeader = () => {
         doc.setFillColor(R[0],R[1],R[2]); doc.rect(0,0,PW,18,'F')
         doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255,255,255)
         doc.text('mse', ML, 12.5)
@@ -183,14 +183,14 @@ export default function SaldoPage() {
         doc.text(hoje.toLocaleDateString('pt-BR'), PW-MR, 12.5, { align: 'right' })
       }
 
-      function newPage()        { doc.addPage(); drawHeader(); y = 26 }
-      function ensureY(n: number) { if (y + n > 297 - MB) newPage() }
+      const newPage = () => { doc.addPage(); drawHeader(); y = 26 }
+      const ensureY = (n: number) => { if (y + n > 297 - MB) newPage() }
 
-      function drawArcSeg(
+      const drawArcSeg = (
         cx: number, cy: number, midR: number,
         startA: number, endA: number,
         rgb: [number,number,number], lw: number
-      ) {
+      ) => {
         const steps = Math.max(30, Math.ceil(Math.abs(endA - startA) / (2 * Math.PI) * 100))
         doc.setDrawColor(rgb[0],rgb[1],rgb[2]); doc.setLineWidth(lw)
         for (let i = 0; i < steps; i++) {
@@ -223,12 +223,12 @@ export default function SaldoPage() {
       const cW = (CW - 6) / 2
       const dR = 14, dI = 8  // raio externo / interno do donut
 
-      function cardH(n: number): number {
+      const cardH = (n: number): number => {
         // título(14) + itens(n×7) + divisor(5) + donut(dR×2+8) + legenda(n×6)
         return n === 0 ? 28 : 14 + n * 7 + 5 + (dR * 2 + 8) + n * 6 + 4
       }
 
-      function drawCard(cx: number, cardY: number, obra: ObraCard) {
+      const drawCard = (cx: number, cardY: number, obra: ObraCard) => {
         const n = obra.itens.length
         const h = cardH(n)
 

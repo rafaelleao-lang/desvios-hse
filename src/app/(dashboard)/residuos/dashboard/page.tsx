@@ -325,14 +325,14 @@ export default function DashboardResiduosPage() {
       const RED: [number, number, number] = [220, 38, 38]
       let y = 0
 
-      function h2r(hex: string): [number, number, number] {
+      const h2r = (hex: string): [number, number, number] => {
         return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)]
       }
-      function fmtPDF(v: number) {
+      const fmtPDF = (v: number) => {
         return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
       }
 
-      function drawHeader() {
+      const drawHeader = () => {
         doc.setFillColor(RED[0], RED[1], RED[2])
         doc.rect(0, 0, PW, 18, 'F')
         doc.setFont('helvetica', 'bold')
@@ -348,15 +348,15 @@ export default function DashboardResiduosPage() {
         doc.text(ds, PW - MR, 12.5, { align: 'right' })
       }
 
-      function newPage() {
+      const newPage = () => {
         doc.addPage(); drawHeader(); y = 26
       }
 
-      function ensureY(need: number) {
+      const ensureY = (need: number) => {
         if (y + need > 297 - MB) newPage()
       }
 
-      function sectionTitle(txt: string) {
+      const sectionTitle = (txt: string) => {
         ensureY(12)
         doc.setFillColor(254, 242, 242)
         doc.rect(ML, y, CW, 7, 'F')
@@ -368,7 +368,7 @@ export default function DashboardResiduosPage() {
       }
 
       // KPI card
-      function kpiCard(x: number, yy: number, w: number, h: number, label: string, value: string, sub: string, rgb: [number,number,number]) {
+      const kpiCard = (x: number, yy: number, w: number, h: number, label: string, value: string, sub: string, rgb: [number,number,number]) => {
         doc.setFillColor(250, 250, 250); doc.roundedRect(x, yy, w, h, 2, 2, 'F')
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]); doc.setLineWidth(0.5)
         doc.line(x, yy + h - 1, x + w, yy + h - 1)
@@ -381,10 +381,10 @@ export default function DashboardResiduosPage() {
       }
 
       // Barra horizontal — label | barra | valor (sempre visível fora da barra)
-      function horizBar(
+      const horizBar = (
         x: number, yy: number, w: number, label: string,
         value: number, maxVal: number, valStr: string, rgb: [number,number,number], rank: number
-      ) {
+      ) => {
         const labelW = 60, valW = 34, gap = 2
         const trackX = x + labelW + gap
         const trackW = w - labelW - gap - valW - gap
@@ -405,7 +405,7 @@ export default function DashboardResiduosPage() {
       }
 
       // Donut — arco espesso (padrão do módulo desvios)
-      function drawArcSeg(cx: number, cy: number, midR: number, startA: number, endA: number, rgb: [number,number,number], lw: number) {
+      const drawArcSeg = (cx: number, cy: number, midR: number, startA: number, endA: number, rgb: [number,number,number], lw: number) => {
         const steps = Math.max(40, Math.ceil(Math.abs(endA - startA) / (2 * Math.PI) * 120))
         doc.setDrawColor(rgb[0], rgb[1], rgb[2])
         doc.setLineWidth(lw)
@@ -417,7 +417,7 @@ export default function DashboardResiduosPage() {
         }
         doc.setLineWidth(0.1)
       }
-      function drawDonut(cx: number, cy: number, r: number, inner: number, data: Array<{name: string; value: number; hex: string}>) {
+      const drawDonut = (cx: number, cy: number, r: number, inner: number, data: Array<{name: string; value: number; hex: string}>) => {
         const total = data.reduce((s, d) => s + d.value, 0)
         if (total === 0) return
         const midR = (r + inner) / 2
@@ -435,7 +435,7 @@ export default function DashboardResiduosPage() {
       }
 
       // Sparkline de evolução temporal
-      function drawSparkline(x: number, yy: number, w: number, h: number, data: Array<{ mes: string; Gastos: number }>) {
+      const drawSparkline = (x: number, yy: number, w: number, h: number, data: Array<{ mes: string; Gastos: number }>) => {
         if (data.length === 0) return
         const maxV = Math.max(1, ...data.map(d => d.Gastos))
         const n = data.length
