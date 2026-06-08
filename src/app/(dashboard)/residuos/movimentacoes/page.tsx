@@ -1,8 +1,6 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Plus, Trash2, RefreshCw, ArrowDownUp, TrendingUp, TrendingDown,
@@ -42,7 +40,7 @@ async function uploadArquivo(file: File): Promise<string> {
   return json.url as string
 }
 
-export default function MovimentacoesPage() {
+function MovimentacoesContent() {
   const params = useSearchParams()
   const [aba, setAba] = useState<Aba>((params.get('aba') as Aba) ?? 'entradas')
   const [entradas, setEntradas] = useState<ResSaldo[]>([])
@@ -652,4 +650,8 @@ export default function MovimentacoesPage() {
       )}
     </div>
   )
+}
+
+export default function MovimentacoesPage() {
+  return <Suspense><MovimentacoesContent /></Suspense>
 }
