@@ -516,7 +516,7 @@ export default function IndicadoresPage() {
 
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPICard label="HHT Acum." value={fmt(Math.round(totaisKPI.hht))} icon={BookOpen} color={BLUE} />
+            <KPICard label="Hora Homem de Treinamento" value={fmt(Math.round(totaisKPI.hht))} icon={BookOpen} color={BLUE} />
             <KPICard label="Acidentes" value={totaisKPI.acidentes} icon={AlertTriangle} color={RED} />
             <KPICard label="DDS" value={fmt(totaisKPI.dds)} icon={ShieldCheck} color={GREEN} />
             <KPICard label="Campanhas" value={totaisKPI.campanhas} icon={Activity} color={PURPLE} />
