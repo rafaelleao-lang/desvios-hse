@@ -502,6 +502,7 @@ function Step1({
 }) {
   const obra = obras.find(o => o.id === form.obraId)
   const tstsFiltrados = tsts.filter(t => t.obra_id === form.obraId)
+  const tstSelecionado = tstsFiltrados.find(t => t.id === form.tstId)
   const obrasAtivas = obras.filter(o => o.ativa)
 
   return (
@@ -538,7 +539,7 @@ function Step1({
               {[
                 { icon: Hash, label: 'Código', value: obra.codigo },
                 { icon: Building2, label: 'Empresa', value: obra.empresa },
-                { icon: User, label: 'Responsável', value: obra.responsavel },
+                { icon: User, label: 'Responsável', value: tstSelecionado?.nome ?? '' },
                 { icon: User, label: 'Cidade', value: [obra.cidade, obra.estado].filter(Boolean).join(' — ') },
               ].map(item => item.value && (
                 <div key={item.label} className="flex items-start gap-2">
