@@ -153,6 +153,8 @@ export const CATEGORIAS_PADRAO = [
   'Comportamental',
   'Documentação',
   'Ergonomia',
+  'Trabalho a Quente',
+  'Meio Ambiente',
   'Outros',
 ] as const
 
@@ -252,5 +254,7 @@ export const CATEGORIAS_CORES: Record<string, string> = {
   'Comportamental':       '#DB2777',
   'Documentação':         '#64748B',
   'Ergonomia':            '#0D9488',
+  'Trabalho a Quente':   '#EF4444',
+  'Meio Ambiente':        '#22C55E',
   'Outros':               '#78716C',
 }
