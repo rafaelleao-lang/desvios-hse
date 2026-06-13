@@ -149,8 +149,8 @@ function mapDesvio(r: RowDataPacket): Desvio {
 // ── Obras ─────────────────────────────────────────────────────────────────────
 export const obrasRepo = {
   async list(): Promise<Obra[]> {
-    const rows = await query<RowDataPacket[]>('SELECT * FROM obras ORDER BY criado_em ASC')
-    return rows.map(mapObra)
+    const rows = await query<RowDataPacket[]>('SELECT * FROM obras')
+    return rows.map(mapObra).sort((a, b) => (a.criado_em ?? '').localeCompare(b.criado_em ?? ''))
   },
 
   async find(id: string): Promise<Obra | undefined> {
@@ -198,8 +198,8 @@ export const obrasRepo = {
 // ── TSTs ──────────────────────────────────────────────────────────────────────
 export const tstsRepo = {
   async list(): Promise<TST[]> {
-    const rows = await query<RowDataPacket[]>('SELECT * FROM tsts ORDER BY criado_em ASC')
-    return rows.map(mapTST)
+    const rows = await query<RowDataPacket[]>('SELECT * FROM tsts')
+    return rows.map(mapTST).sort((a, b) => (a.criado_em ?? '').localeCompare(b.criado_em ?? ''))
   },
 
   async byObra(obraId: string): Promise<TST[]> {
@@ -250,8 +250,8 @@ export const tstsRepo = {
 // ── Encarregados ────────────────────────────────────────────────────────────────
 export const encarregadosRepo = {
   async list(): Promise<Encarregado[]> {
-    const rows = await query<RowDataPacket[]>('SELECT * FROM encarregados ORDER BY criado_em ASC')
-    return rows.map(mapEncarregado)
+    const rows = await query<RowDataPacket[]>('SELECT * FROM encarregados')
+    return rows.map(mapEncarregado).sort((a, b) => (a.criado_em ?? '').localeCompare(b.criado_em ?? ''))
   },
 
   async byObra(obraId: string): Promise<Encarregado[]> {
@@ -302,8 +302,8 @@ export const encarregadosRepo = {
 // ── Coordenadores ───────────────────────────────────────────────────────────────
 export const coordenadoresRepo = {
   async list(): Promise<Coordenador[]> {
-    const rows = await query<RowDataPacket[]>('SELECT * FROM coordenadores ORDER BY criado_em ASC')
-    return rows.map(mapCoordenador)
+    const rows = await query<RowDataPacket[]>('SELECT * FROM coordenadores')
+    return rows.map(mapCoordenador).sort((a, b) => (a.criado_em ?? '').localeCompare(b.criado_em ?? ''))
   },
 
   async byObra(obraId: string): Promise<Coordenador[]> {
@@ -377,8 +377,8 @@ function bindDesvioValue(key: string, value: unknown): unknown {
 
 export const desviosRepo = {
   async list(): Promise<Desvio[]> {
-    const rows = await query<RowDataPacket[]>('SELECT * FROM desvios ORDER BY numero DESC')
-    return rows.map(mapDesvio)
+    const rows = await query<RowDataPacket[]>('SELECT * FROM desvios')
+    return rows.map(mapDesvio).sort((a, b) => b.numero - a.numero)
   },
 
   async find(id: string): Promise<Desvio | undefined> {
@@ -661,8 +661,8 @@ const INSP_LIST_SQL = `
 
 export const inspecoesRepo = {
   async list(): Promise<Inspecao[]> {
-    const rows = await query<RowDataPacket[]>(`${INSP_LIST_SQL} ORDER BY i.numero DESC`)
-    return rows.map(mapInspecao)
+    const rows = await query<RowDataPacket[]>(INSP_LIST_SQL)
+    return rows.map(mapInspecao).sort((a, b) => b.numero - a.numero)
   },
 
   async find(id: string): Promise<(Inspecao & { evidencias: InspecaoEvidencia[] }) | undefined> {
