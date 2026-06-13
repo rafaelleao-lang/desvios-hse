@@ -28,26 +28,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded] = useState(false)
 
   const refresh = useCallback(async () => {
-    try {
-      const [o, t, e, c, d, i] = await Promise.all([
-        obrasDB.list(),
-        tstsDB.list(),
-        encarregadosDB.list(),
-        coordenadoresDB.list(),
-        desviosDB.list(),
-        inspecoesDB.list(),
-      ])
-      setObras(o)
-      setTsts(t)
-      setEncarregados(e)
-      setCoordenadores(c)
-      setDesvios(d)
-      setInspecoes(i)
-    } catch (err) {
-      console.error('AppContext.refresh falhou:', err)
-    } finally {
-      setLoaded(true)
-    }
+    const [o, t, e, c, d, i] = await Promise.all([
+      obrasDB.list().catch(err => { console.error('[AppContext] obras:', err); return [] as Obra[] }),
+      tstsDB.list().catch(err => { console.error('[AppContext] tsts:', err); return [] as TST[] }),
+      encarregadosDB.list().catch(err => { console.error('[AppContext] encarregados:', err); return [] as Encarregado[] }),
+      coordenadoresDB.list().catch(err => { console.error('[AppContext] coordenadores:', err); return [] as Coordenador[] }),
+      desviosDB.list().catch(err => { console.error('[AppContext] desvios:', err); return [] as Desvio[] }),
+      inspecoesDB.list().catch(err => { console.error('[AppContext] inspecoes:', err); return [] as Inspecao[] }),
+    ])
+    setObras(o)
+    setTsts(t)
+    setEncarregados(e)
+    setCoordenadores(c)
+    setDesvios(d)
+    setInspecoes(i)
+    setLoaded(true)
   }, [])
 
   useEffect(() => {
