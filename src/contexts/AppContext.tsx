@@ -28,21 +28,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded] = useState(false)
 
   const refresh = useCallback(async () => {
-    const [o, t, e, c, d, i] = await Promise.all([
-      obrasDB.list(),
-      tstsDB.list(),
-      encarregadosDB.list(),
-      coordenadoresDB.list(),
-      desviosDB.list(),
-      inspecoesDB.list(),
-    ])
-    setObras(o)
-    setTsts(t)
-    setEncarregados(e)
-    setCoordenadores(c)
-    setDesvios(d)
-    setInspecoes(i)
-    setLoaded(true)
+    try {
+      const [o, t, e, c, d, i] = await Promise.all([
+        obrasDB.list(),
+        tstsDB.list(),
+        encarregadosDB.list(),
+        coordenadoresDB.list(),
+        desviosDB.list(),
+        inspecoesDB.list(),
+      ])
+      setObras(o)
+      setTsts(t)
+      setEncarregados(e)
+      setCoordenadores(c)
+      setDesvios(d)
+      setInspecoes(i)
+    } catch (err) {
+      console.error('AppContext.refresh falhou:', err)
+    } finally {
+      setLoaded(true)
+    }
   }, [])
 
   useEffect(() => {

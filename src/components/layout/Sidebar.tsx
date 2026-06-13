@@ -7,20 +7,21 @@ import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
   ClipboardCheck, AlertCircle, BookOpen, FileText, Recycle,
-  ArrowDownUp, ClipboardSignature, Bell, Scale,
+  ArrowDownUp, ClipboardSignature, Bell, Scale, Newspaper,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ── Sistema detectado pelo pathname ──────────────────────────────────────────
 
-type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'residuos' | 'tutorial'
+type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'relatorios' | 'residuos' | 'tutorial'
 
 function getSistema(pathname: string): Sistema {
-  if (pathname.startsWith('/tutorial'))    return 'tutorial'
-  if (pathname.startsWith('/residuos'))    return 'residuos'
-  if (pathname.startsWith('/inspecoes'))   return 'inspecoes'
-  if (pathname.startsWith('/indicadores')) return 'indicadores'
-  if (pathname.startsWith('/obras'))       return 'obras'
+  if (pathname.startsWith('/tutorial'))       return 'tutorial'
+  if (pathname.startsWith('/residuos'))       return 'residuos'
+  if (pathname.startsWith('/relatorios/5s'))  return 'relatorios'
+  if (pathname.startsWith('/inspecoes'))      return 'inspecoes'
+  if (pathname.startsWith('/indicadores'))    return 'indicadores'
+  if (pathname.startsWith('/obras'))          return 'obras'
   return 'desvios'
 }
 
@@ -89,6 +90,18 @@ const MENUS: Array<{
       { href: '/inspecoes/em-aberto',  icon: AlertCircle,     label: 'Em Aberto'  },
       { href: '/inspecoes',            icon: ClipboardList,   label: 'Inspeções'  },
       { href: '/inspecoes/relatorios', icon: BarChart3,       label: 'Relatórios' },
+    ],
+  },
+  {
+    key:        'relatorios',
+    label:      'Relatórios HSE',
+    icon:       Newspaper,
+    cor:        '#E8291C',
+    corHover:   '#C9200F',
+    homeHref:   '/relatorios/5s',
+    acao:       { label: 'Novo Relatório 5S', href: '/relatorios/5s/novo' },
+    subnav: [
+      { href: '/relatorios/5s', icon: FileText, label: 'Relatório 5S' },
     ],
   },
   {
