@@ -33,6 +33,13 @@ export function PhotoUpload({ onFilesChange, maxFiles = 10, accept = 'image/*,vi
     return 'document'
   }
 
+  function isPreviewable(file: File): boolean {
+    const t = file.type.toLowerCase()
+    const n = file.name.toLowerCase()
+    return !t.includes('heic') && !t.includes('heif') && !t.includes('avif') &&
+           !n.endsWith('.heic') && !n.endsWith('.heif')
+  }
+
   async function processFiles(incoming: File[]) {
     const remaining = maxFiles - files.length
     const toProcess = incoming.slice(0, remaining)
@@ -40,7 +47,7 @@ export function PhotoUpload({ onFilesChange, maxFiles = 10, accept = 'image/*,vi
     const newFiles: UploadedFile[] = toProcess.map((f) => ({
       id: Math.random().toString(36).slice(2),
       file: f,
-      preview: URL.createObjectURL(f),
+      preview: isPreviewable(f) ? URL.createObjectURL(f) : '',
       type: getFileType(f),
       uploading: true,
     }))
@@ -53,7 +60,9 @@ export function PhotoUpload({ onFilesChange, maxFiles = 10, accept = 'image/*,vi
         if (uf.type === 'image') {
           try {
             const compressed = await compressImage(uf.file)
-            const preview = URL.createObjectURL(compressed)
+            const oldPreview = uf.preview
+            const preview = isPreviewable(compressed) ? URL.createObjectURL(compressed) : ''
+            if (oldPreview) URL.revokeObjectURL(oldPreview)
             return { ...uf, file: compressed, preview, uploading: false }
           } catch {
             return { ...uf, uploading: false }
@@ -179,8 +188,13 @@ export function PhotoUpload({ onFilesChange, maxFiles = 10, accept = 'image/*,vi
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="relative group aspect-square rounded-xl overflow-hidden bg-zinc-800"
               >
-                {f.type === 'image' ? (
-                  <Image src={f.preview} alt={f.file.name} fill className="object-cover" />
+                {f.type === 'image' && f.preview ? (
+                  <Image src={f.preview} alt={f.file.name} fill className="object-cover" unoptimized />
+                ) : f.type === 'image' ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2">
+                    <ImageIcon className="w-6 h-6 text-zinc-400" />
+                    <span className="text-[9px] text-zinc-500 text-center">foto</span>
+                  </div>
                 ) : f.type === 'video' ? (
                   <div className="w-full h-full flex items-center justify-center">
                     <Video className="w-6 h-6 text-zinc-400" />

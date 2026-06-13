@@ -154,38 +154,56 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export async function compressImage(file: File, maxWidth = 1280, quality = 0.8): Promise<File> {
+export async function compressImage(file: File, maxWidth = 1280, quality = 0.82): Promise<File> {
+  // HEIC/HEIF/AVIF: canvas não consegue decodificar — devolve original imediatamente
+  const t = file.type.toLowerCase()
+  const n = file.name.toLowerCase()
+  if (t.includes('heic') || t.includes('heif') || t.includes('avif') ||
+      n.endsWith('.heic') || n.endsWith('.heif')) {
+    return file
+  }
+
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
-    // Canvas não suportado — retorna o arquivo original
     if (!ctx) { resolve(file); return }
 
-    const img = new Image()
     const url = URL.createObjectURL(file)
+    const img = new Image()
 
-    // Formato não suportado pelo browser (ex: HEIC em alguns dispositivos)
-    // → devolve o arquivo original sem travar
-    img.onerror = () => {
+    // Timeout: se onload/onerror não dispararem em 12s (formato raro, memória baixa)
+    // → devolve o arquivo original para não travar o UI
+    const timer = setTimeout(() => {
       URL.revokeObjectURL(url)
       resolve(file)
+    }, 12_000)
+
+    const finish = (result: File) => {
+      clearTimeout(timer)
+      resolve(result)
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      finish(file)
     }
 
     img.onload = () => {
+      URL.revokeObjectURL(url)
       let { width, height } = img
       if (width > maxWidth) {
-        height = (height * maxWidth) / width
+        height = Math.round((height * maxWidth) / width)
         width = maxWidth
       }
       canvas.width = width
       canvas.height = height
       ctx.drawImage(img, 0, 0, width, height)
-      URL.revokeObjectURL(url)
       canvas.toBlob(
         (blob) => {
-          // toBlob retorna null em dispositivos sem memória suficiente
-          if (!blob) { resolve(file); return }
-          resolve(new File([blob], file.name, { type: 'image/jpeg' }))
+          if (!blob) { finish(file); return }
+          // Renomeia para .jpg para que o servidor reconheça o mime
+          const safeName = file.name.replace(/\.[^.]+$/, '.jpg')
+          finish(new File([blob], safeName, { type: 'image/jpeg' }))
         },
         'image/jpeg',
         quality,
