@@ -5,34 +5,58 @@ import Link from 'next/link'
 import { useApp } from '@/contexts/AppContext'
 import { equipamentosDB } from '@/lib/db-maquinas'
 import { motion } from 'framer-motion'
-import { Package, CheckCircle2, XCircle, Clock, Eye, Plus, Building2, Search } from 'lucide-react'
+import { Package, CheckCircle2, XCircle, Clock, Eye, Plus, Building2, Search, AlertTriangle, FileDown, Loader2 } from 'lucide-react'
 import type { TipoEquipamento } from '@/types/maquinas'
 import { TIPO_EQUIPAMENTO_LABEL } from '@/types/maquinas'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
 import type { Equipamento, InspecaoMaquina } from '@/types/maquinas'
+import { gerarPDFChecklistME } from '@/lib/pdf-checklist-me'
 
 const INSP_GREEN = '#10B981'
+
+// Returns the start of the current inspection period (10th of this or previous month)
+function getPeriodStart(): Date {
+  const now = new Date()
+  if (now.getDate() >= 10) {
+    return new Date(now.getFullYear(), now.getMonth(), 10)
+  }
+  return new Date(now.getFullYear(), now.getMonth() - 1, 10)
+}
 
 function StatusBadge({ ultima }: { ultima?: InspecaoMaquina }) {
   if (!ultima) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-xs font-medium text-zinc-400">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-400">
         <Clock className="w-3 h-3" />
         Não inspecionado
       </span>
     )
   }
+
+  const periodStart = getPeriodStart()
+  const inspDate = new Date(ultima.data_inspecao + 'T00:00:00')
+  const isCurrentPeriod = inspDate >= periodStart
+
+  if (!isCurrentPeriod) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/15 border border-red-500/40 text-xs font-bold text-red-400">
+        <AlertTriangle className="w-3 h-3" />
+        Atrasado
+      </span>
+    )
+  }
+
   if (ultima.resultado === 'aprovado') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-400">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
         <CheckCircle2 className="w-3 h-3" />
         Aprovado
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-400">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-400">
       <XCircle className="w-3 h-3" />
       Reprovado
     </span>
@@ -46,6 +70,18 @@ export default function InventarioMEPage() {
   const [obraFiltro, setObraFiltro] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState<TipoEquipamento | ''>('')
   const [busca, setBusca] = useState('')
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+
+  async function handleDownloadPDF(insp: InspecaoMaquina, eq: Equipamento) {
+    setDownloadingId(insp.id)
+    try {
+      await gerarPDFChecklistME(insp, eq)
+    } catch (e) {
+      console.error('Erro ao gerar PDF:', e)
+    } finally {
+      setDownloadingId(null)
+    }
+  }
 
   useEffect(() => {
     equipamentosDB.list()
@@ -142,8 +178,8 @@ export default function InventarioMEPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="relative flex-1 min-w-0 w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
           <input
             className="w-full h-9 pl-9 pr-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
@@ -152,17 +188,17 @@ export default function InventarioMEPage() {
             onChange={e => setBusca(e.target.value)}
           />
         </div>
-        <select className={inputCls} value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
+        <select className={`${inputCls} w-full sm:w-auto`} value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
           <option value="">Todas as obras</option>
           {obras.filter(o => o.ativa).map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
         </select>
-        <select className={inputCls} value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value as TipoEquipamento | '')}>
+        <select className={`${inputCls} w-full sm:w-auto`} value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value as TipoEquipamento | '')}>
           <option value="">Todos os tipos</option>
           {TIPOS_OPTIONS.map(t => <option key={t} value={t}>{TIPO_EQUIPAMENTO_LABEL[t]}</option>)}
         </select>
       </div>
 
-      {/* Table */}
+      {/* Table / Cards */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Package className="w-10 h-10 text-zinc-700 mb-3" />
@@ -173,81 +209,173 @@ export default function InventarioMEPage() {
           </Link>
         </div>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Equipamento</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">Tipo</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden md:table-cell">Obra</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden lg:table-cell">Nº Série / Placa</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Última Inspeção</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((eq, idx) => {
-                  const ultima = ultimaInspecaoPorEquipamento[eq.id]
-                  const obra = obras.find(o => o.id === eq.obra_id)
-                  return (
-                    <motion.tr
-                      key={eq.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: idx * 0.02 }}
-                      className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-zinc-200">{eq.nome}</p>
-                        {eq.fabricante && <p className="text-[11px] text-zinc-500">{eq.fabricante}{eq.modelo ? ` · ${eq.modelo}` : ''}</p>}
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <span className="text-xs text-zinc-400">{TIPO_EQUIPAMENTO_LABEL[eq.tipo]}</span>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="text-xs text-zinc-400">{obra?.nome ?? '—'}</span>
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        <span className="text-xs font-mono text-zinc-500">{eq.numero_serie ?? eq.placa ?? '—'}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {ultima ? (
-                          <p className="text-xs text-zinc-400">{ultima.data_inspecao.slice(0, 10).split('-').reverse().join('/')}</p>
-                        ) : (
-                          <p className="text-xs text-zinc-600">—</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge ultima={ultima} />
-                      </td>
-                      <td className="px-4 py-3">
-                        {ultima && (
-                          <Link
-                            href={`/inspecoes/maquinas/${ultima.id}`}
-                            className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center hover:bg-zinc-700 transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-zinc-400" />
-                          </Link>
-                        )}
-                        {!ultima && (
-                          <Link
-                            href={`/inspecoes/maquinas/nova?tipo=${eq.tipo}&eq=${eq.id}`}
-                            className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500/20 transition-colors"
-                            title="Inspecionar"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                          </Link>
-                        )}
-                      </td>
-                    </motion.tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        <>
+          {/* Mobile card view (< md) */}
+          <div className="md:hidden space-y-3">
+            {filtered.map((eq, idx) => {
+              const ultima = ultimaInspecaoPorEquipamento[eq.id]
+              const obra = obras.find(o => o.id === eq.obra_id)
+              return (
+                <motion.div
+                  key={eq.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: idx * 0.02 }}
+                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-zinc-200 leading-tight">{eq.nome}</p>
+                      <p className="text-[11px] text-zinc-500 mt-0.5">{TIPO_EQUIPAMENTO_LABEL[eq.tipo]}</p>
+                    </div>
+                    <StatusBadge ultima={ultima} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {(eq.numero_serie ?? eq.placa) && (
+                      <div>
+                        <p className="text-zinc-600 text-[10px]">Nº Série / Placa</p>
+                        <p className="text-zinc-300 font-mono">{eq.numero_serie ?? eq.placa}</p>
+                      </div>
+                    )}
+                    {obra && (
+                      <div>
+                        <p className="text-zinc-600 text-[10px]">Obra</p>
+                        <p className="text-zinc-300">{obra.nome}</p>
+                      </div>
+                    )}
+                    {ultima && (
+                      <div>
+                        <p className="text-zinc-600 text-[10px]">Última inspeção</p>
+                        <p className="text-zinc-300">{ultima.data_inspecao.slice(0, 10).split('-').reverse().join('/')}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 pt-2 border-t border-zinc-800">
+                    {ultima ? (
+                      <>
+                        <button
+                          onClick={() => handleDownloadPDF(ultima, eq)}
+                          disabled={downloadingId === ultima.id}
+                          className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-medium text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                        >
+                          {downloadingId === ultima.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+                          PDF
+                        </button>
+                        <Link
+                          href={`/inspecoes/maquinas/${ultima.id}`}
+                          className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-medium text-zinc-300 hover:bg-zinc-700 transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          Ver
+                        </Link>
+                      </>
+                    ) : (
+                      <Link
+                        href={`/inspecoes/maquinas/nova?tipo=${eq.tipo}&eq=${eq.id}`}
+                        className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Inspecionar agora
+                      </Link>
+                    )}
+                  </div>
+                </motion.div>
+              )
+            })}
           </div>
-        </div>
+
+          {/* Desktop table (md+) */}
+          <div className="hidden md:block bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Equipamento</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Tipo</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden lg:table-cell">Obra</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden lg:table-cell">Nº Série / Placa</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Última Inspeção</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Status</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((eq, idx) => {
+                    const ultima = ultimaInspecaoPorEquipamento[eq.id]
+                    const obra = obras.find(o => o.id === eq.obra_id)
+                    return (
+                      <motion.tr
+                        key={eq.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: idx * 0.02 }}
+                        className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-zinc-200">{eq.nome}</p>
+                          {eq.fabricante && <p className="text-[11px] text-zinc-500">{eq.fabricante}{eq.modelo ? ` · ${eq.modelo}` : ''}</p>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs text-zinc-400">{TIPO_EQUIPAMENTO_LABEL[eq.tipo]}</span>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <span className="text-xs text-zinc-400">{obra?.nome ?? '—'}</span>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <span className="text-xs font-mono text-zinc-500">{eq.numero_serie ?? eq.placa ?? '—'}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {ultima ? (
+                            <p className="text-xs text-zinc-400">{ultima.data_inspecao.slice(0, 10).split('-').reverse().join('/')}</p>
+                          ) : (
+                            <p className="text-xs text-zinc-600">—</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge ultima={ultima} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {ultima && (
+                              <>
+                                <button
+                                  onClick={() => handleDownloadPDF(ultima, eq)}
+                                  disabled={downloadingId === ultima.id}
+                                  className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                  title="Baixar PDF"
+                                >
+                                  {downloadingId === ultima.id
+                                    ? <Loader2 className="w-3.5 h-3.5 text-zinc-400 animate-spin" />
+                                    : <FileDown className="w-3.5 h-3.5 text-zinc-400" />
+                                  }
+                                </button>
+                                <Link
+                                  href={`/inspecoes/maquinas/${ultima.id}`}
+                                  className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center hover:bg-zinc-700 transition-colors"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-zinc-400" />
+                                </Link>
+                              </>
+                            )}
+                            {!ultima && (
+                              <Link
+                                href={`/inspecoes/maquinas/nova?tipo=${eq.tipo}&eq=${eq.id}`}
+                                className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500/20 transition-colors"
+                                title="Inspecionar"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                              </Link>
+                            )}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

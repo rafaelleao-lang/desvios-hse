@@ -122,6 +122,7 @@ export const equipamentosRepo = {
   async update(id: string, data: Partial<Equipamento>): Promise<Equipamento | undefined> {
     const fields: string[] = []
     const vals: unknown[] = []
+    if (data.obra_id !== undefined)        { fields.push('obra_id = ?');        vals.push(data.obra_id ?? null) }
     if (data.nome !== undefined)           { fields.push('nome = ?');           vals.push(data.nome) }
     if (data.fabricante !== undefined)     { fields.push('fabricante = ?');     vals.push(data.fabricante ?? null) }
     if (data.modelo !== undefined)         { fields.push('modelo = ?');         vals.push(data.modelo ?? null) }

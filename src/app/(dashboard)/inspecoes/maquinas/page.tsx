@@ -70,14 +70,14 @@ export default function InspecoesMaquinasPage() {
             <p className="text-xs text-zinc-500">{filteredInsp.length} inspeção(ões) realizadas</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <select className={inputCls} value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
+        <div className="flex flex-wrap items-center gap-2">
+          <select className={`${inputCls} w-full sm:w-auto`} value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}>
             <option value="">Todas as obras</option>
             {obras.filter(o => o.ativa).map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
           </select>
           <Link
             href="/inspecoes/maquinas/nova"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 w-full sm:w-auto justify-center"
             style={{ background: INSP_GREEN }}
           >
             <Plus className="w-4 h-4" />

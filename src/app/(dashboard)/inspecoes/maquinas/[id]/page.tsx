@@ -56,7 +56,7 @@ export default function VerInspecaoMEPage() {
     <div className="max-w-2xl space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="w-8 h-8 rounded-xl border border-zinc-700 flex items-center justify-center hover:bg-zinc-800 transition-colors">
+        <button onClick={() => router.back()} className="w-10 h-10 rounded-xl border border-zinc-700 flex items-center justify-center hover:bg-zinc-800 transition-colors flex-shrink-0">
           <ArrowLeft className="w-4 h-4 text-zinc-400" />
         </button>
         <div className="flex-1">
@@ -74,7 +74,7 @@ export default function VerInspecaoMEPage() {
       </div>
 
       {/* Info */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 grid grid-cols-2 gap-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="flex items-start gap-2">
           <Building2 className="w-4 h-4 text-zinc-500 mt-0.5" />
           <div>
@@ -114,15 +114,15 @@ export default function VerInspecaoMEPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-black text-emerald-400">{insp.total_conformes}</p>
+          <p className="text-xl sm:text-2xl font-black text-emerald-400">{insp.total_conformes}</p>
           <p className="text-xs text-zinc-400">Conformes</p>
         </div>
         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-black text-red-400">{insp.total_nao_conformes}</p>
+          <p className="text-xl sm:text-2xl font-black text-red-400">{insp.total_nao_conformes}</p>
           <p className="text-xs text-zinc-400">Não conformes</p>
         </div>
         <div className="bg-zinc-800 border border-zinc-700 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-black text-zinc-400">{insp.total_nao_aplicaveis}</p>
+          <p className="text-xl sm:text-2xl font-black text-zinc-400">{insp.total_nao_aplicaveis}</p>
           <p className="text-xs text-zinc-400">N/A</p>
         </div>
       </div>

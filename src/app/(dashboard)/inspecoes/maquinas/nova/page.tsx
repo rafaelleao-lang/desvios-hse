@@ -87,10 +87,12 @@ function NovaInspecaoMEContent() {
   const [respostas, setRespostas] = useState<Record<string, ChecklistRespostaME>>({})
   const [fotosPorItem, setFotosPorItem] = useState<Record<string, File[]>>({})
   const [uploadingItem, setUploadingItem] = useState<string | null>(null)
+  const [fotoSectionOpen, setFotoSectionOpen] = useState<Record<string, boolean>>({})
 
   // Step 5: Signature + liberação
   const sigCanvasRef = useRef<HTMLCanvasElement>(null)
   const sigDrawing = useRef(false)
+  const sigPoints = useRef<{x: number; y: number}[]>([])
   const [sigEmpty, setSigEmpty] = useState(true)
   const [liberado, setLiberado] = useState(true)
 
@@ -113,6 +115,20 @@ function NovaInspecaoMEContent() {
       .catch(console.error)
       .finally(() => setLoadingEq(false))
   }, [obraId, tipo])
+
+  // Init signature canvas when step changes to assinatura
+  useEffect(() => {
+    if (step !== 'assinatura' || !sigCanvasRef.current) return
+    const canvas = sigCanvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    drawSigBaseline()
+    setSigEmpty(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
 
   // Init respostas
   useEffect(() => {
@@ -153,6 +169,38 @@ function NovaInspecaoMEContent() {
 
   async function handleFotoItem(itemId: string, file: File) {
     setFotosPorItem(prev => ({ ...prev, [itemId]: [...(prev[itemId] ?? []), file] }))
+  }
+
+  function getSigPos(e: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = sigCanvasRef.current!
+    const r = canvas.getBoundingClientRect()
+    return {
+      x: (e.clientX - r.left) * (canvas.width / r.width),
+      y: (e.clientY - r.top) * (canvas.height / r.height),
+    }
+  }
+
+  function setupSigCtx(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = '#111827'
+    ctx.fillStyle = '#111827'
+    ctx.lineWidth = 2.5
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+  }
+
+  function drawSigBaseline() {
+    const canvas = sigCanvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.strokeStyle = '#d1d5db'
+    ctx.lineWidth = 1
+    ctx.setLineDash([4, 4])
+    ctx.beginPath()
+    ctx.moveTo(40, canvas.height * 0.75)
+    ctx.lineTo(canvas.width - 40, canvas.height * 0.75)
+    ctx.stroke()
+    ctx.setLineDash([])
   }
 
   const canProceed: Record<Step, boolean> = {
@@ -233,6 +281,11 @@ function NovaInspecaoMEContent() {
           tratativas: [],
         })
         desvioId = desvio.id
+      }
+
+      // Vincula equipamento à obra se ainda não estiver vinculado
+      if (equipamento && !equipamento.obra_id && obraId) {
+        await equipamentosDB.update(equipamentoId, { obra_id: obraId }).catch(() => undefined)
       }
 
       // Salva inspeção
@@ -429,7 +482,7 @@ function NovaInspecaoMEContent() {
                         <div>
                           <p className={cn('text-sm font-semibold', equipamentoId === eq.id ? 'text-emerald-300' : 'text-zinc-200')}>{eq.nome}</p>
                           <p className="text-xs text-zinc-500">
-                            {eq.numero_serie ? `Série: ${eq.numero_serie}` : '—'}
+                            {eq.numero_serie ? `Série: ${eq.numero_serie}` : eq.placa ? `Placa: ${eq.placa}` : '—'}
                             {eq.fabricante ? ` · ${eq.fabricante}` : ''}
                           </p>
                         </div>
@@ -485,20 +538,20 @@ function NovaInspecaoMEContent() {
                             'border-zinc-700/50 bg-zinc-800/10',
                           )}
                         >
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                             <div className="flex items-start gap-2 flex-1 min-w-0">
                               <span className="text-[10px] text-zinc-600 font-mono mt-0.5 flex-shrink-0">{String(ii + 1).padStart(2, '0')}</span>
                               <p className="text-xs text-zinc-300 leading-relaxed">{item.descricao}</p>
                             </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1 self-start sm:flex-shrink-0">
                               <StatusBtn status="conforme"      current={resp.status} onClick={() => setItemStatus(item.id, 'conforme')} />
                               <StatusBtn status="nao_conforme"  current={resp.status} onClick={() => setItemStatus(item.id, 'nao_conforme')} />
                               <StatusBtn status="nao_aplicavel" current={resp.status} onClick={() => setItemStatus(item.id, 'nao_aplicavel')} />
                             </div>
                           </div>
-                          {/* NC extras */}
+                          {/* NC obs textarea */}
                           {isNC && (
-                            <div className="mt-3 space-y-2 border-t border-red-500/10 pt-3">
+                            <div className="mt-3 border-t border-red-500/10 pt-3">
                               <textarea
                                 rows={2}
                                 placeholder="Observação sobre a não conformidade..."
@@ -506,22 +559,26 @@ function NovaInspecaoMEContent() {
                                 value={resp.obs ?? ''}
                                 onChange={e => setItemObs(item.id, e.target.value)}
                               />
-                              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-400 hover:text-zinc-300">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={e => e.target.files?.[0] && handleFotoItem(item.id, e.target.files[0])}
-                                />
-                                <Camera className="w-3.5 h-3.5 text-zinc-500" />
-                                {(fotosPorItem[item.id] ?? []).length > 0 ? (
-                                  <span className="text-emerald-400">{(fotosPorItem[item.id] ?? []).length} foto(s) adicionada(s)</span>
-                                ) : (
-                                  'Adicionar foto da NC'
-                                )}
-                              </label>
                             </div>
                           )}
+                          {/* Foto — disponível para todos os itens */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={e => e.target.files?.[0] && handleFotoItem(item.id, e.target.files[0])}
+                              />
+                              <Camera className={cn('w-3 h-3', (fotosPorItem[item.id] ?? []).length > 0 && 'text-emerald-400')} />
+                              {(fotosPorItem[item.id] ?? []).length > 0 ? (
+                                <span className="text-emerald-400">{(fotosPorItem[item.id] ?? []).length} foto(s)</span>
+                              ) : (
+                                <span>Foto</span>
+                              )}
+                            </label>
+                          </div>
                         </div>
                       )
                     })}
@@ -534,59 +591,91 @@ function NovaInspecaoMEContent() {
             {step === 'assinatura' && (
               <div className="space-y-4">
                 <h2 className="text-base font-bold text-zinc-100">Assinatura e Liberação</h2>
-                <div className="rounded-2xl border border-zinc-700 overflow-hidden bg-white relative">
-                  <canvas
-                    ref={sigCanvasRef}
-                    width={560}
-                    height={160}
-                    className="w-full h-40 cursor-crosshair touch-none"
-                    style={{ background: 'white' }}
-                    onPointerDown={e => {
-                      sigDrawing.current = true
-                      const ctx = sigCanvasRef.current?.getContext('2d')
-                      if (!ctx) return
-                      const r = sigCanvasRef.current!.getBoundingClientRect()
-                      const scaleX = sigCanvasRef.current!.width / r.width
-                      const scaleY = sigCanvasRef.current!.height / r.height
-                      ctx.beginPath()
-                      ctx.moveTo((e.clientX - r.left) * scaleX, (e.clientY - r.top) * scaleY)
-                      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-                    }}
-                    onPointerMove={e => {
-                      if (!sigDrawing.current) return
-                      const ctx = sigCanvasRef.current?.getContext('2d')
-                      if (!ctx) return
-                      const r = sigCanvasRef.current!.getBoundingClientRect()
-                      const scaleX = sigCanvasRef.current!.width / r.width
-                      const scaleY = sigCanvasRef.current!.height / r.height
-                      ctx.strokeStyle = '#1a1a1a'
-                      ctx.lineWidth = 2
-                      ctx.lineCap = 'round'
-                      ctx.lineJoin = 'round'
-                      ctx.lineTo((e.clientX - r.left) * scaleX, (e.clientY - r.top) * scaleY)
-                      ctx.stroke()
-                      setSigEmpty(false)
-                    }}
-                    onPointerUp={() => { sigDrawing.current = false }}
-                  />
-                  {sigEmpty && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <p className="text-xs text-zinc-400">Assine aqui</p>
-                    </div>
-                  )}
+                <div>
+                  <p className="text-xs text-zinc-500 mb-2">Assine no campo abaixo usando o dedo ou caneta stylus</p>
+                  <div className="rounded-2xl border-2 border-zinc-600 overflow-hidden bg-white relative shadow-inner">
+                    <canvas
+                      ref={sigCanvasRef}
+                      width={800}
+                      height={220}
+                      className="w-full h-52 cursor-crosshair touch-none"
+                      style={{ background: 'white' }}
+                      onPointerDown={e => {
+                        sigDrawing.current = true
+                        const pos = getSigPos(e)
+                        sigPoints.current = [pos]
+                        const ctx = sigCanvasRef.current?.getContext('2d')
+                        if (!ctx) return
+                        setupSigCtx(ctx)
+                        ctx.beginPath()
+                        ctx.arc(pos.x, pos.y, 1.5, 0, Math.PI * 2)
+                        ctx.fill()
+                        ctx.beginPath()
+                        ctx.moveTo(pos.x, pos.y)
+                        ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+                        setSigEmpty(false)
+                      }}
+                      onPointerMove={e => {
+                        if (!sigDrawing.current) return
+                        const pos = getSigPos(e)
+                        sigPoints.current.push(pos)
+                        const ctx = sigCanvasRef.current?.getContext('2d')
+                        if (!ctx) return
+                        setupSigCtx(ctx)
+                        const pts = sigPoints.current
+                        if (pts.length >= 3) {
+                          const p0 = pts[pts.length - 3]
+                          const p1 = pts[pts.length - 2]
+                          const p2 = pts[pts.length - 1]
+                          const mid1x = (p0.x + p1.x) / 2
+                          const mid1y = (p0.y + p1.y) / 2
+                          const mid2x = (p1.x + p2.x) / 2
+                          const mid2y = (p1.y + p2.y) / 2
+                          ctx.beginPath()
+                          ctx.moveTo(mid1x, mid1y)
+                          ctx.quadraticCurveTo(p1.x, p1.y, mid2x, mid2y)
+                          ctx.stroke()
+                        } else if (pts.length === 2) {
+                          ctx.beginPath()
+                          ctx.moveTo(pts[0].x, pts[0].y)
+                          ctx.lineTo(pts[1].x, pts[1].y)
+                          ctx.stroke()
+                        }
+                      }}
+                      onPointerUp={() => {
+                        sigDrawing.current = false
+                        sigPoints.current = []
+                      }}
+                    />
+                    {sigEmpty && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
+                        <PenLine className="w-6 h-6 text-zinc-300" />
+                        <p className="text-sm font-medium text-zinc-400">Assine aqui</p>
+                        <p className="text-xs text-zinc-500">Deslize para assinar</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[10px] text-zinc-600">A assinatura confirma a inspeção realizada</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const canvas = sigCanvasRef.current
+                        if (!canvas) return
+                        const ctx = canvas.getContext('2d')
+                        if (!ctx) return
+                        ctx.clearRect(0, 0, canvas.width, canvas.height)
+                        ctx.fillStyle = 'white'
+                        ctx.fillRect(0, 0, canvas.width, canvas.height)
+                        drawSigBaseline()
+                        setSigEmpty(true)
+                      }}
+                      className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                    >
+                      Limpar
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const ctx = sigCanvasRef.current?.getContext('2d')
-                    if (!ctx) return
-                    ctx.clearRect(0, 0, sigCanvasRef.current!.width, sigCanvasRef.current!.height)
-                    setSigEmpty(true)
-                  }}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  Limpar assinatura
-                </button>
 
                 <div className="space-y-3 pt-2 border-t border-zinc-800">
                   <p className="text-sm font-semibold text-zinc-200">Equipamento liberado para operação?</p>
