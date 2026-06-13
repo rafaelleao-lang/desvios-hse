@@ -467,7 +467,7 @@ function ChartTip({ active, payload, label }: any) {
 const inputCls = 'w-full h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30'
 
 export default function InspecoesRelatoriosPage() {
-  const { inspecoes, obras, tsts, encarregados, coordenadores, loaded } = useApp()
+  const { inspecoes, inspecoesME, obras, tsts, encarregados, coordenadores, loaded } = useApp()
   const [filtros, setFiltros] = useState<FiltrosInspecao>({})
   const [showFilters, setShowFilters] = useState(true)
   const [generatingPPT, setGeneratingPPT] = useState(false)
@@ -477,6 +477,12 @@ export default function InspecoesRelatoriosPage() {
   const encOptions = useMemo(() => filtros.obra_id ? encarregados.filter(e => e.obra_id === filtros.obra_id) : encarregados, [encarregados, filtros.obra_id])
   const coordOptions = useMemo(() => filtros.obra_id ? coordenadores.filter(c => c.obra_id === filtros.obra_id) : coordenadores, [coordenadores, filtros.obra_id])
   const filtered = useMemo(() => filtrarInspecoes(inspecoes, filtros), [inspecoes, filtros])
+  const filteredME = useMemo(() => inspecoesME.filter(i => {
+    if (filtros.obra_id && i.obra_id !== filtros.obra_id) return false
+    if (filtros.data_inicio && i.data_inspecao < filtros.data_inicio) return false
+    if (filtros.data_fim && i.data_inspecao > filtros.data_fim) return false
+    return true
+  }), [inspecoesME, filtros])
 
   // ── Chart data (mesmos do Dashboard, mas com filtered) ─────────────────────
   const kpis = useMemo(() => {
@@ -484,25 +490,26 @@ export default function InspecoesRelatoriosPage() {
     const totalReconh = filtered.reduce((a, i) => a + i.total_reconhecimentos, 0)
     const total = totalDesvios + totalReconh
     return {
-      total: filtered.length,
+      total: filtered.length + filteredME.length,
       emAberto: filtered.filter(i => i.status === 'em_aberto').length,
-      concluidas: filtered.filter(i => i.status === 'concluida').length,
+      concluidas: filtered.filter(i => i.status === 'concluida').length + filteredME.length,
       totalDesvios, totalReconh,
       taxaDesvio: total > 0 ? Math.round((totalDesvios / total) * 100) : 0,
     }
-  }, [filtered])
+  }, [filtered, filteredME])
 
   const evolucaoMensal = useMemo(() => Array.from({ length: 12 }, (_, i) => {
     const dt = new Date(); dt.setMonth(dt.getMonth() - (11 - i))
     const mes = dt.toISOString().slice(0, 7)
     const mInsp = filtered.filter(f => f.data_inspecao.startsWith(mes))
+    const mME = filteredME.filter(f => f.data_inspecao.startsWith(mes))
     return {
       label: MONTHS[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2),
-      inspecoes: mInsp.length,
+      inspecoes: mInsp.length + mME.length,
       desvios: mInsp.reduce((a, f) => a + f.total_desvios, 0),
       reconhecimentos: mInsp.reduce((a, f) => a + f.total_reconhecimentos, 0),
     }
-  }), [filtered])
+  }), [filtered, filteredME])
 
   const porEncarregado = useMemo(() => {
     const list = filtros.obra_id ? encarregados.filter(e => e.obra_id === filtros.obra_id) : encarregados
@@ -535,8 +542,9 @@ export default function InspecoesRelatoriosPage() {
 
   const porObra = useMemo(() => obras.filter(o => o.ativa).map(o => {
     const oInsp = filtered.filter(f => f.obra_id === o.id)
-    return { nome: o.nome.length > 14 ? o.nome.slice(0, 13) + '…' : o.nome, nomeCompleto: o.nome, inspecoes: oInsp.length, desvios: oInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: oInsp.reduce((a, f) => a + f.total_reconhecimentos, 0) }
-  }).filter(o => o.inspecoes > 0).sort((a, b) => b.inspecoes - a.inspecoes).slice(0, 8), [filtered, obras])
+    const oME = filteredME.filter(f => f.obra_id === o.id)
+    return { nome: o.nome.length > 14 ? o.nome.slice(0, 13) + '…' : o.nome, nomeCompleto: o.nome, inspecoes: oInsp.length + oME.length, desvios: oInsp.reduce((a, f) => a + f.total_desvios, 0), reconhecimentos: oInsp.reduce((a, f) => a + f.total_reconhecimentos, 0) }
+  }).filter(o => o.inspecoes > 0).sort((a, b) => b.inspecoes - a.inspecoes).slice(0, 8), [filtered, filteredME, obras])
 
   const activeFilters = Object.values(filtros).filter(v => v !== undefined && v !== '').length
 
@@ -560,7 +568,7 @@ export default function InspecoesRelatoriosPage() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-zinc-100">Relatórios de Inspeções</h1>
-          <p className="text-xs text-zinc-500">{filtered.length} inspeção(ões) nos filtros selecionados</p>
+          <p className="text-xs text-zinc-500">{filtered.length + filteredME.length} inspeção(ões) nos filtros selecionados</p>
         </div>
         <button
           onClick={() => setShowFilters(v => !v)}
@@ -700,7 +708,7 @@ export default function InspecoesRelatoriosPage() {
       )}
 
       {/* ── Análise Visual (mesmos gráficos do Dashboard) ─────────────────── */}
-      {filtered.length > 0 && (
+      {(filtered.length + filteredME.length) > 0 && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 pt-2">
             <div className="flex-1 h-px bg-zinc-800" />
