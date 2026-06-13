@@ -116,6 +116,7 @@ function drawCover(
   doc: any,
   info: { obraName: string; cidade: string; estado: string; semana: string; dataInicio: string; dataFim: string; tst: string },
   logoImg: ImgInfo | null,
+  logoMSE: ImgInfo | null,
 ) {
   const W = 297, H = 210
   const split = 162
@@ -171,11 +172,16 @@ function drawCover(
     doc.text(labels5S[i], startX + i * (blockW + 3) + blockW / 2, startY + 5, { align: 'center' })
   })
 
-  // Right: MSE "mse" brand
-  doc.setFont('helvetica', 'black')
-  doc.setFontSize(36)
-  doc.setTextColor(...h2r(MSE_RED))
-  doc.text('mse', split + 7, 20)
+  // Right: MSE logo
+  if (logoMSE) {
+    const { w, h } = fitInBox(logoMSE.w, logoMSE.h, 30, 30)
+    doc.addImage(logoMSE.dataUrl, logoMSE.format, split + 7, 4, w, h)
+  } else {
+    doc.setFont('helvetica', 'black')
+    doc.setFontSize(36)
+    doc.setTextColor(...h2r(MSE_RED))
+    doc.text('mse', split + 7, 20)
+  }
 
   // Right: client logo
   const logoMaxH = 32, logoMaxW = 110
@@ -211,7 +217,7 @@ function drawCover(
       const [y, m, dd] = d.split('-')
       return `${dd}/${m}/${y}`
     }
-    doc.text(`${fmt(info.dataInicio)}  →  ${fmt(info.dataFim)}`, split + 7, 101)
+    doc.text(`${fmt(info.dataInicio)}  à  ${fmt(info.dataFim)}`, split + 7, 101)
   }
 
   // Info box — TST
@@ -266,6 +272,7 @@ function drawPhotoPage(
   local: string,
   disciplina: string,
   photos: ImgInfo[],
+  logoMSE: ImgInfo | null,
 ) {
   const W = 297, H = 210
   const headerH = 24
@@ -283,15 +290,21 @@ function drawPhotoPage(
 
   // Header: "Relatório 5S" title
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(30, 30, 50)
-  doc.text('Relatório 5S', padX, 14)
-
-  // Header: MSE brand right
-  doc.setFont('helvetica', 'black')
   doc.setFontSize(13)
-  doc.setTextColor(...h2r(MSE_RED))
-  doc.text('mse', W - padX, 14, { align: 'right' })
+  doc.setTextColor(30, 30, 50)
+  doc.text('Relatório 5S', padX, 15)
+
+  // Header: MSE logo right
+  if (logoMSE) {
+    const logoSize = 15
+    const { w, h } = fitInBox(logoMSE.w, logoMSE.h, logoSize, logoSize)
+    doc.addImage(logoMSE.dataUrl, logoMSE.format, W - padX - w, 5 + (logoSize - h) / 2, w, h)
+  } else {
+    doc.setFont('helvetica', 'black')
+    doc.setFontSize(14)
+    doc.setTextColor(...h2r(MSE_RED))
+    doc.text('mse', W - padX, 15, { align: 'right' })
+  }
 
   // Separator line
   doc.setDrawColor(220, 220, 230)
@@ -340,7 +353,7 @@ function drawPhotoPage(
   doc.text('MSE Engenharia · Gestão HSE · Relatório 5S', padX, H - 2.5)
 }
 
-function drawClosing(doc: any) {
+function drawClosing(doc: any, logoMSE: ImgInfo | null) {
   const W = 297, H = 210
 
   doc.setFillColor(255, 255, 255)
@@ -351,28 +364,36 @@ function drawClosing(doc: any) {
   doc.rect(0, 0, W, 6, 'F')
   doc.rect(0, H - 6, W, 6, 'F')
 
-  // Large "mse"
-  doc.setFont('helvetica', 'black')
-  doc.setFontSize(68)
-  doc.setTextColor(...h2r(MSE_RED))
-  doc.text('mse', W / 2, H / 2 + 8, { align: 'center' })
+  // MSE logo centered
+  if (logoMSE) {
+    const logoSize = 70
+    const { w, h } = fitInBox(logoMSE.w, logoMSE.h, logoSize, logoSize)
+    doc.addImage(logoMSE.dataUrl, logoMSE.format, (W - w) / 2, H / 2 - h / 2 - 12, w, h)
+  } else {
+    doc.setFont('helvetica', 'black')
+    doc.setFontSize(68)
+    doc.setTextColor(...h2r(MSE_RED))
+    doc.text('mse', W / 2, H / 2 + 8, { align: 'center' })
+  }
 
   // Tagline
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(12)
+  doc.setFontSize(13)
   doc.setTextColor(100, 100, 120)
-  doc.text('MSE Engenharia · Gestão HSE', W / 2, H / 2 + 24, { align: 'center' })
+  doc.text('MSE Engenharia · Gestão HSE', W / 2, H / 2 + 30, { align: 'center' })
 }
 
 // ── PDF Generator ─────────────────────────────────────────────────────────────
 
 async function gerarPDF(form: ReportFormState, obra: Obra | undefined, tst: TST | undefined) {
-  // Load client logo
-  let logoImg: ImgInfo | null = null
-  if (form.logoCliente) {
-    const logo = CLIENT_LOGOS.find(l => l.id === form.logoCliente)
-    if (logo) logoImg = await urlToImgInfo(logo.path)
-  }
+  // Load logos in parallel
+  const [logoMSE, logoImgResult] = await Promise.all([
+    urlToImgInfo('/logos/mse.png'),
+    form.logoCliente
+      ? urlToImgInfo(CLIENT_LOGOS.find(l => l.id === form.logoCliente)?.path ?? '')
+      : Promise.resolve(null),
+  ])
+  const logoImg = logoImgResult
 
   // Load all section photos as ImgInfo (parallel)
   const secoesComImgs = await Promise.all(
@@ -393,7 +414,7 @@ async function gerarPDF(form: ReportFormState, obra: Obra | undefined, tst: TST 
     dataInicio: form.dataInicio,
     dataFim:    form.dataFim,
     tst:       tst?.nome ?? '',
-  }, logoImg)
+  }, logoImg, logoMSE)
 
   // Sections
   for (const secao of secoesComImgs) {
@@ -406,13 +427,13 @@ async function gerarPDF(form: ReportFormState, obra: Obra | undefined, tst: TST 
     for (let i = 0; i < secao.imgs.length; i += 2) {
       const chunk = secao.imgs.slice(i, i + 2)
       doc.addPage()
-      drawPhotoPage(doc, secao.local, secao.disciplina, chunk)
+      drawPhotoPage(doc, secao.local, secao.disciplina, chunk, logoMSE)
     }
   }
 
   // Closing
   doc.addPage()
-  drawClosing(doc)
+  drawClosing(doc, logoMSE)
 
   const obraName = obra?.nome ?? 'Obra'
   doc.save(`Relatório 5S - ${obraName} - Semana ${form.semana || 'S'}.pdf`)
