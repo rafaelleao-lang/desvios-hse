@@ -72,7 +72,7 @@ export default function InventarioMEPage() {
       if (tipoFiltro && eq.tipo !== tipoFiltro) return false
       if (busca) {
         const q = busca.toLowerCase()
-        if (!eq.nome.toLowerCase().includes(q) && !(eq.numero_serie ?? '').toLowerCase().includes(q)) return false
+        if (!eq.nome.toLowerCase().includes(q) && !(eq.numero_serie ?? '').toLowerCase().includes(q) && !(eq.placa ?? '').toLowerCase().includes(q)) return false
       }
       return true
     })
@@ -181,7 +181,7 @@ export default function InventarioMEPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Equipamento</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">Tipo</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden md:table-cell">Obra</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden lg:table-cell">Nº Série</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden lg:table-cell">Nº Série / Placa</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Última Inspeção</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Status</th>
                   <th className="px-4 py-3" />
@@ -210,7 +210,7 @@ export default function InventarioMEPage() {
                         <span className="text-xs text-zinc-400">{obra?.nome ?? '—'}</span>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
-                        <span className="text-xs font-mono text-zinc-500">{eq.numero_serie ?? '—'}</span>
+                        <span className="text-xs font-mono text-zinc-500">{eq.numero_serie ?? eq.placa ?? '—'}</span>
                       </td>
                       <td className="px-4 py-3">
                         {ultima ? (
