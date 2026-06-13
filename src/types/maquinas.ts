@@ -41,7 +41,7 @@ export interface ChecklistRespostaME {
 
 export interface Equipamento {
   id: string
-  obra_id: string
+  obra_id?: string
   tipo: TipoEquipamento
   nome: string
   fabricante?: string

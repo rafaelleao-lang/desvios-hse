@@ -86,10 +86,19 @@ export const equipamentosRepo = {
     return rows.map(mapEquipamento).sort((a, b) => a.tipo.localeCompare(b.tipo) || a.nome.localeCompare(b.nome))
   },
 
-  async byObraAndTipo(obraId: string, tipo: TipoEquipamento): Promise<Equipamento[]> {
+  async byTipo(tipo: TipoEquipamento): Promise<Equipamento[]> {
     const rows = await query<RowDataPacket[]>(
-      'SELECT * FROM equipamentos WHERE obra_id = ? AND tipo = ? AND ativo = 1',
-      [obraId, tipo],
+      'SELECT * FROM equipamentos WHERE tipo = ? AND ativo = 1',
+      [tipo],
+    )
+    return rows.map(mapEquipamento).sort((a, b) => a.nome.localeCompare(b.nome))
+  },
+
+  async byObraAndTipo(obraId: string, tipo: TipoEquipamento): Promise<Equipamento[]> {
+    // Retorna equipamentos do tipo que pertencem à obra OU não têm obra definida
+    const rows = await query<RowDataPacket[]>(
+      'SELECT * FROM equipamentos WHERE tipo = ? AND ativo = 1 AND (obra_id = ? OR obra_id IS NULL)',
+      [tipo, obraId],
     )
     return rows.map(mapEquipamento).sort((a, b) => a.nome.localeCompare(b.nome))
   },
@@ -104,7 +113,7 @@ export const equipamentosRepo = {
     await query(
       `INSERT INTO equipamentos (id, obra_id, tipo, nome, fabricante, modelo, numero_serie, ano_fabricacao, placa, ativo, criado_em)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [eq.id, eq.obra_id, eq.tipo, eq.nome, eq.fabricante ?? null, eq.modelo ?? null,
+      [eq.id, eq.obra_id ?? null, eq.tipo, eq.nome, eq.fabricante ?? null, eq.modelo ?? null,
        eq.numero_serie ?? null, eq.ano_fabricacao ?? null, eq.placa ?? null, eq.ativo ? 1 : 0, eq.criado_em],
     )
     return eq

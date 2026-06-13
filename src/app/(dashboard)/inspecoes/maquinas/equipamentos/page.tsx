@@ -32,15 +32,15 @@ export default function CadastrarEquipamentoPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!obraId || !tipo || !nome.trim() || !numeroSerie.trim()) {
-      setError('Preencha os campos obrigatórios: Obra, Tipo, Nome e Número de Série.')
+    if (!tipo || !nome.trim() || !numeroSerie.trim()) {
+      setError('Preencha os campos obrigatórios: Tipo, Nome e Número de Série.')
       return
     }
     setSaving(true)
     setError('')
     try {
       await equipamentosDB.create({
-        obra_id: obraId,
+        obra_id: obraId || undefined,
         tipo: tipo as TipoEquipamento,
         nome: nome.trim(),
         fabricante: fabricante.trim() || undefined,
@@ -96,9 +96,9 @@ export default function CadastrarEquipamentoPage() {
           <div>
             <label className={labelCls}>
               <Building2 className="inline w-3.5 h-3.5 mr-1" />
-              Obra <span className="text-red-400">*</span>
+              Obra <span className="text-zinc-600">(opcional)</span>
             </label>
-            <select className={inputCls} value={obraId} onChange={e => setObraId(e.target.value)} required>
+            <select className={inputCls} value={obraId} onChange={e => setObraId(e.target.value)}>
               <option value="">Selecione a obra</option>
               {obras.filter(o => o.ativa).map(o => (
                 <option key={o.id} value={o.id}>{o.nome}</option>

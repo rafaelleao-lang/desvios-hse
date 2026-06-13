@@ -18,6 +18,7 @@ async function rpc<T>(resource: string, action: string, ...args: unknown[]): Pro
 export const equipamentosDB = {
   list: (): Promise<Equipamento[]> => rpc('equipamentos', 'list'),
   byObra: (obraId: string): Promise<Equipamento[]> => rpc('equipamentos', 'byObra', obraId),
+  byTipo: (tipo: TipoEquipamento): Promise<Equipamento[]> => rpc('equipamentos', 'byTipo', tipo),
   byObraAndTipo: (obraId: string, tipo: TipoEquipamento): Promise<Equipamento[]> =>
     rpc('equipamentos', 'byObraAndTipo', obraId, tipo),
   find: (id: string): Promise<Equipamento | undefined> => rpc('equipamentos', 'find', id),
