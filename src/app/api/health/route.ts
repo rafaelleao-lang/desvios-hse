@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { query } from '@/lib/mysql'
+import { dispatch } from '@/lib/server/repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,41 +12,39 @@ export async function GET() {
   checks.DB_HOST = process.env.DB_HOST ? `✓ ${process.env.DB_HOST}` : '✗ não definido'
   checks.DB_USER = process.env.DB_USER ? `✓ ${process.env.DB_USER}` : '✗ não definido'
   checks.DB_NAME = process.env.DB_NAME ? `✓ ${process.env.DB_NAME}` : '✗ não definido'
-  checks.DB_PORT = process.env.DB_PORT ?? '3306 (padrão)'
-  checks.DB_SSL  = process.env.DB_SSL  ?? 'false (padrão)'
 
-  // Teste de conexão
+  // Conexão direta
   try {
     const rows = await query<any[]>('SELECT 1 AS ok')
-    checks.conexao = rows[0]?.ok === 1 ? '✓ OK' : '✗ resposta inesperada'
+    checks.conexao_direta = rows[0]?.ok === 1 ? '✓ OK' : '✗ resposta inesperada'
   } catch (err: any) {
-    checks.conexao = `✗ FALHOU: ${err?.message ?? err}`
+    checks.conexao_direta = `✗ FALHOU: ${err?.message ?? err}`
   }
 
-  // Contagem de desvios
+  // Dispatch desvios.list (exatamente como o frontend chama)
   try {
-    const rows = await query<any[]>('SELECT COUNT(*) AS n FROM desvios')
-    checks.desvios = `✓ ${rows[0]?.n} registros`
+    const desvios = await dispatch('desvios', 'list', []) as any[]
+    checks.dispatch_desvios = `✓ ${desvios.length} registros retornados`
   } catch (err: any) {
-    checks.desvios = `✗ ${err?.message ?? err}`
+    checks.dispatch_desvios = `✗ ${err?.message ?? err}`
   }
 
-  // Contagem de obras
+  // Dispatch obras.list
   try {
-    const rows = await query<any[]>('SELECT COUNT(*) AS n FROM obras')
-    checks.obras = `✓ ${rows[0]?.n} registros`
+    const obras = await dispatch('obras', 'list', []) as any[]
+    checks.dispatch_obras = `✓ ${obras.length} registros`
   } catch (err: any) {
-    checks.obras = `✗ ${err?.message ?? err}`
+    checks.dispatch_obras = `✗ ${err?.message ?? err}`
   }
 
-  // Contagem de inspeções
+  // Dispatch inspecoes.list
   try {
-    const rows = await query<any[]>('SELECT COUNT(*) AS n FROM inspecoes')
-    checks.inspecoes = `✓ ${rows[0]?.n} registros`
+    const insp = await dispatch('inspecoes', 'list', []) as any[]
+    checks.dispatch_inspecoes = `✓ ${insp.length} registros`
   } catch (err: any) {
-    checks.inspecoes = `✗ ${err?.message ?? err}`
+    checks.dispatch_inspecoes = `✗ ${err?.message ?? err}`
   }
 
-  const ok = checks.conexao.startsWith('✓')
+  const ok = checks.conexao_direta.startsWith('✓')
   return NextResponse.json({ ok, checks }, { status: ok ? 200 : 500 })
 }
