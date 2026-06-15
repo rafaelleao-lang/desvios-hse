@@ -13,6 +13,19 @@ async function rpc<T>(resource: string, action: string, ...args: unknown[]): Pro
   return json.data as T
 }
 
+async function rpcFull<T>(resource: string, action: string, ...args: unknown[]): Promise<{ data: T; vitaSyncResult?: { ok: boolean; vitaId?: string; reason?: string } }> {
+  const res = await fetch('/api/maquinas', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resource, action, args }),
+  })
+  const json = await res.json().catch(() => null)
+  if (!res.ok || !json?.ok) {
+    throw new Error(json?.error || `Falha na operação ${resource}.${action}`)
+  }
+  return { data: json.data as T, vitaSyncResult: json.vitaSyncResult }
+}
+
 // ── Equipamentos ──────────────────────────────────────────────────────────────
 
 export const equipamentosDB = {
@@ -57,6 +70,7 @@ export const inspecoesMEDB = {
   byEquipamento: (equipamentoId: string): Promise<InspecaoMaquina[]> =>
     rpc('inspecoesME', 'byEquipamento', equipamentoId),
   find: (id: string): Promise<InspecaoMaquina | undefined> => rpc('inspecoesME', 'find', id),
-  create: (data: CreateInspecaoMEData): Promise<InspecaoMaquina> => rpc('inspecoesME', 'create', data),
+  create: (data: CreateInspecaoMEData): Promise<{ insp: InspecaoMaquina; vitaSyncResult?: { ok: boolean; vitaId?: string; reason?: string } }> =>
+    rpcFull<InspecaoMaquina>('inspecoesME', 'create', data).then(r => ({ insp: r.data, vitaSyncResult: r.vitaSyncResult })),
   delete: (id: string): Promise<void> => rpc('inspecoesME', 'delete', id),
 }

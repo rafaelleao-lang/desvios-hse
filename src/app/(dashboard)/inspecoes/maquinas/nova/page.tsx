@@ -99,6 +99,7 @@ function NovaInspecaoMEContent() {
   // Step 6: Resultado
   const [saving, setSaving] = useState(false)
   const [savedInsp, setSavedInsp] = useState<{ id: string; numero: number; resultado: string } | null>(null)
+  const [vitaSync, setVitaSync] = useState<{ status: 'syncing' | 'ok' | 'skip' | 'err'; vitaId?: string; reason?: string } | null>(null)
 
   const obra = obras.find(o => o.id === obraId)
   const tstsDaObra = tsts.filter(t => t.obra_id === obraId && t.ativo)
@@ -143,7 +144,8 @@ function NovaInspecaoMEContent() {
   }, [items])
 
   const totais = useMemo(() => {
-    const vals = Object.values(respostas)
+    const currentIds = new Set(items.map(i => i.id))
+    const vals = Object.values(respostas).filter(r => currentIds.has(r.item_id))
     return {
       conformes: vals.filter(r => r.status === 'conforme').length,
       naoConformes: vals.filter(r => r.status === 'nao_conforme').length,
@@ -288,13 +290,13 @@ function NovaInspecaoMEContent() {
         await equipamentosDB.update(equipamentoId, { obra_id: obraId }).catch(() => undefined)
       }
 
-      // Salva inspeção
-      const insp = await inspecoesMEDB.create({
+      // Salva inspeção (sync VITA feito no servidor)
+      const { insp, vitaSyncResult } = await inspecoesMEDB.create({
         obra_id: obraId,
         obra_nome: obra?.nome,
         equipamento_id: equipamentoId,
         equipamento_nome: equipamento?.nome,
-        equipamento_tipo: equipamento?.tipo,
+        equipamento_tipo: equipamento?.tipo ?? (tipo as TipoEquipamento) ?? undefined,
         equipamento_serie: equipamento?.numero_serie,
         tst_id: tstId || undefined,
         tst_nome: tst?.nome,
@@ -308,6 +310,15 @@ function NovaInspecaoMEContent() {
         assinatura_url: assinaturaUrl,
         desvio_id: desvioId,
       })
+
+      // Mostra resultado do sync VITA (feito pelo servidor)
+      if (res === 'aprovado' && vitaSyncResult) {
+        setVitaSync(vitaSyncResult.ok
+          ? { status: 'ok', vitaId: vitaSyncResult.vitaId }
+          : { status: 'err', reason: vitaSyncResult.reason ?? 'Erro desconhecido' })
+      } else if (res !== 'aprovado') {
+        setVitaSync({ status: 'skip' })
+      }
 
       setSavedInsp({ id: insp.id, numero: insp.numero, resultado: res })
       await refresh()
@@ -759,6 +770,23 @@ function NovaInspecaoMEContent() {
                     <p className="text-xs text-amber-400 mt-1">Desvio criado automaticamente para tratativa.</p>
                   )}
                 </div>
+
+                {/* Indicador de sync VITA */}
+                {vitaSync && savedInsp?.resultado === 'aprovado' && (
+                  <div className={cn(
+                    'flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold',
+                    vitaSync.status === 'syncing' ? 'bg-zinc-800 text-zinc-400' :
+                    vitaSync.status === 'ok'      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                                    'bg-red-500/10 text-red-400 border border-red-500/20',
+                  )}>
+                    {vitaSync.status === 'syncing' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {vitaSync.status === 'ok'      && <Check className="w-3.5 h-3.5" />}
+                    {vitaSync.status === 'err'     && <X className="w-3.5 h-3.5" />}
+                    {vitaSync.status === 'syncing' && 'Sincronizando com VITA...'}
+                    {vitaSync.status === 'ok'      && 'Sincronizado com portal VITA'}
+                    {vitaSync.status === 'err'     && `VITA: ${vitaSync.reason}`}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
                   <button
