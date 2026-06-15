@@ -74,9 +74,14 @@ export async function query<T = mysql.RowDataPacket[]>(
     const [rows] = await getPool().query(sql, params)
     return rows as T
   } catch (err: unknown) {
-    // Conexão stale após hot-reload ou idle timeout → recria o pool e tenta uma vez
+    // Reconecta em qualquer erro de rede/idle — cobre ETIMEDOUT do RDS wait_timeout
     const code = (err as { code?: string }).code
-    if (code === 'ECONNRESET' || code === 'PROTOCOL_CONNECTION_LOST' || code === 'ENOTFOUND') {
+    const RECONNECT_CODES = new Set([
+      'ECONNRESET', 'PROTOCOL_CONNECTION_LOST', 'ENOTFOUND',
+      'ETIMEDOUT', 'ECONNREFUSED', 'ECONNABORTED',
+      'ER_SERVER_LOST', 'PROTOCOL_PACKETS_OUT_OF_ORDER',
+    ])
+    if (code && RECONNECT_CODES.has(code)) {
       globalForDb.__mysqlPool = createPool()
       const [rows] = await getPool().query(sql, params)
       return rows as T
