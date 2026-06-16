@@ -61,7 +61,12 @@ function createPool(): mysql.Pool {
 
 export function getPool(): mysql.Pool {
   if (!globalForDb.__mysqlPool) {
-    globalForDb.__mysqlPool = createPool()
+    const pool = createPool()
+    // Aumenta sort_buffer_size por conexão para evitar "Out of sort memory" no DB server
+    pool.on('connection', (conn) => {
+      conn.query('SET SESSION sort_buffer_size = 33554432') // 32 MB
+    })
+    globalForDb.__mysqlPool = pool
   }
   return globalForDb.__mysqlPool
 }
