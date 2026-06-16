@@ -5,6 +5,7 @@ import type {
   Obra, TST, Encarregado, Coordenador, Desvio, StatusDesvio, Tratativa, IndicadorSemanal,
   Inspecao, InspecaoEvidencia, FotoDesvio,
 } from '@/types'
+import { enviarDesvioEmail } from '@/lib/mail'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid(): string {
@@ -417,6 +418,14 @@ export const desviosRepo = {
         d.criado_em, d.atualizado_em,
       ],
     )
+
+    // Dispara e-mail ao coordenador em background — não bloqueia nem falha o desvio
+    if (d.coordenador_id) {
+      coordenadoresRepo.find(d.coordenador_id).then(coord => {
+        if (coord?.email) return enviarDesvioEmail(coord.email, d)
+      }).catch(err => console.error('[mail] falha ao enviar notificação de desvio:', err))
+    }
+
     return d
   },
 

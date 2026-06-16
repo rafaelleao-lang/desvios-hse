@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import type { Desvio } from '@/types'
 
 export interface AlertaPayload {
   obra:       string
@@ -105,6 +106,154 @@ export async function enviarAlertaEmail(emails: string[], payload: AlertaPayload
   <div style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:14px 32px;text-align:center;">
     <p style="margin:0;font-size:11px;color:#9CA3AF;">MSE Engenharia · Sistema de Gestão de Resíduos</p>
   </div>
+</div>
+</body>
+</html>`.trim(),
+  })
+}
+
+// ── Notificação de Desvio ────────────────────────────────────────────────────
+
+function makeTransporter() {
+  const host = process.env.SMTP_HOST
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+  if (!host || !user || !pass) throw new Error('SMTP não configurado — defina SMTP_HOST, SMTP_USER e SMTP_PASS no .env')
+  const port   = Number(process.env.SMTP_PORT ?? 587)
+  const secure = port === 465
+  return { transporter: nodemailer.createTransport({ host, port, secure, auth: { user, pass } }), user }
+}
+
+const GRAVIDADE_LABEL: Record<string, string>  = { baixo: 'Baixo', medio: 'Médio', alto: 'Alto', critico: 'Crítico' }
+const GRAVIDADE_COLOR: Record<string, string>  = { baixo: '#10B981', medio: '#EAB308', alto: '#F97316', critico: '#EF4444' }
+const GRAVIDADE_BG:    Record<string, string>  = { baixo: '#ECFDF5', medio: '#FEFCE8', alto: '#FFF7ED', critico: '#FEF2F2' }
+const GRAVIDADE_BORDER: Record<string, string> = { baixo: '#A7F3D0', medio: '#FDE047', alto: '#FED7AA', critico: '#FECACA' }
+const GRAVIDADE_EMOJI: Record<string, string>  = { baixo: '🟢', medio: '🟡', alto: '🟠', critico: '🔴' }
+
+function row(label: string, value: string | undefined, highlight = false): string {
+  if (!value) return ''
+  return `
+  <tr>
+    <td style="padding:10px 14px;background:#F9FAFB;border:1px solid #E5E7EB;font-weight:600;color:#6B7280;width:36%;vertical-align:top;">${label}</td>
+    <td style="padding:10px 14px;border:1px solid #E5E7EB;color:${highlight ? '#111827' : '#374151'};font-weight:${highlight ? '600' : '400'};line-height:1.5;">${value}</td>
+  </tr>`
+}
+
+function formatDate(d: string): string {
+  if (!d) return ''
+  const [y, m, day] = d.split('-')
+  return day && m && y ? `${day}/${m}/${y}` : d
+}
+
+export async function enviarDesvioEmail(email: string, desvio: Desvio): Promise<void> {
+  if (!email) return
+
+  const { transporter, user } = makeTransporter()
+
+  const gc      = desvio.gravidade
+  const gLabel  = GRAVIDADE_LABEL[gc]  ?? gc
+  const gColor  = GRAVIDADE_COLOR[gc]  ?? '#6B7280'
+  const gBg     = GRAVIDADE_BG[gc]     ?? '#F9FAFB'
+  const gBorder = GRAVIDADE_BORDER[gc] ?? '#E5E7EB'
+  const gEmoji  = GRAVIDADE_EMOJI[gc]  ?? '⚪'
+
+  const headerBg = gc === 'critico' ? 'linear-gradient(135deg,#7F1D1D 0%,#EF4444 100%)'
+                 : gc === 'alto'    ? 'linear-gradient(135deg,#7C2D12 0%,#F97316 100%)'
+                 : gc === 'medio'   ? 'linear-gradient(135deg,#713F12 0%,#EAB308 100%)'
+                 :                    'linear-gradient(135deg,#064E3B 0%,#10B981 100%)'
+
+  const categoria = desvio.categoria_outro
+    ? `${desvio.categoria} — ${desvio.categoria_outro}`
+    : desvio.categoria
+
+  const local = [desvio.setor, desvio.local_exato].filter(Boolean).join(' › ')
+  const dataHora = [formatDate(desvio.data_ocorrencia), desvio.hora_ocorrencia].filter(Boolean).join(' às ')
+  const prazo    = desvio.prazo_correcao ? formatDate(desvio.prazo_correcao) : undefined
+
+  await transporter.sendMail({
+    from:    `"MSE Engenharia" <${user}>`,
+    to:      email,
+    subject: `${gEmoji} Novo Desvio #${desvio.numero} — ${gLabel} · ${desvio.obra_nome ?? desvio.obra_id}`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:580px;margin:32px auto;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.12);">
+
+  <!-- Header -->
+  <div style="background:${headerBg};padding:28px 32px 24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <p style="margin:0;color:#fff;font-size:20px;font-weight:800;letter-spacing:-0.5px;">MSE Engenharia</p>
+        <p style="margin:3px 0 0;color:rgba(255,255,255,0.80);font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">HSE · Novo Desvio Registrado</p>
+      </div>
+      <div style="background:rgba(255,255,255,0.20);border-radius:8px;padding:8px 16px;text-align:center;">
+        <p style="margin:0;color:rgba(255,255,255,0.75);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;">Desvio</p>
+        <p style="margin:2px 0 0;color:#fff;font-size:26px;font-weight:800;letter-spacing:-1px;">#${desvio.numero}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gravity badge -->
+  <div style="background:${gBg};border-bottom:2px solid ${gBorder};padding:14px 32px;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:20px;">${gEmoji}</span>
+    <div>
+      <p style="margin:0;font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">Gravidade</p>
+      <p style="margin:2px 0 0;font-size:16px;font-weight:800;color:${gColor};">${gLabel}</p>
+    </div>
+    <div style="margin-left:auto;">
+      <span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${gColor};color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Aberto</span>
+    </div>
+  </div>
+
+  <!-- Descricao destaque -->
+  <div style="padding:20px 32px 4px;">
+    <p style="margin:0;font-size:13px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Descrição do Desvio</p>
+    <p style="margin:8px 0 0;font-size:15px;color:#111827;line-height:1.65;font-style:italic;">"${desvio.descricao}"</p>
+  </div>
+
+  <!-- Tabela principal -->
+  <div style="padding:20px 32px;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      ${row('Obra',          desvio.obra_nome ?? desvio.obra_id, true)}
+      ${row('Categoria',     categoria, true)}
+      ${row('Local',         local)}
+      ${row('Data / Hora',   dataHora)}
+      ${row('Colaborador',   desvio.colaborador_nome)}
+      ${row('Encarregado',   desvio.encarregado_nome)}
+      ${row('TST',           desvio.tst_nome)}
+      ${row('Coordenador',   desvio.coordenador_nome)}
+      ${row('Prazo de Correção', prazo)}
+      ${row('Ação Corretiva', desvio.acao_corretiva)}
+      ${row('Ação Preventiva', desvio.acao_preventiva)}
+      ${row('Reincidente',   desvio.reincidente ? '⚠️ Sim — colaborador já recebeu desvio anterior' : undefined)}
+    </table>
+  </div>
+
+  ${gc === 'critico' || gc === 'alto' ? `
+  <!-- Alerta urgente -->
+  <div style="margin:0 32px 20px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:16px 20px;">
+    <p style="margin:0 0 5px;color:#991B1B;font-size:14px;font-weight:700;">⚡ Atenção imediata necessária</p>
+    <p style="margin:0;color:#B91C1C;font-size:13px;line-height:1.5;">
+      ${gc === 'critico'
+        ? 'Este desvio é <strong>Crítico</strong> — risco imediato à vida. Avalie a necessidade de paralisar a atividade até a correção.'
+        : 'Este desvio tem gravidade <strong>Alta</strong> — risco significativo. Providencie correção com urgência.'}
+    </p>
+  </div>` : ''}
+
+  <!-- Rodapé info -->
+  <div style="padding:0 32px 24px;">
+    <p style="margin:0;font-size:11px;color:#9CA3AF;line-height:1.6;">
+      Aberto por <strong>${desvio.aberto_por}</strong> em ${dataHora}.<br>
+      Você recebe este e-mail por ser o coordenador responsável pela obra.
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:14px 32px;text-align:center;">
+    <p style="margin:0;font-size:11px;color:#9CA3AF;">MSE Engenharia · Sistema de Gestão HSE</p>
+  </div>
+
 </div>
 </body>
 </html>`.trim(),
