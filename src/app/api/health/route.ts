@@ -8,10 +8,31 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const checks: Record<string, string> = {}
 
-  // Variáveis de ambiente
+  // Variáveis de ambiente — banco
   checks.DB_HOST = process.env.DB_HOST ? `✓ ${process.env.DB_HOST}` : '✗ não definido'
   checks.DB_USER = process.env.DB_USER ? `✓ ${process.env.DB_USER}` : '✗ não definido'
   checks.DB_NAME = process.env.DB_NAME ? `✓ ${process.env.DB_NAME}` : '✗ não definido'
+
+  // Variáveis de ambiente — SMTP (e-mail)
+  checks.SMTP_HOST = process.env.SMTP_HOST ? `✓ ${process.env.SMTP_HOST}` : '✗ não definido'
+  checks.SMTP_PORT = process.env.SMTP_PORT ? `✓ ${process.env.SMTP_PORT}` : '✗ não definido'
+  checks.SMTP_USER = process.env.SMTP_USER ? `✓ ${process.env.SMTP_USER}` : '✗ não definido'
+  checks.SMTP_PASS = process.env.SMTP_PASS ? '✓ definido' : '✗ não definido'
+
+  // Teste de conexão SMTP
+  try {
+    const nodemailer = (await import('nodemailer')).default
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT ?? 587),
+      secure: Number(process.env.SMTP_PORT) === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    })
+    await transporter.verify()
+    checks.smtp_conexao = '✓ OK — autenticação Gmail bem-sucedida'
+  } catch (err: any) {
+    checks.smtp_conexao = `✗ FALHOU: ${err?.message ?? err}`
+  }
 
   // Conexão direta
   try {
