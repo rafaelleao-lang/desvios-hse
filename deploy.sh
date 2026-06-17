@@ -26,6 +26,17 @@ git fetch origin "$TARGET_BRANCH"
 git checkout "$TARGET_BRANCH"
 git reset --hard "origin/${TARGET_BRANCH}"
 
+# Grava variáveis de e-mail se fornecidas pelo pipeline de deploy
+if [ -n "${SMTP_HOST:-}" ]; then
+  log "Atualizando configuração SMTP (.env.production.local)"
+  cat > "$APP_DIR/.env.production.local" <<EOF
+SMTP_HOST=${SMTP_HOST}
+SMTP_PORT=${SMTP_PORT}
+SMTP_USER=${SMTP_USER}
+SMTP_PASS=${SMTP_PASS}
+EOF
+fi
+
 log "Instalando dependências (npm ci)"
 npm ci
 

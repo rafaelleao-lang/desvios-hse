@@ -30,24 +30,22 @@ jobs:
       - name: Deploy via SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           TARGET_BRANCH: ${{ steps.vars.outputs.branch }}
         run: |
           set -e
-          # Usuario e host fixos (nao sao sensiveis). Os secrets SSH_USER/SSH_HOST
-          # estavam incorretos (host no IP dinamico antigo, ja morto apos a troca
-          # pelo Elastic IP) e corrigi-los exige admin do repo; por isso fixamos
-          # aqui. Host = Elastic IP fixo da instancia EC2 (eipalloc-086ac2f8b80908a86).
           SSH_USER="ubuntu"
           SSH_HOST="35.168.67.97"
-          # Valida secrets necessarios (sem expor valores)
-          [ -n "$SSH_KEY" ]  || { echo "::error::Secret SSH_KEY ausente ou vazio"; exit 1; }
+          [ -n "$SSH_KEY" ] || { echo "::error::Secret SSH_KEY ausente ou vazio"; exit 1; }
           echo "Secrets presentes. User=$SSH_USER Host=$SSH_HOST Branch=$TARGET_BRANCH"
 
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          # Valida o formato da chave privada (deriva a publica; nao expoe a privada)
           if ! ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub 2>/tmp/keyerr; then
             echo "::error::SSH_KEY com formato invalido. Cole a chave PRIVADA inteira (linhas BEGIN/END). Detalhe:"
             cat /tmp/keyerr
@@ -55,14 +53,9 @@ jobs:
           fi
           echo "Chave carregada OK. Publica derivada:"; cat ~/.ssh/deploy_key.pub
 
-          # Sem ssh-keyscan: accept-new adiciona o host key na primeira conexao.
-          # ConnectTimeout garante erro claro (sem set -e mascarando via keyscan).
           echo "Conectando em $SSH_USER@$SSH_HOST (porta 22)..."
-          # Invoca via "bash <script>" para nao depender do bit de execucao do
-          # deploy.sh, que ja se perdeu antes (operacoes como root no servidor
-          # zeram o +x apos git reset --hard).
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=20 \
             "$SSH_USER@$SSH_HOST" \
-            "bash /var/www/desvios-hse/deploy.sh '$TARGET_BRANCH'"
+            "SMTP_HOST='$SMTP_HOST' SMTP_PORT='$SMTP_PORT' SMTP_USER='$SMTP_USER' SMTP_PASS='$SMTP_PASS' bash /var/www/desvios-hse/deploy.sh '$TARGET_BRANCH'"
