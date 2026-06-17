@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer'
-import type { Desvio } from '@/types'
+import type { RowDataPacket } from 'mysql2'
+import { query } from '@/lib/mysql'
+import type { Desvio, FotoDesvio } from '@/types'
 
 export interface AlertaPayload {
   obra:       string
@@ -145,10 +147,80 @@ function formatDate(d: string): string {
   return day && m && y ? `${day}/${m}/${y}` : d
 }
 
+interface FotoAnexo {
+  cid:         string
+  filename:    string
+  content:     Buffer
+  contentType: string
+  isAbsolute:  false
+}
+interface FotoUrl {
+  cid:        string
+  url:        string
+  isAbsolute: true
+}
+type FotoResolvida = FotoAnexo | FotoUrl
+
+async function resolverFotos(fotos: FotoDesvio[]): Promise<FotoResolvida[]> {
+  const MAX = 5
+  const resultado: FotoResolvida[] = []
+
+  for (const foto of fotos.slice(0, MAX)) {
+    const cid = `foto-${resultado.length}`
+    const dbMatch = foto.data_url.match(/^\/api\/uploads\/([^/?#]+)/)
+
+    if (dbMatch) {
+      try {
+        const rows = await query<RowDataPacket[]>(
+          'SELECT dados, mime FROM uploads WHERE id = ? LIMIT 1',
+          [dbMatch[1]],
+        )
+        if (rows[0]?.dados) {
+          resultado.push({
+            cid,
+            filename:    foto.nome || `foto-${resultado.length}.jpg`,
+            content:     rows[0].dados as Buffer,
+            contentType: (rows[0].mime as string) || 'image/jpeg',
+            isAbsolute:  false,
+          })
+        }
+      } catch { /* ignora foto com erro */ }
+    } else if (foto.data_url.startsWith('http')) {
+      resultado.push({ cid, url: foto.data_url, isAbsolute: true })
+    }
+  }
+
+  return resultado
+}
+
+function renderFotosHtml(fotos: FotoResolvida[]): string {
+  if (!fotos.length) return ''
+  const imgs = fotos.map(f => {
+    const src = f.isAbsolute ? f.url : `cid:${f.cid}`
+    return `<td style="padding:4px;width:50%;vertical-align:top;">
+      <img src="${src}" alt="Foto do desvio" style="width:100%;max-width:260px;border-radius:8px;border:1px solid #E5E7EB;display:block;" />
+    </td>`
+  })
+
+  const rows: string[] = []
+  for (let i = 0; i < imgs.length; i += 2) {
+    rows.push(`<tr>${imgs[i]}${imgs[i + 1] ?? '<td></td>'}</tr>`)
+  }
+
+  return `
+  <div style="padding:0 32px 24px;">
+    <p style="margin:0 0 12px;font-size:13px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">
+      📷 Fotos do Desvio (${fotos.length})
+    </p>
+    <table style="width:100%;border-collapse:collapse;">${rows.join('')}</table>
+  </div>`
+}
+
 export async function enviarDesvioEmail(email: string, desvio: Desvio): Promise<void> {
   if (!email) return
 
   const { transporter, user } = makeTransporter()
+  const fotosResolvidas = await resolverFotos(desvio.fotos ?? [])
 
   const gc      = desvio.gravidade
   const gLabel  = GRAVIDADE_LABEL[gc]  ?? gc
@@ -170,10 +242,15 @@ export async function enviarDesvioEmail(email: string, desvio: Desvio): Promise<
   const dataHora = [formatDate(desvio.data_ocorrencia), desvio.hora_ocorrencia].filter(Boolean).join(' às ')
   const prazo    = desvio.prazo_correcao ? formatDate(desvio.prazo_correcao) : undefined
 
+  const attachments = fotosResolvidas
+    .filter((f): f is FotoAnexo => !f.isAbsolute)
+    .map(f => ({ filename: f.filename, content: f.content, cid: f.cid, contentType: f.contentType }))
+
   await transporter.sendMail({
-    from:    `"MSE Engenharia" <${user}>`,
-    to:      email,
-    subject: `${gEmoji} Novo Desvio #${desvio.numero} — ${gLabel} · ${desvio.obra_nome ?? desvio.obra_id}`,
+    from:        `"MSE Engenharia" <${user}>`,
+    to:          email,
+    subject:     `${gEmoji} Novo Desvio #${desvio.numero} — ${gLabel} · ${desvio.obra_nome ?? desvio.obra_id}`,
+    attachments,
     html: `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -229,6 +306,8 @@ export async function enviarDesvioEmail(email: string, desvio: Desvio): Promise<
       ${row('Reincidente',   desvio.reincidente ? '⚠️ Sim — colaborador já recebeu desvio anterior' : undefined)}
     </table>
   </div>
+
+  ${renderFotosHtml(fotosResolvidas)}
 
   ${gc === 'critico' || gc === 'alto' ? `
   <!-- Alerta urgente -->

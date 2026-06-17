@@ -522,9 +522,9 @@ export const indicadoresRepo = {
     if (filters?.ano) { where.push('ano = ?'); vals.push(filters.ano) }
     if (filters?.semana_ini) { where.push('semana >= ?'); vals.push(filters.semana_ini) }
     if (filters?.semana_fim) { where.push('semana <= ?'); vals.push(filters.semana_fim) }
-    const sql = `SELECT * FROM indicadores_semanais${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY ano ASC, semana ASC`
+    const sql = `SELECT * FROM indicadores_semanais${where.length ? ` WHERE ${where.join(' AND ')}` : ''}`
     const rows = await query<RowDataPacket[]>(sql, vals)
-    return rows.map(mapIndicador)
+    return rows.map(mapIndicador).sort((a, b) => a.ano !== b.ano ? a.ano - b.ano : a.semana - b.semana)
   },
 
   async find(id: string): Promise<IndicadorSemanal | undefined> {
@@ -679,10 +679,13 @@ export const inspecoesRepo = {
     if (!rows[0]) return undefined
     const insp = mapInspecao(rows[0])
     const evRows = await query<RowDataPacket[]>(
-      'SELECT * FROM inspecao_evidencias WHERE inspecao_id = ? ORDER BY ordem ASC, criado_em ASC',
+      'SELECT * FROM inspecao_evidencias WHERE inspecao_id = ?',
       [id],
     )
-    const evidencias = evRows.map(mapEvidencia)
+    const evidencias = evRows.map(mapEvidencia).sort((a, b) => {
+      if (a.ordem !== b.ordem) return (a.ordem ?? 0) - (b.ordem ?? 0)
+      return (a.criado_em ?? '').localeCompare(b.criado_em ?? '')
+    })
 
     // Enriquece evidências de desvio com dados live (foto fechamento, data, tratativa, responsável)
     const desvioIds = evidencias.filter(e => e.desvio_id).map(e => e.desvio_id!)
