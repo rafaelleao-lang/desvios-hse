@@ -62,8 +62,8 @@ function createPool(): mysql.Pool {
 export function getPool(): mysql.Pool {
   if (!globalForDb.__mysqlPool) {
     const pool = createPool()
-    // Aumenta sort_buffer_size por conexão para evitar "Out of sort memory" no RDS
     pool.on('connection', (conn) => {
+      conn.query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
       conn.query('SET SESSION sort_buffer_size = 33554432') // 32 MB
     })
     globalForDb.__mysqlPool = pool
