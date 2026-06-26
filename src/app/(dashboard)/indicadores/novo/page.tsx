@@ -65,9 +65,12 @@ function Section({
 // ── Cálculo da semana atual ───────────────────────────────────────────────────
 
 function getSemanaAtual() {
-  const now   = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  return Math.ceil(((now.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7)
+  const now              = new Date()
+  const start            = new Date(now.getFullYear(), 0, 1)
+  const dayOfYear        = Math.floor((now.getTime() - start.getTime()) / 86400000) + 1
+  const jan1DayOfWeek    = start.getDay() // 0=Dom, 1=Seg, ..., 6=Sáb
+  const daysToFirstMon   = jan1DayOfWeek <= 1 ? (1 - jan1DayOfWeek) : (8 - jan1DayOfWeek)
+  return Math.max(1, Math.floor((dayOfYear - daysToFirstMon - 1) / 7) + 1)
 }
 
 // ── Page (usa useSearchParams → precisa de Suspense wrapper) ──────────────────
