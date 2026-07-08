@@ -7,7 +7,7 @@ import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
   ClipboardCheck, AlertCircle, BookOpen, FileText, Recycle,
-  ArrowDownUp, ClipboardSignature, Bell, Scale, Newspaper, Wrench, Package,
+  ArrowDownUp, ClipboardSignature, Bell, Scale, Newspaper,
   Megaphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -91,9 +91,6 @@ const MENUS: Array<{
       { href: '/inspecoes/dashboard',               icon: LayoutDashboard, label: 'Dashboard'              },
       { href: '/inspecoes/em-aberto',               icon: AlertCircle,     label: 'Em Aberto'              },
       { href: '/inspecoes',                         icon: ClipboardList,   label: 'Inspeções Padrão'       },
-      { href: '/inspecoes/maquinas',                icon: Wrench,          label: 'Inspeções M&E'          },
-      { href: '/inspecoes/maquinas/inventario',     icon: Package,         label: 'Inventário M&E'         },
-      { href: '/inspecoes/maquinas/equipamentos',   icon: Plus,            label: 'Cadastrar M&E'          },
       { href: '/inspecoes/relatorios',              icon: BarChart3,       label: 'Relatórios'             },
     ],
   },
@@ -226,9 +223,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                             ? pathname === '/indicadores'
                             : item.href === '/inspecoes'
                               ? pathname === '/inspecoes'
-                              : item.href === '/inspecoes/maquinas'
-                                ? pathname === '/inspecoes/maquinas' || (pathname.startsWith('/inspecoes/maquinas') && !pathname.startsWith('/inspecoes/maquinas/inventario'))
-                                : pathname === item.href || pathname.startsWith(item.href + '/')
+                              : pathname === item.href || pathname.startsWith(item.href + '/')
                         return (
                           <li key={item.href}>
                             <Link

@@ -7,7 +7,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area, LabelList,
 } from 'recharts'
 import {
-  ClipboardCheck, AlertCircle, CheckCircle2, TrendingUp,
+  ClipboardCheck, AlertCircle, CheckCircle2,
   Building2, Users, Eye, ShieldAlert, ThumbsUp, Filter, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -48,7 +48,7 @@ function KpiCard({ label, value, sub, icon: Icon, color }: { label: string; valu
 }
 
 export default function InspDashboardPage() {
-  const { inspecoes, inspecoesME, obras, tsts, encarregados, coordenadores, loaded } = useApp()
+  const { inspecoes, obras, tsts, encarregados, coordenadores, loaded } = useApp()
 
   const [obraFiltro, setObraFiltro] = useState('')
   const [periodoMeses, setPeriodoMeses] = useState(12)
@@ -59,24 +59,17 @@ export default function InspDashboardPage() {
     return inspecoes.filter(i => !obraFiltro || i.obra_id === obraFiltro)
   }, [inspecoes, obraFiltro])
 
-  const filteredME = useMemo(() => {
-    return inspecoesME.filter(i => !obraFiltro || i.obra_id === obraFiltro)
-  }, [inspecoesME, obraFiltro])
-
   // KPIs
   const kpis = useMemo(() => {
-    const totalPadrao = filtered.length
-    const totalME = filteredME.length
-    const total = totalPadrao + totalME
+    const total = filtered.length
     const emAberto = filtered.filter(i => i.status === 'em_aberto').length
-    const concluidas = filtered.filter(i => i.status === 'concluida').length + filteredME.filter(i => i.status === 'concluida').length
+    const concluidas = filtered.filter(i => i.status === 'concluida').length
     const totalDesvios = filtered.reduce((a, i) => a + i.total_desvios, 0)
-    const totalNaoConf = filteredME.reduce((a, i) => a + i.total_nao_conformes, 0)
     const totalReconh = filtered.reduce((a, i) => a + i.total_reconhecimentos, 0)
     const totalEvidencias = totalDesvios + totalReconh
     const taxaDesvio = totalEvidencias > 0 ? Math.round((totalDesvios / totalEvidencias) * 100) : 0
-    return { total, totalPadrao, totalME, emAberto, concluidas, totalDesvios, totalNaoConf, totalReconh, taxaDesvio }
-  }, [filtered, filteredME])
+    return { total, emAberto, concluidas, totalDesvios, totalReconh, taxaDesvio }
+  }, [filtered])
 
   // Evolução mensal
   const evolucaoMensal = useMemo(() => {
@@ -85,17 +78,14 @@ export default function InspDashboardPage() {
       dt.setMonth(dt.getMonth() - (periodoMeses - 1 - i))
       const mes = dt.toISOString().slice(0, 7)
       const mesInsp = filtered.filter(insp => insp.data_inspecao.startsWith(mes))
-      const mesME = filteredME.filter(insp => insp.data_inspecao.startsWith(mes))
       return {
         label: MONTHS[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2),
-        inspecoes: mesInsp.length + mesME.length,
-        padrao: mesInsp.length,
-        me: mesME.length,
+        inspecoes: mesInsp.length,
         desvios: mesInsp.reduce((a, i) => a + i.total_desvios, 0),
         reconhecimentos: mesInsp.reduce((a, i) => a + i.total_reconhecimentos, 0),
       }
     })
-  }, [filtered, filteredME, periodoMeses])
+  }, [filtered, periodoMeses])
 
   // Evolução semanal (últimas 12 semanas)
   const evolucaoSemanal = useMemo(() => {
@@ -258,13 +248,12 @@ export default function InspDashboardPage() {
       </AnimatePresence>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Total Inspeções" value={kpis.total} sub={`${kpis.totalPadrao} Padrão · ${kpis.totalME} M&E`} icon={ClipboardCheck} color={INSP_GREEN} />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <KpiCard label="Total Inspeções" value={kpis.total} sub="Inspeções padrão" icon={ClipboardCheck} color={INSP_GREEN} />
         <KpiCard label="Em Aberto" value={kpis.emAberto} sub="Com desvios pendentes" icon={AlertCircle} color="#F59E0B" />
-        <KpiCard label="Concluídas" value={kpis.concluidas} sub="Padrão + M&E" icon={CheckCircle2} color="#3B82F6" />
+        <KpiCard label="Concluídas" value={kpis.concluidas} sub="Inspeções concluídas" icon={CheckCircle2} color="#3B82F6" />
         <KpiCard label="Total Desvios" value={kpis.totalDesvios} sub="Inspeções Padrão" icon={ShieldAlert} color="#EF4444" />
         <KpiCard label="Reconhecimentos" value={kpis.totalReconh} sub="Boas práticas" icon={ThumbsUp} color={INSP_GREEN} />
-        <KpiCard label="NC em M&E" value={kpis.totalNaoConf} sub="Itens não conformes" icon={TrendingUp} color="#F97316" />
       </div>
 
       {/* Evolução com toggle mês/semana */}
