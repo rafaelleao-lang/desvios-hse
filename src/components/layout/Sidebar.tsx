@@ -8,6 +8,7 @@ import {
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
   ClipboardCheck, AlertCircle, BookOpen, FileText, Recycle,
   ArrowDownUp, ClipboardSignature, Bell, Scale, Newspaper, Wrench, Package,
+  Megaphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,7 +19,8 @@ type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'relatorios' 
 function getSistema(pathname: string): Sistema {
   if (pathname.startsWith('/tutorial'))       return 'tutorial'
   if (pathname.startsWith('/residuos'))       return 'residuos'
-  if (pathname.startsWith('/relatorios/5s'))  return 'relatorios'
+  if (pathname.startsWith('/relatorios/5s') || pathname.startsWith('/relatorios/comunicacao-visual'))
+                                               return 'relatorios'
   if (pathname.startsWith('/inspecoes'))      return 'inspecoes'
   if (pathname.startsWith('/indicadores'))    return 'indicadores'
   if (pathname.startsWith('/obras'))          return 'obras'
@@ -104,7 +106,8 @@ const MENUS: Array<{
     homeHref:   '/relatorios/5s',
     acao:       { label: 'Novo Relatório 5S', href: '/relatorios/5s/novo' },
     subnav: [
-      { href: '/relatorios/5s', icon: FileText, label: 'Relatório 5S' },
+      { href: '/relatorios/5s',                icon: FileText,  label: 'Relatório 5S'         },
+      { href: '/relatorios/comunicacao-visual', icon: Megaphone, label: 'Comunicação Visual'   },
     ],
   },
   {
