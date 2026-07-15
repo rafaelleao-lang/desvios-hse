@@ -8,7 +8,7 @@ import { ALOJAMENTO_ITENS_CONFIG, SUB_UNIDADE_LABELS, generateAlojamentoId } fro
 import type { Alojamento, AlojamentoItem } from '@/types/alojamentos'
 import {
   ArrowLeft, Building2, MapPin, User, Calendar, FileText, Loader2,
-  ThumbsUp, ThumbsDown, Image as ImageIcon, X,
+  ThumbsUp, ThumbsDown, Image as ImageIcon, X, Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -199,6 +199,20 @@ export default function AlojamentoDetalhePage() {
           </div>
         </div>
       </div>
+
+      {reg.prazo_resolucao && (() => {
+        const vencido = new Date(`${reg.prazo_resolucao}T23:59:59`) < new Date()
+        return (
+          <div className={cn(
+            'flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold',
+            vencido ? 'bg-red-500/10 border-red-500/25 text-red-400' : 'bg-amber-500/10 border-amber-500/25 text-amber-400',
+          )}>
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            Prazo para resolução das não conformidades: {formatDate(reg.prazo_resolucao)}
+            {vencido && ' — vencido'}
+          </div>
+        )
+      })()}
 
       {/* Dados do Alojamento */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">

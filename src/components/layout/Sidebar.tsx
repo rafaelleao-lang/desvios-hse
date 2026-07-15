@@ -8,7 +8,7 @@ import {
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
   ClipboardCheck, AlertCircle, BookOpen, FileText, Recycle,
   ArrowDownUp, ClipboardSignature, Bell, Scale, Newspaper,
-  Megaphone, BedDouble,
+  Megaphone, BedDouble, ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -118,8 +118,10 @@ const MENUS: Array<{
     acao:       { label: 'Novo Relatório', href: '/alojamentos/novo' },
     subnav: [
       { href: '/alojamentos/dashboard', icon: LayoutDashboard, label: 'Dashboard'               },
+      { href: '/alojamentos/cadastro',  icon: ClipboardList,   label: 'Cadastro de Alojamentos' },
       { href: '/alojamentos/novo',      icon: BedDouble,       label: 'Relatório de Alojamento' },
       { href: '/alojamentos',           icon: FileText,        label: 'Relatórios Salvos'       },
+      { href: '/alojamentos/controle',  icon: ShieldCheck,     label: 'Controle'                },
     ],
   },
   {

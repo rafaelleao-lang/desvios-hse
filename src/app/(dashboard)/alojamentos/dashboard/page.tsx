@@ -2,21 +2,45 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '@/contexts/AppContext'
-import { alojamentosDB } from '@/lib/db-alojamentos'
+import { alojamentosDB, alojamentoLocaisDB } from '@/lib/db-alojamentos'
+import { computeAlojamentoStatus } from '@/lib/alojamento-status'
 import { ALOJAMENTO_ITENS_CONFIG } from '@/types/alojamentos'
-import type { Alojamento, AlojamentoItemStats } from '@/types/alojamentos'
+import type { Alojamento, AlojamentoItemStats, AlojamentoLocal } from '@/types/alojamentos'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, LabelList,
+  PieChart, Pie, Cell, AreaChart, Area, LabelList, ComposedChart, Line,
 } from 'recharts'
-import { BedDouble, CheckCircle2, XCircle, ClipboardList, Filter, X } from 'lucide-react'
+import { BedDouble, CheckCircle2, XCircle, Clock, ClipboardList, Filter, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 
 const ALOJ_COLOR = '#6366F1'
 const GREEN = '#10B981'
 const RED = '#E8291C'
+const AMBER = '#F59E0B'
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+
+function formatDateBR(iso: string): string {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
+// Enumera os meses (1º dia de cada) entre duas datas, inclusive, com teto de
+// segurança para o filtro "de/até" não gerar um gráfico gigante por engano.
+function enumerarMeses(inicioStr: string, fimStr: string): Date[] {
+  const inicio = new Date(`${inicioStr}T00:00:00`)
+  const fim = new Date(`${fimStr}T00:00:00`)
+  if (isNaN(inicio.getTime()) || isNaN(fim.getTime()) || inicio > fim) return []
+  const meses: Date[] = []
+  let cur = new Date(inicio.getFullYear(), inicio.getMonth(), 1)
+  const ultimo = new Date(fim.getFullYear(), fim.getMonth(), 1)
+  while (cur <= ultimo && meses.length < 36) {
+    meses.push(new Date(cur))
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1)
+  }
+  return meses
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTip({ active, payload, label }: any) {
@@ -54,18 +78,26 @@ export default function AlojamentosDashboardPage() {
 
   const [alojamentos, setAlojamentos] = useState<Alojamento[]>([])
   const [itemStats, setItemStats] = useState<AlojamentoItemStats[]>([])
+  const [locais, setLocais] = useState<AlojamentoLocal[]>([])
   const [loading, setLoading] = useState(true)
   const [obraFiltro, setObraFiltro] = useState('')
   const [periodoMeses, setPeriodoMeses] = useState(12)
   const [showFilters, setShowFilters] = useState(false)
 
+  const hoje = new Date()
+  const [dataInicioFiltro, setDataInicioFiltro] = useState(
+    new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1).toISOString().split('T')[0],
+  )
+  const [dataFimFiltro, setDataFimFiltro] = useState(hoje.toISOString().split('T')[0])
+
   useEffect(() => {
     let active = true
-    Promise.all([alojamentosDB.list(), alojamentosDB.statsPorItem()])
-      .then(([list, stats]) => {
+    Promise.all([alojamentosDB.list(), alojamentosDB.statsPorItem(), alojamentoLocaisDB.list()])
+      .then(([list, stats, locs]) => {
         if (!active) return
         setAlojamentos(list)
         setItemStats(stats)
+        setLocais(locs)
       })
       .catch(err => console.error('[alojamentos] dashboard:', err))
       .finally(() => { if (active) setLoading(false) })
@@ -120,6 +152,61 @@ export default function AlojamentosDashboardPage() {
       }
     }).filter(o => o.relatorios > 0).sort((a, b) => b.relatorios - a.relatorios).slice(0, 8)
   }, [alojamentos, obras])
+
+  const locaisFiltrados = useMemo(
+    () => locais.filter(l => !obraFiltro || l.obra_id === obraFiltro),
+    [locais, obraFiltro],
+  )
+
+  const relatoriosPorLocal = useMemo(() => {
+    const map = new Map<string, Alojamento[]>()
+    for (const r of alojamentos) {
+      if (!r.alojamento_local_id) continue
+      if (!map.has(r.alojamento_local_id)) map.set(r.alojamento_local_id, [])
+      map.get(r.alojamento_local_id)!.push(r)
+    }
+    return map
+  }, [alojamentos])
+
+  // Status atual (agora) de cada alojamento cadastrado — conforme/vigente,
+  // com prazo (não conforme) ou pendente (nunca vistoriado / vencido)
+  const statusAlojamentos = useMemo(() => {
+    let vigente = 0, prazoOk = 0, prazoVencido = 0, pendente = 0
+    for (const l of locaisFiltrados) {
+      const info = computeAlojamentoStatus(relatoriosPorLocal.get(l.id) ?? [])
+      if (info.status === 'vigente') vigente++
+      else if (info.status === 'prazo_ok') prazoOk++
+      else if (info.status === 'prazo_vencido') prazoVencido++
+      else pendente++
+    }
+    const total = locaisFiltrados.length
+    const naoConforme = prazoOk + prazoVencido
+    const pctConforme = total > 0 ? Math.round((vigente / total) * 100) : 0
+    return { vigente, prazoOk, prazoVencido, naoConforme, pendente, total, pctConforme }
+  }, [locaisFiltrados, relatoriosPorLocal])
+
+  // Evolução do status dos alojamentos entre as datas do filtro (De/Até)
+  const evolucaoStatusAlojamentos = useMemo(() => {
+    const meses = enumerarMeses(dataInicioFiltro, dataFimFiltro)
+    return meses.map(dt => {
+      const fimDoMes = new Date(dt.getFullYear(), dt.getMonth() + 1, 0, 23, 59, 59)
+
+      let conforme = 0, naoConforme = 0, pendente = 0
+      for (const l of locaisFiltrados) {
+        if (new Date(l.criado_em) > fimDoMes) continue // ainda não existia nesse mês
+        const relatoriosAteAqui = (relatoriosPorLocal.get(l.id) ?? [])
+          .filter(r => new Date(r.data_vistoria) <= fimDoMes)
+        const info = computeAlojamentoStatus(relatoriosAteAqui, fimDoMes)
+        if (info.status === 'vigente') conforme++
+        else if (info.status === 'prazo_ok' || info.status === 'prazo_vencido') naoConforme++
+        else pendente++
+      }
+      return {
+        label: MONTHS[dt.getMonth()] + '/' + String(dt.getFullYear()).slice(2),
+        conforme, naoConforme, pendente,
+      }
+    })
+  }, [locaisFiltrados, relatoriosPorLocal, dataInicioFiltro, dataFimFiltro])
 
   // Evolução mensal (quantidade de relatórios)
   const evolucaoMensal = useMemo(() => {
@@ -185,13 +272,21 @@ export default function AlojamentosDashboardPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Período (evolução)</label>
+                  <label className="text-xs text-zinc-500 mb-1 block">Período (Evolução Mensal de Relatórios)</label>
                   <select className={inputCls} value={periodoMeses} onChange={e => setPeriodoMeses(Number(e.target.value))}>
                     <option value={3}>3 meses</option>
                     <option value={6}>6 meses</option>
                     <option value={12}>12 meses</option>
                     <option value={24}>24 meses</option>
                   </select>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Conformidade dos Alojamentos — De</label>
+                  <input type="date" className={inputCls} value={dataInicioFiltro} onChange={e => setDataInicioFiltro(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Conformidade dos Alojamentos — Até</label>
+                  <input type="date" className={inputCls} value={dataFimFiltro} onChange={e => setDataFimFiltro(e.target.value)} />
                 </div>
               </div>
               {activeFilters > 0 && (
@@ -204,12 +299,53 @@ export default function AlojamentosDashboardPage() {
         )}
       </AnimatePresence>
 
+      {/* KPIs de Alojamentos (cadastrados) */}
+      <div>
+        <h2 className="text-sm font-bold text-zinc-300 mb-3">Alojamentos Cadastrados</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="Total Cadastrado" value={statusAlojamentos.total} sub="Alojamentos no filtro" icon={BedDouble} color={ALOJ_COLOR} />
+          <KpiCard label="Conformes (Vigentes)" value={statusAlojamentos.vigente} sub={`${statusAlojamentos.pctConforme}% do total`} icon={CheckCircle2} color={GREEN} />
+          <KpiCard label="Não Conformes (c/ prazo)" value={statusAlojamentos.naoConforme} sub={`${statusAlojamentos.prazoVencido} com prazo vencido`} icon={XCircle} color={RED} />
+          <KpiCard label="Pendentes" value={statusAlojamentos.pendente} sub="Nunca vistoriados ou vencidos" icon={Clock} color={AMBER} />
+        </div>
+      </div>
+
+      {/* Alojamentos: Conforme x Não Conforme x Pendente — barras + linha de tendência */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <h3 className="text-sm font-bold text-zinc-200 mb-1">Alojamentos: Conforme × Não Conforme × Pendente</h3>
+        <p className="text-[11px] text-zinc-600 mb-3">
+          Barras = quantidade de alojamentos em cada status ao final do mês. Linha = tendência de cada série.
+          Período: {formatDateBR(dataInicioFiltro)} até {formatDateBR(dataFimFiltro)}.
+        </p>
+        {evolucaoStatusAlojamentos.length === 0 ? (
+          <p className="text-xs text-zinc-600 text-center py-8">Ajuste o período — a data inicial não pode ser depois da final.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={evolucaoStatusAlojamentos}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={{ stroke: '#3f3f46' }} tickLine={false} />
+              <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<ChartTip />} />
+              <Bar dataKey="conforme" name="Conforme" fill={GREEN} radius={[4, 4, 0, 0]} barSize={18} />
+              <Bar dataKey="naoConforme" name="Não Conforme" fill={RED} radius={[4, 4, 0, 0]} barSize={18} />
+              <Bar dataKey="pendente" name="Pendente Vistoria" fill={AMBER} radius={[4, 4, 0, 0]} barSize={18} />
+              <Line type="monotone" dataKey="conforme" name="Conforme (tendência)" stroke={GREEN} strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="naoConforme" name="Não Conforme (tendência)" stroke={RED} strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="pendente" name="Pendente (tendência)" stroke={AMBER} strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Relatórios" value={kpis.totalRelatorios} sub="Total no filtro" icon={ClipboardList} color={ALOJ_COLOR} />
-        <KpiCard label="Itens Conformes" value={kpis.totalConformes} sub={`${kpis.pctConformidade}% do total avaliado`} icon={CheckCircle2} color={GREEN} />
-        <KpiCard label="Itens Não Conformes" value={kpis.totalNaoConformes} sub="Somatório de todos os relatórios" icon={XCircle} color={RED} />
-        <KpiCard label="Itens Avaliados" value={kpis.totalItens} sub="Em todos os relatórios" icon={BedDouble} color="#8B5CF6" />
+      <div>
+        <h2 className="text-sm font-bold text-zinc-300 mb-3">Itens Avaliados nos Relatórios</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="Relatórios" value={kpis.totalRelatorios} sub="Total no filtro" icon={ClipboardList} color={ALOJ_COLOR} />
+          <KpiCard label="Itens Conformes" value={kpis.totalConformes} sub={`${kpis.pctConformidade}% do total avaliado`} icon={CheckCircle2} color={GREEN} />
+          <KpiCard label="Itens Não Conformes" value={kpis.totalNaoConformes} sub="Somatório de todos os relatórios" icon={XCircle} color={RED} />
+          <KpiCard label="Itens Avaliados" value={kpis.totalItens} sub="Em todos os relatórios" icon={BedDouble} color="#8B5CF6" />
+        </div>
       </div>
 
       {/* Donut Conforme x Não Conforme */}

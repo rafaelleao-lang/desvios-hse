@@ -110,6 +110,7 @@ export async function gerarPDFAlojamento(reg: Alojamento & { itens: AlojamentoIt
     ['Nº ALOJADOS', reg.num_alojados != null ? String(reg.num_alojados) : '—'],
     ['CAPACIDADE MÁXIMA', reg.capacidade_maxima != null ? String(reg.capacidade_maxima) : '—'],
     ['RESP. COMPRA ITENS FALTANTES', reg.responsavel_compra || '—'],
+    ...(reg.prazo_resolucao ? [['PRAZO PARA RESOLUÇÃO', fmtDate(reg.prazo_resolucao)] as [string, string]] : []),
   ]
   const cols3 = 3, mW = (CW - (cols3 - 1) * 3) / cols3
   metaItems.forEach(([lbl, val], i) => {

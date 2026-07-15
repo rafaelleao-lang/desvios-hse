@@ -151,11 +151,25 @@ export interface AlojamentoItem {
   sub_unidades?: AlojamentoSubUnidade[]
 }
 
+// Cadastro do alojamento físico (Obra + Endereço) — cadastrado uma vez em
+// "Cadastro de Alojamentos" e reutilizado por todos os relatórios/vistorias
+// feitos naquele endereço, permitindo ao "Controle" saber qual é o relatório
+// mais recente de cada alojamento.
+export interface AlojamentoLocal {
+  id: string
+  obra_id: string
+  obra_nome?: string
+  endereco: string
+  criado_em: string
+  atualizado_em: string
+}
+
 export interface Alojamento {
   id: string
   numero: number
   obra_id: string
   obra_nome?: string
+  alojamento_local_id?: string
   endereco: string
   empresa_responsavel: string
   num_quartos?: number
@@ -166,6 +180,7 @@ export interface Alojamento {
   responsavel_alojamento?: string
   responsavel_relatorio: string
   data_vistoria: string
+  prazo_resolucao?: string
   total_itens: number
   total_conformes: number
   criado_em: string

@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useApp } from '@/contexts/AppContext'
-import { alojamentosDB } from '@/lib/db-alojamentos'
+import { alojamentosDB, alojamentoLocaisDB } from '@/lib/db-alojamentos'
 import { uploadFotoToStorage } from '@/lib/db'
 import { compressImage, cn } from '@/lib/utils'
 import { ALOJAMENTO_ITENS_CONFIG, SUB_UNIDADE_LABELS } from '@/types/alojamentos'
-import type { AlojamentoItemKey, FotoAlojamento } from '@/types/alojamentos'
+import type { AlojamentoItemKey, AlojamentoLocal, FotoAlojamento } from '@/types/alojamentos'
 import {
   ArrowLeft, Camera, Image as ImageIcon, X, Loader2, CheckCircle2,
-  ThumbsUp, ThumbsDown, ChevronDown,
+  ThumbsUp, ThumbsDown, ChevronDown, AlertTriangle,
 } from 'lucide-react'
 
 const ALOJ_COLOR = '#6366F1'
@@ -46,7 +47,9 @@ export default function NovoAlojamentoPage() {
   const { obras } = useApp()
 
   const [obraId, setObraId] = useState('')
-  const [endereco, setEndereco] = useState('')
+  const [alojamentoLocalId, setAlojamentoLocalId] = useState('')
+  const [locais, setLocais] = useState<AlojamentoLocal[]>([])
+  const [locaisLoading, setLocaisLoading] = useState(true)
   const [empresaResponsavel, setEmpresaResponsavel] = useState('')
   const [numQuartos, setNumQuartos] = useState('')
   const [numBanheiros, setNumBanheiros] = useState('')
@@ -56,6 +59,7 @@ export default function NovoAlojamentoPage() {
   const [responsavelAlojamento, setResponsavelAlojamento] = useState('')
   const [responsavelRelatorio, setResponsavelRelatorio] = useState('')
   const [dataVistoria, setDataVistoria] = useState(new Date().toISOString().split('T')[0])
+  const [prazoResolucao, setPrazoResolucao] = useState('')
 
   const [itens, setItens] = useState<ItemFormState[]>(() =>
     ALOJAMENTO_ITENS_CONFIG.map((cfg, i) => ({
@@ -77,6 +81,16 @@ export default function NovoAlojamentoPage() {
   const fotoRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const obra = obras.find(o => o.id === obraId)
+  const local = locais.find(l => l.id === alojamentoLocalId)
+  const locaisDaObra = useMemo(() => locais.filter(l => l.obra_id === obraId), [locais, obraId])
+  const hasNaoConforme = itens.some(it => !it.conforme)
+
+  useEffect(() => {
+    alojamentoLocaisDB.list()
+      .then(setLocais)
+      .catch(err => console.error('[alojamentos] locais:', err))
+      .finally(() => setLocaisLoading(false))
+  }, [])
 
   function updateItem(key: AlojamentoItemKey, patch: Partial<ItemFormState>) {
     setItens(list => list.map(it => it.item_key === key ? { ...it, ...patch } : it))
@@ -193,13 +207,14 @@ export default function NovoAlojamentoPage() {
   }
 
   const canSave = Boolean(
-    obraId && endereco.trim() && empresaResponsavel.trim() &&
+    obraId && alojamentoLocalId && empresaResponsavel.trim() &&
     numQuartos.trim() && numBanheiros.trim() && numAlojados.trim() && capacidadeMaxima.trim() &&
-    responsavelRelatorio.trim() && dataVistoria,
+    responsavelRelatorio.trim() && dataVistoria &&
+    (!hasNaoConforme || prazoResolucao),
   )
 
   async function handleSave() {
-    if (!canSave) return
+    if (!canSave || !local) return
     setSaving(true)
     setError('')
     try {
@@ -207,7 +222,8 @@ export default function NovoAlojamentoPage() {
         {
           obra_id: obraId,
           obra_nome: obra?.nome,
-          endereco: endereco.trim(),
+          alojamento_local_id: alojamentoLocalId,
+          endereco: local.endereco,
           empresa_responsavel: empresaResponsavel.trim(),
           num_quartos: Number(numQuartos),
           num_banheiros: Number(numBanheiros),
@@ -217,6 +233,7 @@ export default function NovoAlojamentoPage() {
           responsavel_alojamento: responsavelAlojamento.trim() || undefined,
           responsavel_relatorio: responsavelRelatorio.trim(),
           data_vistoria: dataVistoria,
+          prazo_resolucao: hasNaoConforme ? prazoResolucao : undefined,
         },
         itens.map((it, i) => ({
           item_key: it.item_key,
@@ -271,15 +288,34 @@ export default function NovoAlojamentoPage() {
 
         <div>
           <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Obra *</label>
-          <select className={inputCls} style={{ '--tw-ring-color': ALOJ_COLOR + '4d' } as React.CSSProperties} value={obraId} onChange={e => setObraId(e.target.value)}>
+          <select
+            className={inputCls}
+            style={{ '--tw-ring-color': ALOJ_COLOR + '4d' } as React.CSSProperties}
+            value={obraId}
+            onChange={e => { setObraId(e.target.value); setAlojamentoLocalId('') }}
+          >
             <option value="">Selecione a obra</option>
             {obras.filter(o => o.ativa).map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
           </select>
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Endereço do Alojamento *</label>
-          <input className={inputCls} placeholder="Ex: Rua das Flores, 123 - Centro" value={endereco} onChange={e => setEndereco(e.target.value)} />
+          <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Alojamento (Endereço) *</label>
+          <select
+            className={inputCls}
+            value={alojamentoLocalId}
+            onChange={e => setAlojamentoLocalId(e.target.value)}
+            disabled={!obraId || locaisLoading}
+          >
+            <option value="">{!obraId ? 'Selecione a obra primeiro' : locaisLoading ? 'Carregando...' : 'Selecione o alojamento'}</option>
+            {locaisDaObra.map(l => <option key={l.id} value={l.id}>{l.endereco}</option>)}
+          </select>
+          {obraId && !locaisLoading && locaisDaObra.length === 0 && (
+            <p className="text-[11px] text-amber-400 mt-1.5">
+              Nenhum alojamento cadastrado para esta obra.{' '}
+              <Link href="/alojamentos/cadastro" className="underline hover:text-amber-300">Cadastre um primeiro</Link>.
+            </p>
+          )}
         </div>
 
         <div>
@@ -447,6 +483,30 @@ export default function NovoAlojamentoPage() {
           )
         })}
       </div>
+
+      {hasNaoConforme && (
+        <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <h2 className="text-sm font-bold text-amber-400">Prazo para Resolução das Não Conformidades</h2>
+          </div>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            Este relatório tem item(ns) marcado(s) como Não Conforme. Defina até quando eles devem ser resolvidos —
+            esse alojamento vai aparecer em <strong>Controle</strong> com esse prazo até que uma nova vistoria
+            saia totalmente conforme.
+          </p>
+          <div>
+            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Prazo para Resolução *</label>
+            <input
+              type="date"
+              className="w-full h-10 px-3 rounded-xl border border-amber-500/30 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+              min={new Date().toISOString().split('T')[0]}
+              value={prazoResolucao}
+              onChange={e => setPrazoResolucao(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">{error}</div>

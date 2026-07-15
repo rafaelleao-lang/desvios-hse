@@ -1,4 +1,4 @@
-import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, AlojamentoSubUnidade, FotoAlojamento } from '@/types/alojamentos'
+import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, AlojamentoLocal, AlojamentoSubUnidade, FotoAlojamento } from '@/types/alojamentos'
 
 // ── Cliente RPC para o backend MySQL (módulo Alojamentos) ──────────────────────
 async function rpc<T>(resource: string, action: string, ...args: unknown[]): Promise<T> {
@@ -36,4 +36,15 @@ export const alojamentosDB = {
     rpc('alojamentos', 'create', data, itens),
   delete: (id: string): Promise<void> => rpc('alojamentos', 'delete', id),
   statsPorItem: (): Promise<AlojamentoItemStats[]> => rpc('alojamentos', 'statsPorItem'),
+}
+
+export const alojamentoLocaisDB = {
+  list: (filters?: { obra_id?: string }): Promise<AlojamentoLocal[]> =>
+    rpc('alojamento_locais', 'list', filters),
+  find: (id: string): Promise<AlojamentoLocal | undefined> => rpc('alojamento_locais', 'find', id),
+  create: (data: { obra_id: string; obra_nome?: string; endereco: string }): Promise<AlojamentoLocal> =>
+    rpc('alojamento_locais', 'create', data),
+  update: (id: string, data: { obra_id?: string; obra_nome?: string; endereco?: string }): Promise<AlojamentoLocal | undefined> =>
+    rpc('alojamento_locais', 'update', id, data),
+  delete: (id: string): Promise<void> => rpc('alojamento_locais', 'delete', id),
 }
