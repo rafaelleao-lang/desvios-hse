@@ -1,0 +1,224 @@
+import 'server-only'
+import type { ResultSetHeader, RowDataPacket } from 'mysql2'
+import { query } from '@/lib/mysql'
+import { normalizeText } from '@/lib/utils'
+import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, FotoAlojamento } from '@/types/alojamentos'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function uid(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2)
+}
+
+function now(): string {
+  return new Date().toISOString()
+}
+
+function toBool(v: unknown): boolean {
+  return v === 1 || v === true || v === '1'
+}
+
+function parseJSON<T>(v: unknown, fallback: T): T {
+  if (v == null) return fallback
+  if (typeof v === 'string') {
+    try { return JSON.parse(v) as T } catch { return fallback }
+  }
+  return v as T
+}
+
+// ── Mappers ────────────────────────────────────────────────────────────────────
+function mapAlojamento(r: RowDataPacket): Alojamento {
+  return {
+    id: r.id,
+    numero: Number(r.numero),
+    obra_id: r.obra_id,
+    obra_nome: r.obra_nome ?? undefined,
+    endereco: r.endereco,
+    empresa_responsavel: r.empresa_responsavel,
+    num_quartos: r.num_quartos ?? undefined,
+    num_banheiros: r.num_banheiros ?? undefined,
+    num_alojados: r.num_alojados ?? undefined,
+    capacidade_maxima: r.capacidade_maxima ?? undefined,
+    responsavel_compra: r.responsavel_compra ?? undefined,
+    responsavel_alojamento: r.responsavel_alojamento ?? undefined,
+    responsavel_relatorio: r.responsavel_relatorio,
+    data_vistoria: r.data_vistoria,
+    total_itens: Number(r.total_itens ?? 0),
+    total_conformes: Number(r.total_conformes ?? 0),
+    criado_em: r.criado_em,
+    atualizado_em: r.atualizado_em,
+  }
+}
+
+function mapItem(r: RowDataPacket): AlojamentoItem {
+  return {
+    id: r.id,
+    alojamento_id: r.alojamento_id,
+    item_key: r.item_key,
+    ordem: Number(r.ordem ?? 0),
+    conforme: toBool(r.conforme),
+    observacao: r.observacao ?? undefined,
+    fotos: parseJSON<FotoAlojamento[]>(r.fotos, []),
+  }
+}
+
+async function nextAlojamentoNum(): Promise<number> {
+  const rows = await query<RowDataPacket[]>('SELECT MAX(numero) AS max FROM alojamentos')
+  return ((rows[0]?.max as number) ?? 0) + 1
+}
+
+type CreateItemInput = {
+  item_key: AlojamentoItemKey
+  ordem: number
+  conforme: boolean
+  observacao?: string
+  fotos: FotoAlojamento[]
+}
+
+type CreateAlojamentoInput = {
+  obra_id: string
+  obra_nome?: string
+  endereco: string
+  empresa_responsavel: string
+  num_quartos?: number
+  num_banheiros?: number
+  num_alojados?: number
+  capacidade_maxima?: number
+  responsavel_compra?: string
+  responsavel_alojamento?: string
+  responsavel_relatorio: string
+  data_vistoria: string
+}
+
+// ── Repositório ──────────────────────────────────────────────────────────────
+const alojamentosRepo = {
+  async list(filters?: { obra_id?: string; data_inicio?: string; data_fim?: string }): Promise<Alojamento[]> {
+    const where: string[] = []
+    const vals: unknown[] = []
+    if (filters?.obra_id) { where.push('obra_id = ?'); vals.push(filters.obra_id) }
+    if (filters?.data_inicio) { where.push('data_vistoria >= ?'); vals.push(filters.data_inicio) }
+    if (filters?.data_fim) { where.push('data_vistoria <= ?'); vals.push(filters.data_fim) }
+    const sql = `SELECT * FROM alojamentos${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY numero DESC`
+    const rows = await query<RowDataPacket[]>(sql, vals)
+    return rows.map(mapAlojamento)
+  },
+
+  async find(id: string): Promise<(Alojamento & { itens: AlojamentoItem[] }) | undefined> {
+    const rows = await query<RowDataPacket[]>('SELECT * FROM alojamentos WHERE id = ? LIMIT 1', [id])
+    if (!rows[0]) return undefined
+    const aloj = mapAlojamento(rows[0])
+    const itemRows = await query<RowDataPacket[]>(
+      'SELECT * FROM alojamento_itens WHERE alojamento_id = ? ORDER BY ordem ASC',
+      [id],
+    )
+    return { ...aloj, itens: itemRows.map(mapItem) }
+  },
+
+  async create(data: CreateAlojamentoInput, itens: CreateItemInput[]): Promise<Alojamento & { itens: AlojamentoItem[] }> {
+    const num = await nextAlojamentoNum()
+    const aloj: Alojamento = {
+      id: uid(),
+      numero: num,
+      obra_id: data.obra_id,
+      obra_nome: data.obra_nome,
+      endereco: normalizeText(data.endereco),
+      empresa_responsavel: normalizeText(data.empresa_responsavel),
+      num_quartos: data.num_quartos,
+      num_banheiros: data.num_banheiros,
+      num_alojados: data.num_alojados,
+      capacidade_maxima: data.capacidade_maxima,
+      responsavel_compra: data.responsavel_compra ? normalizeText(data.responsavel_compra) : undefined,
+      responsavel_alojamento: data.responsavel_alojamento ? normalizeText(data.responsavel_alojamento) : undefined,
+      responsavel_relatorio: normalizeText(data.responsavel_relatorio),
+      data_vistoria: data.data_vistoria,
+      total_itens: itens.length,
+      total_conformes: itens.filter(it => it.conforme).length,
+      criado_em: now(),
+      atualizado_em: now(),
+    }
+
+    await query(
+      `INSERT INTO alojamentos (
+        id, numero, obra_id, obra_nome, endereco, empresa_responsavel,
+        num_quartos, num_banheiros, num_alojados, capacidade_maxima,
+        responsavel_compra, responsavel_alojamento, responsavel_relatorio,
+        data_vistoria, total_itens, total_conformes, criado_em, atualizado_em
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        aloj.id, aloj.numero, aloj.obra_id, aloj.obra_nome ?? null,
+        aloj.endereco, aloj.empresa_responsavel,
+        aloj.num_quartos ?? null, aloj.num_banheiros ?? null,
+        aloj.num_alojados ?? null, aloj.capacidade_maxima ?? null,
+        aloj.responsavel_compra ?? null, aloj.responsavel_alojamento ?? null,
+        aloj.responsavel_relatorio, aloj.data_vistoria,
+        aloj.total_itens, aloj.total_conformes,
+        aloj.criado_em, aloj.atualizado_em,
+      ],
+    )
+
+    const itemRecords: AlojamentoItem[] = itens.map(it => ({
+      id: uid(),
+      alojamento_id: aloj.id,
+      item_key: it.item_key,
+      ordem: it.ordem,
+      conforme: it.conforme,
+      observacao: it.observacao,
+      fotos: it.fotos ?? [],
+    }))
+
+    if (itemRecords.length > 0) {
+      const placeholders = itemRecords.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
+      const flat: unknown[] = []
+      for (const it of itemRecords) {
+        flat.push(
+          it.id, it.alojamento_id, it.item_key, it.ordem,
+          it.conforme ? 1 : 0, it.observacao ?? null,
+          JSON.stringify(it.fotos ?? []), now(),
+        )
+      }
+      await query<ResultSetHeader>(
+        `INSERT INTO alojamento_itens (id, alojamento_id, item_key, ordem, conforme, observacao, fotos, criado_em)
+         VALUES ${placeholders}`,
+        flat,
+      )
+    }
+
+    return { ...aloj, itens: itemRecords }
+  },
+
+  async delete(id: string): Promise<void> {
+    await query('DELETE FROM alojamentos WHERE id = ?', [id])
+  },
+
+  // Agregação por item (para o ranking de não-conformidades mais recorrentes no dashboard)
+  async statsPorItem(): Promise<AlojamentoItemStats[]> {
+    const rows = await query<RowDataPacket[]>(`
+      SELECT item_key, COUNT(*) AS total, SUM(conforme = 0) AS nao_conformes
+      FROM alojamento_itens
+      GROUP BY item_key
+    `)
+    return rows.map(r => ({
+      item_key: r.item_key as AlojamentoItemKey,
+      total: Number(r.total ?? 0),
+      nao_conformes: Number(r.nao_conformes ?? 0),
+    }))
+  },
+}
+
+// ── Dispatch ──────────────────────────────────────────────────────────────────
+export async function dispatchAlojamentos(resource: string, action: string, args: unknown[]): Promise<unknown> {
+  switch (resource) {
+    case 'alojamentos':
+      if (action === 'list')   return alojamentosRepo.list(args[0] as Parameters<typeof alojamentosRepo.list>[0])
+      if (action === 'find')   return alojamentosRepo.find(args[0] as string)
+      if (action === 'create') return alojamentosRepo.create(
+        args[0] as Parameters<typeof alojamentosRepo.create>[0],
+        args[1] as Parameters<typeof alojamentosRepo.create>[1],
+      )
+      if (action === 'delete') return alojamentosRepo.delete(args[0] as string)
+      if (action === 'statsPorItem') return alojamentosRepo.statsPorItem()
+      break
+    default:
+      throw new Error(`Recurso desconhecido: ${resource}`)
+  }
+  throw new Error(`Ação desconhecida: ${resource}.${action}`)
+}

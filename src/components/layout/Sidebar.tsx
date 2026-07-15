@@ -8,17 +8,18 @@ import {
   TrendingUp, X, Plus, ClipboardList, ChevronRight, History,
   ClipboardCheck, AlertCircle, BookOpen, FileText, Recycle,
   ArrowDownUp, ClipboardSignature, Bell, Scale, Newspaper,
-  Megaphone,
+  Megaphone, BedDouble,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ── Sistema detectado pelo pathname ──────────────────────────────────────────
 
-type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'relatorios' | 'residuos' | 'tutorial'
+type Sistema = 'obras' | 'desvios' | 'indicadores' | 'inspecoes' | 'relatorios' | 'alojamentos' | 'residuos' | 'tutorial'
 
 function getSistema(pathname: string): Sistema {
   if (pathname.startsWith('/tutorial'))       return 'tutorial'
   if (pathname.startsWith('/residuos'))       return 'residuos'
+  if (pathname.startsWith('/alojamentos'))    return 'alojamentos'
   if (pathname.startsWith('/relatorios/5s') || pathname.startsWith('/relatorios/comunicacao-visual'))
                                                return 'relatorios'
   if (pathname.startsWith('/inspecoes'))      return 'inspecoes'
@@ -105,6 +106,20 @@ const MENUS: Array<{
     subnav: [
       { href: '/relatorios/5s',                icon: FileText,  label: 'Relatório 5S'         },
       { href: '/relatorios/comunicacao-visual', icon: Megaphone, label: 'Comunicação Visual'   },
+    ],
+  },
+  {
+    key:        'alojamentos',
+    label:      'Alojamentos',
+    icon:       BedDouble,
+    cor:        '#6366F1',
+    corHover:   '#4F46E5',
+    homeHref:   '/alojamentos/dashboard',
+    acao:       { label: 'Novo Relatório', href: '/alojamentos/novo' },
+    subnav: [
+      { href: '/alojamentos/dashboard', icon: LayoutDashboard, label: 'Dashboard'               },
+      { href: '/alojamentos/novo',      icon: BedDouble,       label: 'Relatório de Alojamento' },
+      { href: '/alojamentos',           icon: FileText,        label: 'Relatórios Salvos'       },
     ],
   },
   {
@@ -225,7 +240,9 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
                             ? pathname === '/indicadores'
                             : item.href === '/inspecoes'
                               ? pathname === '/inspecoes'
-                              : pathname === item.href || pathname.startsWith(item.href + '/')
+                              : item.href === '/alojamentos'
+                                ? pathname === '/alojamentos'
+                                : pathname === item.href || pathname.startsWith(item.href + '/')
                         return (
                           <li key={item.href}>
                             <Link
