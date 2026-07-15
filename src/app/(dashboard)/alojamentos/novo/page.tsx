@@ -1,12 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/contexts/AppContext'
 import { alojamentosDB } from '@/lib/db-alojamentos'
 import { uploadFotoToStorage } from '@/lib/db'
 import { compressImage, cn } from '@/lib/utils'
-import { ALOJAMENTO_ITENS_CONFIG } from '@/types/alojamentos'
+import { ALOJAMENTO_ITENS_CONFIG, SUB_UNIDADE_LABELS } from '@/types/alojamentos'
 import type { AlojamentoItemKey, FotoAlojamento } from '@/types/alojamentos'
 import {
   ArrowLeft, Camera, Image as ImageIcon, X, Loader2, CheckCircle2,
@@ -20,6 +20,13 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
 }
 
+interface SubUnidadeForm {
+  numero: number
+  fotos: FotoAlojamento[]
+  observacao: string
+  uploading: boolean
+}
+
 interface ItemFormState {
   item_key: AlojamentoItemKey
   conforme: boolean
@@ -27,6 +34,11 @@ interface ItemFormState {
   fotos: FotoAlojamento[]
   uploading: boolean
   aberto: boolean
+  subUnidades?: SubUnidadeForm[]
+}
+
+function novaSubUnidade(numero: number): SubUnidadeForm {
+  return { numero, fotos: [], observacao: '', uploading: false }
 }
 
 export default function NovoAlojamentoPage() {
@@ -53,6 +65,7 @@ export default function NovoAlojamentoPage() {
       fotos: [],
       uploading: false,
       aberto: i === 0,
+      subUnidades: SUB_UNIDADE_LABELS[cfg.key] ? [novaSubUnidade(1)] : undefined,
     })),
   )
 
@@ -69,9 +82,32 @@ export default function NovoAlojamentoPage() {
     setItens(list => list.map(it => it.item_key === key ? { ...it, ...patch } : it))
   }
 
-  async function addFoto(key: AlojamentoItemKey, files: FileList | null) {
+  function updateSubUnidade(key: AlojamentoItemKey, numero: number, patch: Partial<SubUnidadeForm>) {
+    setItens(list => list.map(it => it.item_key === key
+      ? { ...it, subUnidades: (it.subUnidades ?? []).map(su => su.numero === numero ? { ...su, ...patch } : su) }
+      : it))
+  }
+
+  // Sincroniza a quantidade de sub-unidades (Dormitório 1, 2, 3... / Sanitário 1, 2...)
+  // com os campos Nº de Quartos / Nº de Banheiros, preservando fotos/observações já
+  // preenchidas nas unidades que continuam existindo.
+  function syncSubUnidades(key: AlojamentoItemKey, quantidade: string) {
+    const count = Math.max(1, Number(quantidade) || 1)
+    setItens(list => list.map(it => {
+      if (it.item_key !== key) return it
+      const atual = it.subUnidades ?? []
+      const proximo = Array.from({ length: count }, (_, i) => atual[i] ?? novaSubUnidade(i + 1))
+      return { ...it, subUnidades: proximo }
+    }))
+  }
+
+  useEffect(() => { syncSubUnidades('dormitorios', numQuartos) }, [numQuartos])
+  useEffect(() => { syncSubUnidades('sanitarios', numBanheiros) }, [numBanheiros])
+
+  async function addFoto(key: AlojamentoItemKey, files: FileList | null, subNumero?: number) {
     if (!files || files.length === 0) return
-    updateItem(key, { uploading: true })
+    if (subNumero !== undefined) updateSubUnidade(key, subNumero, { uploading: true })
+    else updateItem(key, { uploading: true })
     try {
       const novasFotos: FotoAlojamento[] = []
       for (const file of Array.from(files)) {
@@ -79,18 +115,86 @@ export default function NovoAlojamentoPage() {
         const url = await uploadFotoToStorage(comprimido)
         novasFotos.push({ id: uid(), data_url: url, nome: comprimido.name })
       }
-      setItens(list => list.map(it => it.item_key === key
-        ? { ...it, fotos: [...it.fotos, ...novasFotos] }
-        : it))
+      if (subNumero !== undefined) {
+        setItens(list => list.map(it => it.item_key === key
+          ? { ...it, subUnidades: (it.subUnidades ?? []).map(su => su.numero === subNumero ? { ...su, fotos: [...su.fotos, ...novasFotos] } : su) }
+          : it))
+      } else {
+        setItens(list => list.map(it => it.item_key === key
+          ? { ...it, fotos: [...it.fotos, ...novasFotos] }
+          : it))
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao enviar foto')
     } finally {
-      updateItem(key, { uploading: false })
+      if (subNumero !== undefined) updateSubUnidade(key, subNumero, { uploading: false })
+      else updateItem(key, { uploading: false })
     }
+  }
+
+  function renderFotos(
+    fotoKey: string, fotos: FotoAlojamento[], uploading: boolean,
+    onFiles: (files: FileList | null) => void, onRemove: (fotoId: string) => void,
+  ) {
+    return (
+      <div>
+        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block flex items-center gap-1.5">
+          <Camera className="w-3 h-3" /> Fotos
+        </label>
+        <input
+          ref={el => { cameraRefs.current[fotoKey] = el }}
+          type="file" accept="image/*" capture="environment" className="hidden"
+          onChange={e => onFiles(e.target.files)}
+        />
+        <input
+          ref={el => { fotoRefs.current[fotoKey] = el }}
+          type="file" accept="image/*" multiple className="hidden"
+          onChange={e => onFiles(e.target.files)}
+        />
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+          {fotos.map(foto => (
+            <div key={foto.id} className="relative aspect-square bg-zinc-800 rounded-xl overflow-hidden group border border-zinc-700">
+              <img
+                src={foto.data_url}
+                alt=""
+                className="w-full h-full object-contain cursor-zoom-in"
+                onClick={() => setPreviewUrl(foto.data_url)}
+              />
+              <button
+                onClick={() => onRemove(foto.id)}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-3.5 h-3.5 text-white" />
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => cameraRefs.current[fotoKey]?.click()}
+            disabled={uploading}
+            className="aspect-square bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-indigo-500/50 transition-all disabled:opacity-50"
+          >
+            {uploading ? <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" /> : <Camera className="w-6 h-6 text-zinc-500" />}
+            <span className="text-[10px] text-zinc-500">Câmera</span>
+          </button>
+          <button
+            onClick={() => fotoRefs.current[fotoKey]?.click()}
+            disabled={uploading}
+            className="aspect-square bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-indigo-500/50 transition-all disabled:opacity-50"
+          >
+            <ImageIcon className="w-6 h-6 text-zinc-500" />
+            <span className="text-[10px] text-zinc-500">Galeria</span>
+          </button>
+        </div>
+        {fotos.length > 0 && (
+          <p className="text-[10px] text-zinc-600 mt-1.5">Clique em uma foto para ampliar. A foto aparece no PDF sem cortes, preservando a proporção.</p>
+        )}
+      </div>
+    )
   }
 
   const canSave = Boolean(
     obraId && endereco.trim() && empresaResponsavel.trim() &&
+    numQuartos.trim() && numBanheiros.trim() && numAlojados.trim() && capacidadeMaxima.trim() &&
     responsavelRelatorio.trim() && dataVistoria,
   )
 
@@ -105,10 +209,10 @@ export default function NovoAlojamentoPage() {
           obra_nome: obra?.nome,
           endereco: endereco.trim(),
           empresa_responsavel: empresaResponsavel.trim(),
-          num_quartos: numQuartos ? Number(numQuartos) : undefined,
-          num_banheiros: numBanheiros ? Number(numBanheiros) : undefined,
-          num_alojados: numAlojados ? Number(numAlojados) : undefined,
-          capacidade_maxima: capacidadeMaxima ? Number(capacidadeMaxima) : undefined,
+          num_quartos: Number(numQuartos),
+          num_banheiros: Number(numBanheiros),
+          num_alojados: Number(numAlojados),
+          capacidade_maxima: Number(capacidadeMaxima),
           responsavel_compra: responsavelCompra.trim() || undefined,
           responsavel_alojamento: responsavelAlojamento.trim() || undefined,
           responsavel_relatorio: responsavelRelatorio.trim(),
@@ -118,8 +222,13 @@ export default function NovoAlojamentoPage() {
           item_key: it.item_key,
           ordem: i,
           conforme: it.conforme,
-          observacao: it.observacao.trim() || undefined,
-          fotos: it.fotos,
+          observacao: it.subUnidades ? undefined : (it.observacao.trim() || undefined),
+          fotos: it.subUnidades ? [] : it.fotos,
+          sub_unidades: it.subUnidades?.map(su => ({
+            numero: su.numero,
+            fotos: su.fotos,
+            observacao: su.observacao.trim() || undefined,
+          })),
         })),
       )
       router.push(`/alojamentos/${result.id}`)
@@ -180,22 +289,23 @@ export default function NovoAlojamentoPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Nº de Quartos</label>
-            <input type="number" min={0} className={inputCls} value={numQuartos} onChange={e => setNumQuartos(e.target.value)} />
+            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Nº de Quartos *</label>
+            <input type="number" min={1} className={inputCls} value={numQuartos} onChange={e => setNumQuartos(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Nº de Banheiros</label>
-            <input type="number" min={0} className={inputCls} value={numBanheiros} onChange={e => setNumBanheiros(e.target.value)} />
+            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Nº de Banheiros *</label>
+            <input type="number" min={1} className={inputCls} value={numBanheiros} onChange={e => setNumBanheiros(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Nº de Alojados</label>
+            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Nº de Alojados *</label>
             <input type="number" min={0} className={inputCls} value={numAlojados} onChange={e => setNumAlojados(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Capacidade Máxima</label>
+            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Capacidade Máxima *</label>
             <input type="number" min={0} className={inputCls} value={capacidadeMaxima} onChange={e => setCapacidadeMaxima(e.target.value)} />
           </div>
         </div>
+        <p className="text-[11px] text-zinc-600 -mt-2">Nº de Quartos e Nº de Banheiros definem quantos blocos de Dormitório e Sanitário aparecem abaixo, um para cada quarto/banheiro real do alojamento.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -281,73 +391,56 @@ export default function NovoAlojamentoPage() {
                     </button>
                   </div>
 
-                  {/* Fotos */}
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 mb-1.5 block flex items-center gap-1.5">
-                      <Camera className="w-3 h-3" /> Fotos
-                    </label>
-                    <input
-                      ref={el => { cameraRefs.current[it.item_key] = el }}
-                      type="file" accept="image/*" capture="environment" className="hidden"
-                      onChange={e => addFoto(it.item_key, e.target.files)}
-                    />
-                    <input
-                      ref={el => { fotoRefs.current[it.item_key] = el }}
-                      type="file" accept="image/*" multiple className="hidden"
-                      onChange={e => addFoto(it.item_key, e.target.files)}
-                    />
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-                      {it.fotos.map((foto, fi) => (
-                        <div key={foto.id} className="relative aspect-square bg-zinc-800 rounded-xl overflow-hidden group border border-zinc-700">
-                          <img
-                            src={foto.data_url}
-                            alt=""
-                            className="w-full h-full object-contain cursor-zoom-in"
-                            onClick={() => setPreviewUrl(foto.data_url)}
-                          />
-                          <button
-                            onClick={() => updateItem(it.item_key, { fotos: it.fotos.filter((_, j) => j !== fi) })}
-                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-3.5 h-3.5 text-white" />
-                          </button>
+                  {it.subUnidades ? (
+                    /* Sub-unidades — um bloco de fotos+observação por quarto/banheiro */
+                    <div className="space-y-4">
+                      {it.subUnidades.map(su => (
+                        <div key={su.numero} className="bg-zinc-800/30 border border-zinc-700/60 rounded-xl p-4 space-y-3">
+                          <p className="text-sm font-bold text-zinc-300">{SUB_UNIDADE_LABELS[it.item_key]} {su.numero}</p>
+
+                          {renderFotos(
+                            `${it.item_key}:${su.numero}`, su.fotos, su.uploading,
+                            files => addFoto(it.item_key, files, su.numero),
+                            fotoId => updateSubUnidade(it.item_key, su.numero, { fotos: su.fotos.filter(f => f.id !== fotoId) }),
+                          )}
+
+                          <div>
+                            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Observações</label>
+                            <textarea
+                              className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 resize-none"
+                              rows={2}
+                              maxLength={255}
+                              placeholder={`Observações sobre ${SUB_UNIDADE_LABELS[it.item_key]?.toLowerCase()} ${su.numero} (opcional)`}
+                              value={su.observacao}
+                              onChange={e => updateSubUnidade(it.item_key, su.numero, { observacao: e.target.value })}
+                            />
+                            <p className="text-[10px] text-zinc-600 text-right mt-1">{su.observacao.length}/255</p>
+                          </div>
                         </div>
                       ))}
-                      <button
-                        onClick={() => cameraRefs.current[it.item_key]?.click()}
-                        disabled={it.uploading}
-                        className="aspect-square bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-indigo-500/50 transition-all disabled:opacity-50"
-                      >
-                        {it.uploading ? <Loader2 className="w-6 h-6 text-zinc-500 animate-spin" /> : <Camera className="w-6 h-6 text-zinc-500" />}
-                        <span className="text-[10px] text-zinc-500">Câmera</span>
-                      </button>
-                      <button
-                        onClick={() => fotoRefs.current[it.item_key]?.click()}
-                        disabled={it.uploading}
-                        className="aspect-square bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 hover:border-indigo-500/50 transition-all disabled:opacity-50"
-                      >
-                        <ImageIcon className="w-6 h-6 text-zinc-500" />
-                        <span className="text-[10px] text-zinc-500">Galeria</span>
-                      </button>
                     </div>
-                    {it.fotos.length > 0 && (
-                      <p className="text-[10px] text-zinc-600 mt-1.5">Clique em uma foto para ampliar. A foto aparece no PDF sem cortes, preservando a proporção.</p>
-                    )}
-                  </div>
+                  ) : (
+                    <>
+                      {renderFotos(
+                        it.item_key, it.fotos, it.uploading,
+                        files => addFoto(it.item_key, files),
+                        fotoId => updateItem(it.item_key, { fotos: it.fotos.filter(f => f.id !== fotoId) }),
+                      )}
 
-                  {/* Observação */}
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Observações</label>
-                    <textarea
-                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 resize-none"
-                      rows={2}
-                      maxLength={255}
-                      placeholder="Observações sobre este item (opcional)"
-                      value={it.observacao}
-                      onChange={e => updateItem(it.item_key, { observacao: e.target.value })}
-                    />
-                    <p className="text-[10px] text-zinc-600 text-right mt-1">{it.observacao.length}/255</p>
-                  </div>
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Observações</label>
+                        <textarea
+                          className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 resize-none"
+                          rows={2}
+                          maxLength={255}
+                          placeholder="Observações sobre este item (opcional)"
+                          value={it.observacao}
+                          onChange={e => updateItem(it.item_key, { observacao: e.target.value })}
+                        />
+                        <p className="text-[10px] text-zinc-600 text-right mt-1">{it.observacao.length}/255</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

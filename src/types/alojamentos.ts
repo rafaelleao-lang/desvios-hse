@@ -11,6 +11,15 @@ export interface AlojamentoClausula {
   desc: string
 }
 
+// Uma "unidade física" dentro de um item (ex: Dormitório 1, Sanitário 2) —
+// cada uma com suas próprias fotos e observação, para garantir evidência de
+// cada quarto/banheiro em vez de uma única foto genérica para o item inteiro.
+export interface AlojamentoSubUnidade {
+  numero: number
+  fotos: FotoAlojamento[]
+  observacao?: string
+}
+
 // 11 itens fixos de vistoria (adaptado do relatório original de Alojamentos).
 // A ordem e as chaves (item_key) não devem mudar — são usadas para casar com
 // os registros já salvos no banco. Cada item traz uma lista de cláusulas
@@ -121,6 +130,16 @@ export const ALOJAMENTO_ITENS_CONFIG = [
 
 export type AlojamentoItemKey = typeof ALOJAMENTO_ITENS_CONFIG[number]['key']
 
+// Itens cuja quantidade de "unidades físicas" (Dormitório 1, 2, 3... /
+// Sanitário 1, 2...) é definida pelos campos Nº de Quartos / Nº de Banheiros
+// do cabeçalho do relatório. Cada unidade tem suas próprias fotos e
+// observação; a descrição normativa do item continua sendo exibida uma
+// única vez, compartilhada entre todas as unidades.
+export const SUB_UNIDADE_LABELS: Partial<Record<AlojamentoItemKey, string>> = {
+  dormitorios: 'Dormitório',
+  sanitarios: 'Sanitário',
+}
+
 export interface AlojamentoItem {
   id: string
   alojamento_id: string
@@ -129,6 +148,7 @@ export interface AlojamentoItem {
   conforme: boolean
   observacao?: string
   fotos: FotoAlojamento[]
+  sub_unidades?: AlojamentoSubUnidade[]
 }
 
 export interface Alojamento {

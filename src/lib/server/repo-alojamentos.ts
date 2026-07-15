@@ -1,7 +1,7 @@
 import 'server-only'
 import type { ResultSetHeader, RowDataPacket } from 'mysql2'
 import { query } from '@/lib/mysql'
-import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, FotoAlojamento } from '@/types/alojamentos'
+import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, AlojamentoSubUnidade, FotoAlojamento } from '@/types/alojamentos'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid(): string {
@@ -57,6 +57,7 @@ function mapItem(r: RowDataPacket): AlojamentoItem {
     conforme: toBool(r.conforme),
     observacao: r.observacao ?? undefined,
     fotos: parseJSON<FotoAlojamento[]>(r.fotos, []),
+    sub_unidades: parseJSON<AlojamentoSubUnidade[]>(r.sub_unidades, []),
   }
 }
 
@@ -71,6 +72,7 @@ type CreateItemInput = {
   conforme: boolean
   observacao?: string
   fotos: FotoAlojamento[]
+  sub_unidades?: AlojamentoSubUnidade[]
 }
 
 type CreateAlojamentoInput = {
@@ -162,20 +164,21 @@ const alojamentosRepo = {
       conforme: it.conforme,
       observacao: it.observacao,
       fotos: it.fotos ?? [],
+      sub_unidades: it.sub_unidades ?? [],
     }))
 
     if (itemRecords.length > 0) {
-      const placeholders = itemRecords.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
+      const placeholders = itemRecords.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
       const flat: unknown[] = []
       for (const it of itemRecords) {
         flat.push(
           it.id, it.alojamento_id, it.item_key, it.ordem,
           it.conforme ? 1 : 0, it.observacao ?? null,
-          JSON.stringify(it.fotos ?? []), now(),
+          JSON.stringify(it.fotos ?? []), JSON.stringify(it.sub_unidades ?? []), now(),
         )
       }
       await query<ResultSetHeader>(
-        `INSERT INTO alojamento_itens (id, alojamento_id, item_key, ordem, conforme, observacao, fotos, criado_em)
+        `INSERT INTO alojamento_itens (id, alojamento_id, item_key, ordem, conforme, observacao, fotos, sub_unidades, criado_em)
          VALUES ${placeholders}`,
         flat,
       )

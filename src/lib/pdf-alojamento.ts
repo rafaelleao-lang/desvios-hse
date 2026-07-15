@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
-import { ALOJAMENTO_ITENS_CONFIG, generateAlojamentoId } from '@/types/alojamentos'
-import type { Alojamento, AlojamentoItem } from '@/types/alojamentos'
+import { ALOJAMENTO_ITENS_CONFIG, SUB_UNIDADE_LABELS, generateAlojamentoId } from '@/types/alojamentos'
+import type { Alojamento, AlojamentoItem, FotoAlojamento } from '@/types/alojamentos'
 
 const RED: [number, number, number] = [232, 41, 28]
 const GREEN: [number, number, number] = [16, 185, 129]
@@ -192,8 +192,8 @@ export async function gerarPDFAlojamento(reg: Alojamento & { itens: AlojamentoIt
       y += 2
     }
 
-    if (it.observacao) {
-      const obsLines = doc.splitTextToSize(it.observacao, CW - 6)
+    function drawObservacao(texto: string) {
+      const obsLines = doc.splitTextToSize(texto, CW - 6)
       const boxH = obsLines.length * 4 + 8
       ensureSpace(boxH + 6)
       doc.setFillColor(250, 250, 250); doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.3)
@@ -205,17 +205,26 @@ export async function gerarPDFAlojamento(reg: Alojamento & { itens: AlojamentoIt
       y += boxH + 6
     }
 
-    // Fotos
-    if (it.fotos.length > 0) {
+    async function drawFotos(fotos: FotoAlojamento[]) {
+      if (fotos.length === 0) {
+        ensureSpace(10)
+        doc.setFillColor(255, 251, 235); doc.roundedRect(ML, y, CW, 10, 2, 2, 'F')
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(160, 100, 0)
+        doc.text('Nenhuma foto registrada', ML + CW / 2, y + 6.5, { align: 'center' })
+        y += 14
+        return
+      }
+
+      ensureSpace(4)
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(180, 180, 180)
-      doc.text(`FOTOS (${it.fotos.length})`, ML, y); y += 4
+      doc.text(`FOTOS (${fotos.length})`, ML, y); y += 4
 
       const gap = 4
       const photoW = (CW - gap) / 2
       const photoH = 62
       let col = 0
 
-      for (const foto of it.fotos) {
+      for (const foto of fotos) {
         if (col === 0 && y + photoH > 297 - 14) { doc.addPage(); drawHeader(); y = 26 }
         const x = ML + col * (photoW + gap)
         const dataUrl = await resolveDataUrl(foto.data_url)
@@ -230,10 +239,22 @@ export async function gerarPDFAlojamento(reg: Alojamento & { itens: AlojamentoIt
 
         if (col === 1) { y += photoH + gap; col = 0 } else { col = 1 }
       }
+      if (col === 1) y += photoH + gap // fecha a última linha, mesmo com nº ímpar de fotos
+      y += 4
+    }
+
+    if (it.sub_unidades && it.sub_unidades.length > 0) {
+      const label = SUB_UNIDADE_LABELS[it.item_key] ?? 'Unidade'
+      for (const su of it.sub_unidades) {
+        ensureSpace(9)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(20, 20, 20)
+        doc.text(`${label} ${su.numero}`, ML, y); y += 5
+        if (su.observacao) drawObservacao(su.observacao)
+        await drawFotos(su.fotos)
+      }
     } else {
-      doc.setFillColor(255, 251, 235); doc.roundedRect(ML, y, CW, 10, 2, 2, 'F')
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(160, 100, 0)
-      doc.text('Nenhuma foto registrada para este item', ML + CW / 2, y + 6.5, { align: 'center' })
+      if (it.observacao) drawObservacao(it.observacao)
+      await drawFotos(it.fotos)
     }
   }
 

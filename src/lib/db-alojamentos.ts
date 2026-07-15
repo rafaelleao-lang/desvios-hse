@@ -1,4 +1,4 @@
-import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, FotoAlojamento } from '@/types/alojamentos'
+import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, AlojamentoSubUnidade, FotoAlojamento } from '@/types/alojamentos'
 
 // ── Cliente RPC para o backend MySQL (módulo Alojamentos) ──────────────────────
 async function rpc<T>(resource: string, action: string, ...args: unknown[]): Promise<T> {
@@ -20,6 +20,7 @@ export interface CreateAlojamentoItemInput {
   conforme: boolean
   observacao?: string
   fotos: FotoAlojamento[]
+  sub_unidades?: AlojamentoSubUnidade[]
 }
 
 export type CreateAlojamentoInput = Omit<

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { alojamentosDB } from '@/lib/db-alojamentos'
 import { gerarPDFAlojamento } from '@/lib/pdf-alojamento'
-import { ALOJAMENTO_ITENS_CONFIG, generateAlojamentoId } from '@/types/alojamentos'
+import { ALOJAMENTO_ITENS_CONFIG, SUB_UNIDADE_LABELS, generateAlojamentoId } from '@/types/alojamentos'
 import type { Alojamento, AlojamentoItem } from '@/types/alojamentos'
 import {
   ArrowLeft, Building2, MapPin, User, Calendar, FileText, Loader2,
@@ -63,28 +63,59 @@ function ItemCard({ item, onPreview }: { item: AlojamentoItem; onPreview: (url: 
         </div>
       )}
 
-      {item.observacao && (
-        <p className="text-sm text-zinc-400 bg-zinc-800/60 rounded-xl px-3 py-2">{item.observacao}</p>
-      )}
-
-      {item.fotos.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          {item.fotos.map(foto => (
-            <div key={foto.id} className="bg-zinc-800 border border-zinc-700 rounded-xl overflow-hidden flex items-center justify-center" style={{ height: 180 }}>
-              <img
-                src={foto.data_url}
-                alt=""
-                className="max-w-full max-h-full object-contain cursor-zoom-in"
-                onClick={() => onPreview(foto.data_url)}
-              />
+      {item.sub_unidades && item.sub_unidades.length > 0 ? (
+        <div className="space-y-3">
+          {item.sub_unidades.map(su => (
+            <div key={su.numero} className="bg-zinc-800/30 border border-zinc-700/60 rounded-xl p-3 space-y-2">
+              <p className="text-xs font-bold text-zinc-300">{SUB_UNIDADE_LABELS[item.item_key]} {su.numero}</p>
+              {su.observacao && (
+                <p className="text-xs text-zinc-400 bg-zinc-800/60 rounded-lg px-2.5 py-1.5">{su.observacao}</p>
+              )}
+              {su.fotos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {su.fotos.map(foto => (
+                    <div key={foto.id} className="bg-zinc-800 border border-zinc-700 rounded-xl overflow-hidden flex items-center justify-center" style={{ height: 150 }}>
+                      <img
+                        src={foto.data_url}
+                        alt=""
+                        className="max-w-full max-h-full object-contain cursor-zoom-in"
+                        onClick={() => onPreview(foto.data_url)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-zinc-600">Sem fotos</p>
+              )}
             </div>
           ))}
         </div>
       ) : (
-        <div className="bg-zinc-800/60 rounded-xl flex items-center justify-center gap-2 py-4">
-          <ImageIcon className="w-4 h-4 text-zinc-600" />
-          <span className="text-xs text-zinc-600">Sem fotos</span>
-        </div>
+        <>
+          {item.observacao && (
+            <p className="text-sm text-zinc-400 bg-zinc-800/60 rounded-xl px-3 py-2">{item.observacao}</p>
+          )}
+
+          {item.fotos.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {item.fotos.map(foto => (
+                <div key={foto.id} className="bg-zinc-800 border border-zinc-700 rounded-xl overflow-hidden flex items-center justify-center" style={{ height: 180 }}>
+                  <img
+                    src={foto.data_url}
+                    alt=""
+                    className="max-w-full max-h-full object-contain cursor-zoom-in"
+                    onClick={() => onPreview(foto.data_url)}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-zinc-800/60 rounded-xl flex items-center justify-center gap-2 py-4">
+              <ImageIcon className="w-4 h-4 text-zinc-600" />
+              <span className="text-xs text-zinc-600">Sem fotos</span>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
