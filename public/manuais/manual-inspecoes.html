@@ -244,6 +244,9 @@
     <div class="nav-section">Referência</div>
     <a href="#status" class="nav-item"><span class="num">14</span>Status da Inspeção</a>
     <a href="#numeracao" class="nav-item"><span class="num">15</span>Numeração</a>
+    <div class="nav-section">Análise</div>
+    <a href="#dashboard" class="nav-item"><span class="num">16</span>Dashboard</a>
+    <a href="#relatorios-insp" class="nav-item"><span class="num">17</span>Relatórios</a>
   </div>
   <div class="sidebar-footer">
     <p>MSE Engenharia</p>
@@ -854,6 +857,95 @@
         <li>O PDF é salvo com o nome <code>Inspecao-INS0001-2025-06-06.pdf</code></li>
       </ul>
     </div>
+  </section>
+
+  <!-- ══ 16. DASHBOARD ══ -->
+  <section id="dashboard">
+    <h2><span class="section-num">16</span>Dashboard</h2>
+    <p class="section-lead">Tela inicial do módulo (<code>/inspecoes/dashboard</code>) — visão gerencial rápida com KPIs e gráficos interativos. Não possui exportação; para gerar um documento, use o submenu Relatórios.</p>
+
+    <h3 style="margin-top:20px;">Filtros</h3>
+    <table class="field-table">
+      <tr><th>Filtro</th><th>Efeito</th></tr>
+      <tr><td>Obra</td><td>Restringe todos os KPIs e gráficos à obra selecionada</td></tr>
+      <tr><td>Período</td><td>3 / 6 / 12 / 24 meses — afeta apenas a curva de evolução mensal</td></tr>
+    </table>
+
+    <h3 style="margin-top:20px;">KPIs</h3>
+    <div class="card-grid-3">
+      <div class="card"><h3 style="font-size:13px;">Total Inspeções</h3><p style="font-size:13px;">Quantidade total no filtro atual</p></div>
+      <div class="card"><h3 style="font-size:13px;">Em Aberto</h3><p style="font-size:13px;">Inspeções ainda com desvios não fechados</p></div>
+      <div class="card"><h3 style="font-size:13px;">Concluídas</h3><p style="font-size:13px;">Inspeções com todos os desvios fechados</p></div>
+      <div class="card"><h3 style="font-size:13px;">Total Desvios</h3><p style="font-size:13px;">Soma de desvios registrados nas evidências</p></div>
+      <div class="card"><h3 style="font-size:13px;">Reconhecimentos</h3><p style="font-size:13px;">Soma de boas práticas registradas</p></div>
+    </div>
+
+    <h3 style="margin-top:20px;">Gráficos</h3>
+    <ul class="feature-list">
+      <li>Curva de Evolução — Inspeções, Desvios e Reconhecimentos, com toggle Mês/Semana</li>
+      <li>Donut — Desvios vs Reconhecimentos (total no centro)</li>
+      <li>Barras — Inspeções por Obra (top 8)</li>
+      <li>Barras — Encarregado × Desvios × Reconhecimentos (top 10)</li>
+      <li>Barras de progresso — % Desvios por Encarregado (verde &lt;40%, âmbar 40-70%, vermelho &gt;70%)</li>
+      <li>Barras — Inspeções por TST/Inspetor (top 8)</li>
+      <li>Barras — Coordenador × Desvios × Reconhecimentos (top 8)</li>
+      <li>Donut — Status das Inspeções (Em Aberto vs Concluídas)</li>
+      <li>Ranking — Top 5 obras por total de desvios</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Sem exportação neste painel</div>
+        <div class="callout-text">O Dashboard é só para consulta visual. Para gerar um PDF ou Excel com esses mesmos dados, acesse o submenu <strong>Relatórios</strong>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 17. RELATÓRIOS ══ -->
+  <section id="relatorios-insp">
+    <h2><span class="section-num">17</span>Relatórios</h2>
+    <p class="section-lead">Tela dedicada (<code>/inspecoes/relatorios</code>) para gerar documentos exportáveis, com filtros mais granulares que o Dashboard e prévia em tabela antes de exportar.</p>
+
+    <h3 style="margin-top:20px;">Filtros</h3>
+    <table class="field-table">
+      <tr><th>Filtro</th><th>Descrição</th></tr>
+      <tr><td>Obra</td><td>Ao trocar, reseta TST/Encarregado/Coordenador selecionados</td></tr>
+      <tr><td>TST</td><td>Filtrado pela obra selecionada</td></tr>
+      <tr><td>Encarregado</td><td>Filtrado pela obra selecionada</td></tr>
+      <tr><td>Coordenador</td><td>Filtrado pela obra selecionada</td></tr>
+      <tr><td>Status</td><td>Todos / Em Aberto / Concluída</td></tr>
+      <tr><td>Data início / Data fim</td><td>Intervalo de datas da inspeção</td></tr>
+    </table>
+
+    <h3 style="margin-top:20px;">Exportação</h3>
+    <div class="card-grid">
+      <div class="card" style="border-color:rgba(232,41,28,0.3)">
+        <h3 style="color:#f87171;">📄 Exportar PDF</h3>
+        <p>Cabeçalho MSE, 5 KPIs, tabela detalhada (#, Data, Status, Obra, TST, Encarregado, Coordenador, Desvios, Reconhec., Desvios Fech., Fechado em) e página(s) de gráficos (Evolução, Donut, por Encarregado/Coordenador/TST/Obra). Nome do arquivo: <code>Inspecoes-HSE-AAAA-MM-DD.pdf</code>.</p>
+      </div>
+      <div class="card" style="border-color:rgba(16,185,129,0.3)">
+        <h3 style="color:var(--accent);">📊 Exportar Excel</h3>
+        <p>Aba "Inspeções" com todas as colunas detalhadas e aba "Resumo" com data de geração e totais. Nome do arquivo: <code>Inspecoes-HSE-AAAA-MM-DD.xlsx</code>.</p>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">👁️</div>
+      <div class="callout-body">
+        <div class="callout-title">Prévia antes de exportar</div>
+        <div class="callout-text">A tela mostra uma prévia em tabela das primeiras 20 linhas (com aviso de quantas ficam de fora) e os mesmos gráficos do Dashboard, para conferência visual antes de gerar o arquivo.</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:20px;">Dashboard × Relatórios</h3>
+    <table class="field-table">
+      <tr><th></th><th>Dashboard</th><th>Relatórios</th></tr>
+      <tr><td>Objetivo</td><td>Visão gerencial rápida</td><td>Gerar documento para compartilhar/arquivar</td></tr>
+      <tr><td>Filtros</td><td>Obra + Período (meses)</td><td>Obra, TST, Encarregado, Coordenador, Status, Data início/fim</td></tr>
+      <tr><td>Exportação</td><td>Não tem</td><td>PDF e Excel</td></tr>
+      <tr><td>Prévia em tabela</td><td>Não</td><td>Sim (20 primeiras linhas)</td></tr>
+    </table>
   </section>
 
 </main>

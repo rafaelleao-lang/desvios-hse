@@ -5,9 +5,18 @@ import { BookOpen, FileText, ArrowRight } from 'lucide-react'
 
 const MANUAIS = [
   {
+    href:    '/tutorial/obras',
+    label:   'Manual de Obras',
+    desc:    'Cadastre obras, coordenadores, TSTs e encarregados. Entenda os KPIs, a busca, a edição de dados e as regras de exclusão.',
+    cor:     '#F97316',
+    corDim:  'rgba(249,115,22,0.1)',
+    border:  'rgba(249,115,22,0.25)',
+    secoes:  '9 seções',
+  },
+  {
     href:    '/tutorial/desvios',
     label:   'Manual de Desvios',
-    desc:    'Aprenda a registrar, acompanhar e fechar desvios de segurança. Inclui fluxo completo, filtros, relatórios em PDF/XLSX/PPT e Dashboard.',
+    desc:    'Aprenda a registrar, acompanhar e fechar desvios de segurança. Inclui fluxo completo, categorias, e-mail automático ao coordenador, filtros e relatórios em PDF/XLSX/PPT.',
     cor:     '#E8291C',
     corDim:  'rgba(232,41,28,0.1)',
     border:  'rgba(232,41,28,0.25)',
@@ -16,11 +25,11 @@ const MANUAIS = [
   {
     href:    '/tutorial/inspecoes',
     label:   'Manual de Inspeções HSE',
-    desc:    'Guia para realizar inspeções em campo, registrar evidências fotográficas, classificar desvios e reconhecimentos e emitir relatório PDF.',
+    desc:    'Guia para realizar inspeções em campo, registrar evidências fotográficas, classificar desvios e reconhecimentos, acompanhar o Dashboard e emitir relatórios PDF/Excel.',
     cor:     '#10B981',
     corDim:  'rgba(16,185,129,0.1)',
     border:  'rgba(16,185,129,0.25)',
-    secoes:  '15 seções',
+    secoes:  '17 seções',
   },
   {
     href:    '/tutorial/indicadores',
@@ -30,6 +39,15 @@ const MANUAIS = [
     corDim:  'rgba(59,130,246,0.1)',
     border:  'rgba(59,130,246,0.25)',
     secoes:  '21 seções',
+  },
+  {
+    href:    '/tutorial/relatorios-hse',
+    label:   'Manual de Relatórios HSE',
+    desc:    'Gere relatórios fotográficos de 5S e Comunicação Visual, com fotos organizadas por seção/local e PDF pronto com identidade MSE.',
+    cor:     '#E8291C',
+    corDim:  'rgba(232,41,28,0.1)',
+    border:  'rgba(232,41,28,0.25)',
+    secoes:  '8 seções',
   },
   {
     href:    '/tutorial/residuos',

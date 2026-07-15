@@ -400,7 +400,7 @@
     <div class="cover-stats">
       <div class="cover-stat"><div class="val">3</div><div class="lbl">Etapas de cadastro</div></div>
       <div class="cover-stat"><div class="val">6</div><div class="lbl">Status disponíveis</div></div>
-      <div class="cover-stat"><div class="val">14</div><div class="lbl">Categorias</div></div>
+      <div class="cover-stat"><div class="val">16</div><div class="lbl">Categorias</div></div>
       <div class="cover-stat"><div class="val">3</div><div class="lbl">Formatos de exportação</div></div>
     </div>
   </div>
@@ -699,6 +699,14 @@
       <div class="callout-body">
         <div class="callout-title">Alerta de Reincidência</div>
         <div class="callout-text">Ao digitar o nome do colaborador, o sistema verifica automaticamente se ele já possui desvios anteriores. Se sim, aparece um alerta amarelo informando quantos desvios e qual o mais recente.</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">📧</div>
+      <div class="callout-body">
+        <div class="callout-title">E-mail automático ao Coordenador</div>
+        <div class="callout-text">Ao salvar o desvio, o sistema envia automaticamente um e-mail para o <strong>Coordenador Responsável</strong> selecionado (se ele tiver um e-mail cadastrado). O e-mail traz gravidade, obra, categoria, local, colaborador, encarregado, TST, prazo de correção, ação corretiva/preventiva, aviso de reincidência (se houver) e até 5 fotos do desvio. É um processo automático e silencioso — não há tela de preview nem confirmação de envio, e uma eventual falha no envio não impede o registro do desvio.</div>
       </div>
     </div>
   </section>
@@ -1593,7 +1601,7 @@
   <!-- ══ 20. CATEGORIAS ══ -->
   <section id="categorias">
     <h2><span class="section-num">20</span>Categorias de Desvio</h2>
-    <p class="section-lead">São 14 categorias padrão disponíveis. Um desvio pode ter <strong>múltiplas categorias</strong> simultaneamente.</p>
+    <p class="section-lead">São 16 categorias padrão disponíveis. Um desvio pode ter <strong>múltiplas categorias</strong> simultaneamente.</p>
 
     <table class="field-table">
       <tr><th>Categoria</th><th>Exemplos de Desvios</th></tr>
@@ -1610,6 +1618,8 @@
       <tr><td>Comportamental</td><td>Brincadeiras em área de risco, imprudência, descuido proposital</td></tr>
       <tr><td>Documentação</td><td>Sem APR, PT vencida, treinamentos em atraso</td></tr>
       <tr><td>Ergonomia</td><td>Postura inadequada, movimentação de peso sem suporte, repetitividade</td></tr>
+      <tr><td>Trabalho a Quente <span class="badge" style="margin-left:4px;background:rgba(59,130,246,0.1);color:#93c5fd;border-color:rgba(59,130,246,0.3);">Nova</span></td><td>Solda ou corte sem PT específica, ausência de manta corta-fogo, falta de extintor no posto de trabalho</td></tr>
+      <tr><td>Meio Ambiente <span class="badge" style="margin-left:4px;background:rgba(59,130,246,0.1);color:#93c5fd;border-color:rgba(59,130,246,0.3);">Nova</span></td><td>Descarte irregular de resíduos, vazamento de óleo/combustível, ausência de contenção em área de risco ambiental</td></tr>
       <tr><td>Outros</td><td>Qualquer desvio não enquadrado nas categorias acima</td></tr>
     </table>
   </section>

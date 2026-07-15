@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual · Obras · MSE Engenharia</title>
+<style>
+:root{
+  --accent:#F97316;
+  --accent-light:#FB923C;
+  --accent-dim:rgba(249,115,22,0.12);
+  --accent-mid:rgba(249,115,22,0.25);
+  --bg:#09090b;--bg2:#111113;--bg3:#18181b;--bg4:#27272a;
+  --border:#3f3f46;--border-soft:#27272a;
+  --text:#f4f4f5;--text2:#a1a1aa;--text3:#71717a;--text4:#52525b;
+  --green:#22C55E;--amber:#F59E0B;--red:#E8291C;--blue:#3b82f6;
+  --sidebar-w:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+code{background:var(--bg4);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;font-size:12px;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--accent-light)}
+
+/* ── Layout ── */
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--accent-dim);border-radius:10px}
+.main{flex:1;overflow-y:auto;padding:40px 48px 80px;max-width:860px}
+.main::-webkit-scrollbar{width:6px}
+.main::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:10px}
+
+/* ── Sidebar brand ── */
+.sidebar-brand{padding:20px 16px 16px;border-bottom:1px solid var(--border-soft)}
+.brand-mark{width:36px;height:36px;background:#E8291C;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;letter-spacing:-1px;box-shadow:0 4px 12px rgba(232,41,28,0.4);margin-bottom:10px}
+.brand-title{font-size:15px;font-weight:800;color:var(--text);line-height:1.2}
+.brand-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.brand-badge{margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:var(--accent-dim);border:1px solid var(--accent-mid);border-radius:20px;font-size:10px;font-weight:700;color:var(--accent)}
+.brand-badge::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;display:inline-block}
+
+/* ── Sidebar nav ── */
+.nav-section{padding:16px 16px 4px;font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.08em}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 16px;cursor:pointer;transition:all .15s;color:var(--text3);font-size:13px;border-left:2px solid transparent}
+.nav-item:hover{background:var(--bg4);color:var(--text);border-left-color:var(--border)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent)}
+.nav-num{width:20px;height:20px;border-radius:6px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;transition:all .15s}
+.nav-item.active .nav-num{background:var(--accent-mid);color:var(--accent)}
+.sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid var(--border-soft);font-size:11px;color:var(--text4)}
+.sidebar-footer strong{color:var(--text3);font-weight:700;display:block}
+
+/* ── Cover ── */
+.cover{background:linear-gradient(135deg,rgba(249,115,22,0.08) 0%,rgba(249,115,22,0.03) 60%,transparent 100%);border:1px solid rgba(249,115,22,0.2);border-radius:20px;padding:36px 40px;margin-bottom:56px;position:relative;overflow:hidden}
+.cover::after{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(249,115,22,0.15) 0%,transparent 70%);pointer-events:none}
+.cover-kicker{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cover-kicker::before{content:'';width:20px;height:2px;background:var(--accent);border-radius:2px}
+.cover-title{font-size:32px;font-weight:900;color:var(--text);line-height:1.15;margin-bottom:14px}
+.cover-title span{color:var(--accent)}
+.cover-desc{font-size:15px;color:var(--text2);line-height:1.7;max-width:540px;margin-bottom:28px}
+.stats{display:flex;gap:32px;flex-wrap:wrap}
+.stat-val{font-size:26px;font-weight:900;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── Sections ── */
+section{margin-bottom:64px;scroll-margin-top:24px}
+h2{font-size:22px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.section-num{width:30px;height:30px;border-radius:8px;background:var(--accent-dim);color:var(--accent);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.section-lead{font-size:15px;color:var(--text2);border-left:3px solid var(--accent);padding-left:14px;margin:16px 0 24px;line-height:1.7}
+h3{font-size:16px;font-weight:700;color:var(--text);margin:28px 0 10px;display:flex;align-items:center;gap:8px}
+h3 .icon{font-size:14px}
+p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+
+/* ── Cards ── */
+.card{background:var(--bg3);border:1px solid var(--border-soft);border-radius:16px;padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.card-accent{border-left:3px solid var(--accent)}
+
+/* ── Steps ── */
+.steps{display:flex;flex-direction:column;gap:0;margin:24px 0}
+.step{display:flex;gap:16px;padding-bottom:28px;position:relative}
+.step:not(:last-child)::before{content:'';position:absolute;left:17px;top:38px;bottom:0;width:2px;background:var(--border-soft)}
+.step-num{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);border:2px solid var(--accent);color:var(--accent);font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-body{flex:1;padding-top:6px}
+.step-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px}
+.step-desc{font-size:13px;color:var(--text2);line-height:1.65}
+
+/* ── Callouts ── */
+.callout{border-radius:12px;padding:14px 16px;margin:16px 0;display:flex;gap:12px;align-items:flex-start}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{flex:1}
+.callout-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout-text{font-size:13px;line-height:1.6}
+.callout.tip{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2)}
+.callout.tip .callout-title{color:var(--blue)}
+.callout.tip .callout-text{color:#93c5fd}
+.callout.warn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)}
+.callout.warn .callout-title{color:var(--amber)}
+.callout.warn .callout-text{color:#fcd34d}
+.callout.danger{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)}
+.callout.danger .callout-title{color:#ef4444}
+.callout.danger .callout-text{color:#fca5a5}
+.callout.success{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2)}
+.callout.success .callout-title{color:var(--green)}
+.callout.success .callout-text{color:#86efac}
+
+/* ── Tabelas ── */
+.field-table{width:100%;border-collapse:collapse;margin:12px 0 20px}
+.field-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.06em;background:var(--bg4);border-bottom:1px solid var(--border-soft)}
+.field-table td{padding:10px 12px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border-soft);vertical-align:top}
+.field-table td:first-child{color:var(--text);font-weight:600}
+.field-table .req{color:var(--red);font-weight:700}
+.field-table .opt{color:var(--text4);font-style:italic}
+
+/* ── Listas ── */
+ul.feature-list{list-style:none;padding:0;margin:12px 0;display:flex;flex-direction:column;gap:8px}
+ul.feature-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text2);line-height:1.5}
+ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;flex-shrink:0;margin-top:1px}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+.badge.verde{background:rgba(34,197,94,0.1);color:#4ade80;border-color:rgba(34,197,94,0.3)}
+.badge.amarelo{background:rgba(245,158,11,0.1);color:#fbbf24;border-color:rgba(245,158,11,0.3)}
+.badge.vermelho{background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.3)}
+.badge.cinza{background:rgba(113,113,122,0.15);color:#a1a1aa;border-color:rgba(113,113,122,0.3)}
+
+/* ── Divisor ── */
+.divider{height:1px;background:var(--border-soft);margin:40px 0}
+
+/* ── Mobile FAB nav ── */
+.mob-fab{
+  display:none;position:fixed;bottom:20px;right:20px;z-index:100;
+  width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;
+  border:none;cursor:pointer;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(249,115,22,0.45);font-size:18px;transition:transform .2s;
+}
+.mob-fab:active{transform:scale(.93)}
+.mob-panel{
+  display:none;position:fixed;bottom:76px;right:20px;z-index:99;
+  background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;
+  padding:8px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,.55);
+  max-height:60vh;overflow-y:auto;
+}
+.mob-panel.open{display:block}
+.mob-panel-title{
+  font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;
+  letter-spacing:.08em;padding:6px 10px 4px;
+}
+.mob-panel a{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;
+  font-size:13px;color:var(--text2);transition:all .12s;text-decoration:none;
+}
+.mob-panel a:hover{background:var(--bg4);color:var(--text)}
+.mob-panel a span{
+  width:20px;height:20px;border-radius:6px;background:var(--bg4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;
+}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .main{padding:20px 16px 80px;max-width:100%;overflow-x:hidden}
+  .card-grid,.card-grid-3{grid-template-columns:1fr}
+  .cover{padding:20px 16px}
+  .cover-title{font-size:22px}
+  .cover-desc{font-size:14px}
+  h2{font-size:18px}
+  h3{font-size:15px}
+  .section-lead{font-size:14px}
+  .stats{gap:16px}
+  .stat-val{font-size:22px}
+  .field-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  .field-table th,.field-table td{white-space:normal;min-width:80px}
+  .field-table td:last-child{min-width:160px}
+  .mob-fab{display:flex}
+  .step{gap:12px}
+  .callout{gap:10px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══════════════════════════════════════ SIDEBAR ═══════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-mark">mse</div>
+    <div class="brand-title">Obras</div>
+    <div class="brand-sub">Manual do Módulo</div>
+    <div class="brand-badge">MSE Engenharia</div>
+  </div>
+
+  <div class="nav-section">Introdução</div>
+  <a href="#visao-geral" class="nav-item active">
+    <span class="nav-num">1</span> Visão Geral
+  </a>
+
+  <div class="nav-section">Cadastro</div>
+  <a href="#nova-obra" class="nav-item">
+    <span class="nav-num">2</span> Nova Obra
+  </a>
+
+  <div class="nav-section">Listagem</div>
+  <a href="#listagem" class="nav-item">
+    <span class="nav-num">3</span> Lista de Obras
+  </a>
+  <a href="#exclusao" class="nav-item">
+    <span class="nav-num">4</span> Exclusão de Obra
+  </a>
+
+  <div class="nav-section">Detalhe da Obra</div>
+  <a href="#detalhe" class="nav-item">
+    <span class="nav-num">5</span> Abas e KPIs
+  </a>
+  <a href="#coordenadores" class="nav-item">
+    <span class="nav-num">6</span> Coordenadores
+  </a>
+  <a href="#tsts" class="nav-item">
+    <span class="nav-num">7</span> TSTs
+  </a>
+  <a href="#encarregados" class="nav-item">
+    <span class="nav-num">8</span> Encarregados
+  </a>
+  <a href="#dados-obra" class="nav-item">
+    <span class="nav-num">9</span> Dados da Obra
+  </a>
+
+  <div class="sidebar-footer">
+    <strong>MSE Engenharia</strong>
+    Sistema de Gestão HSE
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════ MAIN ═══════════════════════════════════════ -->
+<main class="main">
+
+  <!-- Cover -->
+  <div class="cover">
+    <div class="cover-kicker">Manual Completo</div>
+    <h1 class="cover-title">Cadastro de <span>Obras</span></h1>
+    <p class="cover-desc">
+      Módulo base do sistema: toda obra cadastrada aqui alimenta os seletores de Obra em Desvios,
+      Inspeções, Indicadores, Relatórios HSE e Gestão de Resíduos. Cadastre a obra, seus Coordenadores,
+      TSTs e Encarregados em um só lugar.
+    </p>
+    <div class="stats">
+      <div><div class="stat-val">4</div><div class="stat-label">Abas de gestão</div></div>
+      <div><div class="stat-val">2</div><div class="stat-label">Campos obrigatórios</div></div>
+      <div><div class="stat-val">3</div><div class="stat-label">Tipos de pessoas vinculadas</div></div>
+      <div><div class="stat-val">∞</div><div class="stat-label">Obras cadastráveis</div></div>
+    </div>
+  </div>
+
+  <!-- ─────────────────── 1. VISÃO GERAL ─────────────────── -->
+  <section id="visao-geral">
+    <h2><span class="section-num">1</span> Visão Geral</h2>
+    <p class="section-lead">
+      O módulo <strong>Obras</strong> é a base cadastral do sistema. Toda obra criada aqui aparece
+      automaticamente nos seletores de "Obra" de todos os outros módulos (Desvios, Inspeções,
+      Indicadores, Relatórios HSE e Gestão de Resíduos).
+    </p>
+
+    <h3>O que você pode fazer neste módulo</h3>
+    <ul class="feature-list">
+      <li>Cadastrar novas obras com nome, código, empresa, cidade/UF e responsável</li>
+      <li>Buscar obras por nome, código ou empresa</li>
+      <li>Acompanhar KPIs ao vivo de cada obra (desvios abertos/fechados, TSTs, encarregados, coordenadores)</li>
+      <li>Cadastrar e gerenciar Coordenadores, TSTs e Encarregados vinculados a cada obra</li>
+      <li>Editar os dados cadastrais de uma obra a qualquer momento</li>
+      <li>Ativar/desativar ou excluir uma obra</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Cadastre a obra antes de tudo</div>
+        <div class="callout-text">Antes de registrar um desvio, lançar um indicador ou fazer uma inspeção, a obra e as pessoas responsáveis (Coordenador, TST, Encarregado) precisam existir aqui — todos os outros módulos dependem desse cadastro.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 2. NOVA OBRA ─────────────────── -->
+  <section id="nova-obra">
+    <h2><span class="section-num">2</span> Cadastrar Nova Obra</h2>
+    <p class="section-lead">
+      Acesse <strong>Obras → Nova Obra</strong> para abrir o formulário de cadastro.
+    </p>
+
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Nome da Obra</td><td><span class="req">Sim</span></td><td>Ex: "Residencial Park Tower"</td></tr>
+        <tr><td>Código da Obra</td><td><span class="req">Sim</span></td><td>Ex: "RPT-001". É <strong>convertido automaticamente para maiúsculas</strong> ao digitar</td></tr>
+        <tr><td>Empresa / Contratante</td><td><span class="opt">Opcional</span></td><td>Ex: "Construtora Alpha S.A."</td></tr>
+        <tr><td>Cidade</td><td><span class="opt">Opcional</span></td><td>Ex: "São Paulo"</td></tr>
+        <tr><td>Estado</td><td><span class="opt">Opcional</span></td><td>Sigla de 2 letras (UF), também convertida para maiúsculas</td></tr>
+        <tr><td>Engenheiro Responsável</td><td><span class="opt">Opcional</span></td><td>Ex: "Eng. Carlos Silva"</td></tr>
+        <tr><td>Obra Ativa</td><td>—</td><td>Toggle liga/desliga. Uma obra nova já nasce <strong>ativa</strong> por padrão</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Não há campo de CNPJ</div>
+        <div class="callout-text">O cadastro de obra não inclui CNPJ nem validação de documentos — é um cadastro simples com nome, código, empresa, localização e responsável.</div>
+      </div>
+    </div>
+
+    <p>Clique em <strong>"Salvar Obra"</strong> para concluir. Você será redirecionado à lista de obras.</p>
+  </section>
+
+  <!-- ─────────────────── 3. LISTAGEM ─────────────────── -->
+  <section id="listagem">
+    <h2><span class="section-num">3</span> Lista de Obras</h2>
+    <p class="section-lead">
+      Tela inicial do módulo (<code>/obras</code>): busca e visão geral de todas as obras cadastradas.
+    </p>
+
+    <h3><span class="icon">🔍</span> Busca</h3>
+    <p>Um único campo de busca filtra em tempo real por <strong>nome</strong>, <strong>código</strong> ou <strong>empresa</strong>. Não há filtro por status (ativa/inativa) nem por cidade — apenas a busca textual.</p>
+
+    <h3><span class="icon">🃏</span> Cards de Obra</h3>
+    <p>Cada obra aparece em um card com:</p>
+    <ul class="feature-list">
+      <li>Código (destacado) + badge <span class="badge verde">Ativa</span> ou <span class="badge cinza">Inativa</span></li>
+      <li>Nome da obra, empresa e cidade/UF (quando preenchidos)</li>
+      <li>KPIs calculados ao vivo: Desvios (total), Abertos, Fechados, TSTs, Encarregados, Coordenadores</li>
+      <li>Menu de ações (⋮): "Gerenciar Obra" e "Excluir"</li>
+      <li>Botão "Gerenciar Coordenadores, TSTs e Encarregados", que também leva ao detalhe da obra</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">📊</div>
+      <div class="callout-body">
+        <div class="callout-title">KPIs sempre atualizados</div>
+        <div class="callout-text">Os números de desvios abertos/fechados e de pessoas ativas em cada card são calculados na hora, cruzando os dados reais dos outros módulos — não é preciso atualizar manualmente.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 4. EXCLUSÃO ─────────────────── -->
+  <section id="exclusao">
+    <h2><span class="section-num">4</span> Exclusão de Obra</h2>
+    <p class="section-lead">
+      A opção "Excluir" no menu de ações do card remove a obra definitivamente.
+    </p>
+
+    <div class="callout danger">
+      <div class="callout-icon">🗑️</div>
+      <div class="callout-body">
+        <div class="callout-title">⚠️ Ação irreversível — apaga em cascata</div>
+        <div class="callout-text">Ao confirmar a exclusão, o sistema pergunta: <em>"Excluir a obra '{nome}'? Isso também removerá os TSTs e encarregados associados."</em> A exclusão é <strong>definitiva</strong> — não existe lixeira nem forma de desfazer. Todos os TSTs, Encarregados (e outros registros vinculados à obra) são apagados junto, em cascata no banco de dados.</div>
+      </div>
+    </div>
+
+    <p>Se você só precisa parar de usar uma obra sem perder o histórico, prefira <strong>desativá-la</strong> (toggle "Obra Ativa" na aba Dados da Obra) em vez de excluí-la.</p>
+  </section>
+
+  <!-- ─────────────────── 5. DETALHE ─────────────────── -->
+  <section id="detalhe">
+    <h2><span class="section-num">5</span> Detalhe da Obra — Abas e KPIs</h2>
+    <p class="section-lead">
+      Ao clicar em "Gerenciar Obra", você acessa <code>/obras/[id]</code>, com 5 KPIs no topo e 4 abas de gestão.
+    </p>
+
+    <h3><span class="icon">📊</span> KPIs de Resumo</h3>
+    <div class="card-grid-3">
+      <div class="card"><div class="card-title">Desvios</div><p style="font-size:12px;color:var(--text2)">Total de desvios da obra</p></div>
+      <div class="card"><div class="card-title">Abertos</div><p style="font-size:12px;color:var(--text2)">Desvios ainda não fechados</p></div>
+      <div class="card"><div class="card-title">Coord. / TSTs / Enc.</div><p style="font-size:12px;color:var(--text2)">Quantidade de pessoas ativas em cada categoria</p></div>
+    </div>
+
+    <h3><span class="icon">📑</span> Abas disponíveis</h3>
+    <ul class="feature-list">
+      <li><strong>Coordenadores</strong> — aba aberta por padrão</li>
+      <li><strong>TSTs</strong> — Técnicos de Segurança do Trabalho</li>
+      <li><strong>Encarregados</strong></li>
+      <li><strong>Dados da Obra</strong> — edição dos campos cadastrais</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tudo na mesma tela</div>
+        <div class="callout-text">Adicionar, editar, afastar/reativar e excluir pessoas nas 3 abas de equipe é feito inline, sem sair da página — não há navegação para telas separadas.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 6. COORDENADORES ─────────────────── -->
+  <section id="coordenadores">
+    <h2><span class="section-num">6</span> Aba Coordenadores</h2>
+    <p class="section-lead">
+      O Coordenador é quem recebe o <strong>e-mail automático</strong> disparado ao criar um desvio na obra
+      — por isso o e-mail é obrigatório aqui.
+    </p>
+
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th></tr></thead>
+      <tbody>
+        <tr><td>Nome completo</td><td><span class="req">Sim</span></td></tr>
+        <tr><td>E-mail</td><td><span class="req">Sim</span></td></tr>
+        <tr><td>Telefone</td><td><span class="opt">Opcional</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">⚙️</span> Ações disponíveis</h3>
+    <ul class="feature-list">
+      <li><strong>Editar</strong> — edição inline (lápis)</li>
+      <li><strong>Afastar / Retorno</strong> — alterna o status ativo/inativo sem apagar o cadastro</li>
+      <li><strong>Excluir</strong> — remove definitivamente, com confirmação</li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-icon">📧</div>
+      <div class="callout-body">
+        <div class="callout-title">Sem e-mail, sem notificação</div>
+        <div class="callout-text">Se o coordenador for cadastrado sem e-mail (registros antigos), ele não receberá o e-mail automático de novos desvios da obra. Mantenha o e-mail sempre atualizado.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 7. TSTs ─────────────────── -->
+  <section id="tsts">
+    <h2><span class="section-num">7</span> Aba TSTs</h2>
+    <p class="section-lead">
+      Técnicos de Segurança do Trabalho vinculados à obra — aparecem como opção de "TST Responsável" em Desvios, Inspeções e Relatórios HSE.
+    </p>
+
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th></tr></thead>
+      <tbody>
+        <tr><td>Nome completo</td><td><span class="req">Sim</span></td></tr>
+        <tr><td>CREA / Registro</td><td><span class="opt">Opcional</span></td></tr>
+        <tr><td>Telefone</td><td><span class="opt">Opcional</span></td></tr>
+      </tbody>
+    </table>
+
+    <p>O badge de status usa o vocabulário de campo: <span class="badge verde">No canteiro</span> (ativo) e <span class="badge cinza">Afastado</span> (inativo). As mesmas ações de editar/afastar/excluir se aplicam.</p>
+  </section>
+
+  <!-- ─────────────────── 8. ENCARREGADOS ─────────────────── -->
+  <section id="encarregados">
+    <h2><span class="section-num">8</span> Aba Encarregados</h2>
+    <p class="section-lead">
+      Encarregados responsáveis por áreas ou setores da obra — aparecem como opção de "Encarregado Responsável" ao registrar um desvio.
+    </p>
+
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th></tr></thead>
+      <tbody>
+        <tr><td>Nome completo</td><td><span class="req">Sim</span></td></tr>
+        <tr><td>Setor / Área responsável</td><td><span class="opt">Opcional</span></td></tr>
+        <tr><td>Telefone</td><td><span class="opt">Opcional</span></td></tr>
+      </tbody>
+    </table>
+
+    <p>Status exibido como <span class="badge verde">Ativo</span> / <span class="badge cinza">Afastado</span>. Mesmas ações de editar/afastar/excluir.</p>
+  </section>
+
+  <!-- ─────────────────── 9. DADOS DA OBRA ─────────────────── -->
+  <section id="dados-obra">
+    <h2><span class="section-num">9</span> Aba Dados da Obra</h2>
+    <p class="section-lead">
+      Permite consultar e editar os mesmos campos preenchidos no cadastro inicial.
+    </p>
+
+    <h3><span class="icon">👁️</span> Modo leitura</h3>
+    <p>Mostra Nome, Código, Empresa, Localização (cidade + estado) e Responsável — somente as linhas com valor preenchido aparecem.</p>
+
+    <h3><span class="icon">✏️</span> Modo edição</h3>
+    <p>Clique em "Editar" para reabrir os campos Nome*, Código*, Empresa, Cidade, Estado e Responsável. O botão "Salvar" só grava se Nome e Código não estiverem vazios.</p>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Ativar/desativar não está aqui</div>
+        <div class="callout-text">O toggle "Obra Ativa" só existe no formulário de criação (Nova Obra). Nesta aba de edição não há como reativar ou desativar a obra — apenas os dados cadastrais são editáveis.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+  <p style="font-size:12px;color:var(--text4);text-align:center">
+    MSE Engenharia · Manual de Obras · Sistema HSE
+  </p>
+
+</main>
+</div>
+
+<!-- ── Mobile FAB nav ── -->
+<button class="mob-fab" id="mobFab" aria-label="Navegar seções">☰</button>
+<div class="mob-panel" id="mobPanel">
+  <div class="mob-panel-title">Seções do Manual</div>
+  <a href="#visao-geral"    onclick="closeMobNav()"><span>1</span> Visão Geral</a>
+  <a href="#nova-obra"      onclick="closeMobNav()"><span>2</span> Nova Obra</a>
+  <a href="#listagem"       onclick="closeMobNav()"><span>3</span> Lista de Obras</a>
+  <a href="#exclusao"       onclick="closeMobNav()"><span>4</span> Exclusão de Obra</a>
+  <a href="#detalhe"        onclick="closeMobNav()"><span>5</span> Abas e KPIs</a>
+  <a href="#coordenadores"  onclick="closeMobNav()"><span>6</span> Coordenadores</a>
+  <a href="#tsts"           onclick="closeMobNav()"><span>7</span> TSTs</a>
+  <a href="#encarregados"   onclick="closeMobNav()"><span>8</span> Encarregados</a>
+  <a href="#dados-obra"     onclick="closeMobNav()"><span>9</span> Dados da Obra</a>
+</div>
+
+<script>
+const mobFab   = document.getElementById('mobFab')
+const mobPanel = document.getElementById('mobPanel')
+
+function closeMobNav() {
+  mobPanel.classList.remove('open')
+  mobFab.textContent = '☰'
+}
+
+mobFab.addEventListener('click', () => {
+  const isOpen = mobPanel.classList.toggle('open')
+  mobFab.textContent = isOpen ? '✕' : '☰'
+})
+
+document.addEventListener('click', e => {
+  if (!mobFab.contains(e.target) && !mobPanel.contains(e.target)) closeMobNav()
+})
+
+const items = document.querySelectorAll('.nav-item')
+const sections = document.querySelectorAll('section, .cover')
+const main = document.querySelector('.main')
+
+main.addEventListener('scroll', () => {
+  let current = ''
+  sections.forEach(s => {
+    if (main.scrollTop >= s.offsetTop - 60) current = s.id
+  })
+  items.forEach(a => {
+    const href = a.getAttribute('href')?.slice(1)
+    a.classList.toggle('active', href === current)
+  })
+})
+
+items.forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault()
+    const id = a.getAttribute('href')?.slice(1)
+    const el = document.getElementById(id)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+})
+</script>
+</body>
+</html>

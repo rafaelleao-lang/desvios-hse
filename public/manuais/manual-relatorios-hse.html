@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual · Relatórios HSE · MSE Engenharia</title>
+<style>
+:root{
+  --accent:#E8291C;
+  --accent-light:#F87171;
+  --accent-dim:rgba(232,41,28,0.12);
+  --accent-mid:rgba(232,41,28,0.25);
+  --bg:#09090b;--bg2:#111113;--bg3:#18181b;--bg4:#27272a;
+  --border:#3f3f46;--border-soft:#27272a;
+  --text:#f4f4f5;--text2:#a1a1aa;--text3:#71717a;--text4:#52525b;
+  --green:#22C55E;--amber:#F59E0B;--red:#E8291C;--blue:#3b82f6;
+  --sidebar-w:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+code{background:var(--bg4);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;font-size:12px;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--accent-light)}
+
+/* ── Layout ── */
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--accent-dim);border-radius:10px}
+.main{flex:1;overflow-y:auto;padding:40px 48px 80px;max-width:860px}
+.main::-webkit-scrollbar{width:6px}
+.main::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:10px}
+
+/* ── Sidebar brand ── */
+.sidebar-brand{padding:20px 16px 16px;border-bottom:1px solid var(--border-soft)}
+.brand-mark{width:36px;height:36px;background:#E8291C;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;letter-spacing:-1px;box-shadow:0 4px 12px rgba(232,41,28,0.4);margin-bottom:10px}
+.brand-title{font-size:15px;font-weight:800;color:var(--text);line-height:1.2}
+.brand-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.brand-badge{margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:var(--accent-dim);border:1px solid var(--accent-mid);border-radius:20px;font-size:10px;font-weight:700;color:var(--accent)}
+.brand-badge::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;display:inline-block}
+
+/* ── Sidebar nav ── */
+.nav-section{padding:16px 16px 4px;font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.08em}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 16px;cursor:pointer;transition:all .15s;color:var(--text3);font-size:13px;border-left:2px solid transparent}
+.nav-item:hover{background:var(--bg4);color:var(--text);border-left-color:var(--border)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent)}
+.nav-num{width:20px;height:20px;border-radius:6px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;transition:all .15s}
+.nav-item.active .nav-num{background:var(--accent-mid);color:var(--accent)}
+.sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid var(--border-soft);font-size:11px;color:var(--text4)}
+.sidebar-footer strong{color:var(--text3);font-weight:700;display:block}
+
+/* ── Cover ── */
+.cover{background:linear-gradient(135deg,rgba(232,41,28,0.08) 0%,rgba(232,41,28,0.03) 60%,transparent 100%);border:1px solid rgba(232,41,28,0.2);border-radius:20px;padding:36px 40px;margin-bottom:56px;position:relative;overflow:hidden}
+.cover::after{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(232,41,28,0.15) 0%,transparent 70%);pointer-events:none}
+.cover-kicker{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cover-kicker::before{content:'';width:20px;height:2px;background:var(--accent);border-radius:2px}
+.cover-title{font-size:32px;font-weight:900;color:var(--text);line-height:1.15;margin-bottom:14px}
+.cover-title span{color:var(--accent)}
+.cover-desc{font-size:15px;color:var(--text2);line-height:1.7;max-width:540px;margin-bottom:28px}
+.stats{display:flex;gap:32px;flex-wrap:wrap}
+.stat-val{font-size:26px;font-weight:900;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── Sections ── */
+section{margin-bottom:64px;scroll-margin-top:24px}
+h2{font-size:22px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.section-num{width:30px;height:30px;border-radius:8px;background:var(--accent-dim);color:var(--accent);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.section-lead{font-size:15px;color:var(--text2);border-left:3px solid var(--accent);padding-left:14px;margin:16px 0 24px;line-height:1.7}
+h3{font-size:16px;font-weight:700;color:var(--text);margin:28px 0 10px;display:flex;align-items:center;gap:8px}
+h3 .icon{font-size:14px}
+p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+
+/* ── Cards ── */
+.card{background:var(--bg3);border:1px solid var(--border-soft);border-radius:16px;padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.card-accent{border-left:3px solid var(--accent)}
+
+/* ── Steps ── */
+.steps{display:flex;flex-direction:column;gap:0;margin:24px 0}
+.step{display:flex;gap:16px;padding-bottom:28px;position:relative}
+.step:not(:last-child)::before{content:'';position:absolute;left:17px;top:38px;bottom:0;width:2px;background:var(--border-soft)}
+.step-num{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);border:2px solid var(--accent);color:var(--accent);font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-body{flex:1;padding-top:6px}
+.step-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px}
+.step-desc{font-size:13px;color:var(--text2);line-height:1.65}
+
+/* ── Callouts ── */
+.callout{border-radius:12px;padding:14px 16px;margin:16px 0;display:flex;gap:12px;align-items:flex-start}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{flex:1}
+.callout-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout-text{font-size:13px;line-height:1.6}
+.callout.tip{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2)}
+.callout.tip .callout-title{color:var(--blue)}
+.callout.tip .callout-text{color:#93c5fd}
+.callout.warn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)}
+.callout.warn .callout-title{color:var(--amber)}
+.callout.warn .callout-text{color:#fcd34d}
+.callout.danger{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)}
+.callout.danger .callout-title{color:#ef4444}
+.callout.danger .callout-text{color:#fca5a5}
+.callout.success{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2)}
+.callout.success .callout-title{color:var(--green)}
+.callout.success .callout-text{color:#86efac}
+
+/* ── Tabelas ── */
+.field-table{width:100%;border-collapse:collapse;margin:12px 0 20px}
+.field-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.06em;background:var(--bg4);border-bottom:1px solid var(--border-soft)}
+.field-table td{padding:10px 12px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border-soft);vertical-align:top}
+.field-table td:first-child{color:var(--text);font-weight:600}
+.field-table .req{color:var(--red);font-weight:700}
+.field-table .opt{color:var(--text4);font-style:italic}
+
+/* ── Listas ── */
+ul.feature-list{list-style:none;padding:0;margin:12px 0;display:flex;flex-direction:column;gap:8px}
+ul.feature-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text2);line-height:1.5}
+ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;flex-shrink:0;margin-top:1px}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+.badge.verde{background:rgba(34,197,94,0.1);color:#4ade80;border-color:rgba(34,197,94,0.3)}
+.badge.amarelo{background:rgba(245,158,11,0.1);color:#fbbf24;border-color:rgba(245,158,11,0.3)}
+.badge.vermelho{background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.3)}
+.badge.azul{background:rgba(59,130,246,0.1);color:#93c5fd;border-color:rgba(59,130,246,0.3)}
+
+/* ── Divisor ── */
+.divider{height:1px;background:var(--border-soft);margin:40px 0}
+
+/* ── Mobile FAB nav ── */
+.mob-fab{
+  display:none;position:fixed;bottom:20px;right:20px;z-index:100;
+  width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;
+  border:none;cursor:pointer;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(232,41,28,0.45);font-size:18px;transition:transform .2s;
+}
+.mob-fab:active{transform:scale(.93)}
+.mob-panel{
+  display:none;position:fixed;bottom:76px;right:20px;z-index:99;
+  background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;
+  padding:8px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,.55);
+  max-height:60vh;overflow-y:auto;
+}
+.mob-panel.open{display:block}
+.mob-panel-title{
+  font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;
+  letter-spacing:.08em;padding:6px 10px 4px;
+}
+.mob-panel a{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;
+  font-size:13px;color:var(--text2);transition:all .12s;text-decoration:none;
+}
+.mob-panel a:hover{background:var(--bg4);color:var(--text)}
+.mob-panel a span{
+  width:20px;height:20px;border-radius:6px;background:var(--bg4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;
+}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .main{padding:20px 16px 80px;max-width:100%;overflow-x:hidden}
+  .card-grid,.card-grid-3{grid-template-columns:1fr}
+  .cover{padding:20px 16px}
+  .cover-title{font-size:22px}
+  .cover-desc{font-size:14px}
+  h2{font-size:18px}
+  h3{font-size:15px}
+  .section-lead{font-size:14px}
+  .stats{gap:16px}
+  .stat-val{font-size:22px}
+  .field-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  .field-table th,.field-table td{white-space:normal;min-width:80px}
+  .field-table td:last-child{min-width:160px}
+  .mob-fab{display:flex}
+  .step{gap:12px}
+  .callout{gap:10px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══════════════════════════════════════ SIDEBAR ═══════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-mark">mse</div>
+    <div class="brand-title">Relatórios HSE</div>
+    <div class="brand-sub">Manual do Módulo</div>
+    <div class="brand-badge">MSE Engenharia</div>
+  </div>
+
+  <div class="nav-section">Introdução</div>
+  <a href="#visao-geral" class="nav-item active">
+    <span class="nav-num">1</span> Visão Geral
+  </a>
+  <a href="#fluxo" class="nav-item">
+    <span class="nav-num">2</span> Fluxo do Módulo
+  </a>
+
+  <div class="nav-section">Relatório 5S</div>
+  <a href="#5s-etapa1" class="nav-item">
+    <span class="nav-num">3</span> Etapa 1 — Identificação
+  </a>
+  <a href="#5s-etapa2" class="nav-item">
+    <span class="nav-num">4</span> Etapa 2 — Seções e Fotos
+  </a>
+  <a href="#5s-pdf" class="nav-item">
+    <span class="nav-num">5</span> Gerar PDF
+  </a>
+
+  <div class="nav-section">Comunicação Visual</div>
+  <a href="#cv-diferencas" class="nav-item">
+    <span class="nav-num">6</span> Diferenças do 5S
+  </a>
+
+  <div class="nav-section">Referência</div>
+  <a href="#comparativo" class="nav-item">
+    <span class="nav-num">7</span> Comparativo 5S × CV
+  </a>
+  <a href="#limitacoes" class="nav-item">
+    <span class="nav-num">8</span> Limitações Importantes
+  </a>
+
+  <div class="sidebar-footer">
+    <strong>MSE Engenharia</strong>
+    Sistema de Gestão HSE
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════ MAIN ═══════════════════════════════════════ -->
+<main class="main">
+
+  <!-- Cover -->
+  <div class="cover">
+    <div class="cover-kicker">Manual Completo</div>
+    <h1 class="cover-title">Relatórios <span>HSE</span></h1>
+    <p class="cover-desc">
+      Gere relatórios fotográficos profissionais de 5S e de Comunicação Visual em minutos, direto do
+      navegador ou do celular em campo, com capa personalizada por cliente e identidade MSE.
+    </p>
+    <div class="stats">
+      <div><div class="stat-val">2</div><div class="stat-label">Tipos de relatório</div></div>
+      <div><div class="stat-val">3</div><div class="stat-label">Etapas do wizard</div></div>
+      <div><div class="stat-val">PDF</div><div class="stat-label">Exportação</div></div>
+      <div><div class="stat-val">4</div><div class="stat-label">Logos de cliente</div></div>
+    </div>
+  </div>
+
+  <!-- ─────────────────── 1. VISÃO GERAL ─────────────────── -->
+  <section id="visao-geral">
+    <h2><span class="section-num">1</span> Visão Geral</h2>
+    <p class="section-lead">
+      O módulo <strong>Relatórios HSE</strong> reúne dois geradores de relatório fotográfico: o
+      <strong>Relatório 5S</strong> (auditoria de organização e limpeza do canteiro) e o
+      <strong>Relatório de Comunicação Visual</strong> (documentação de sinalizações, banners e placas de obra).
+      Os dois funcionam da mesma forma: um assistente de 3 etapas que termina na geração de um PDF, feito
+      inteiramente no navegador.
+    </p>
+
+    <div class="card-grid">
+      <div class="card card-accent">
+        <div class="card-title">🧹 Relatório 5S</div>
+        <p style="font-size:13px;color:var(--text2)">Fotos organizadas por <strong>Local + Disciplina</strong> (Seiri, Seiton, Seiso, Seiketsu, Shitsuke), com capa temática 5S.</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">📣 Comunicação Visual</div>
+        <p style="font-size:13px;color:var(--text2)">Fotos organizadas apenas por <strong>Local</strong> — sinalizações, banners, placas e identificações do canteiro.</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Não confunda com "Relatórios" de Desvios</div>
+        <div class="callout-text">O submenu <code>/relatorios</code> dentro do módulo <strong>Desvios</strong> é uma tela diferente — um dashboard analítico de desvios HSE com gráficos e exportação PDF/XLSX. Este manual cobre apenas o módulo <strong>Relatórios HSE</strong> (5S e Comunicação Visual), acessível pelo menu lateral próprio.</div>
+      </div>
+    </div>
+
+    <h3>O que você pode fazer neste módulo</h3>
+    <ul class="feature-list">
+      <li>Criar um Relatório 5S com fotos organizadas por Local e Disciplina</li>
+      <li>Criar um Relatório de Comunicação Visual com fotos organizadas por Local</li>
+      <li>Tirar fotos diretamente pela câmera do celular ou fazer upload de arquivos</li>
+      <li>Escolher o logo do cliente que aparece na capa do PDF</li>
+      <li>Baixar um PDF pronto, paisagem, com identidade visual MSE</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Sem cadastro, sem histórico</div>
+        <div class="callout-text">Diferente de outros módulos do sistema, o Relatório 5S e o de Comunicação Visual <strong>não salvam nada no banco de dados</strong>. Cada geração é uma sessão independente no navegador: você preenche o formulário, gera o PDF e baixa. Não há lista de "relatórios anteriores" para consultar depois — o PDF baixado é o seu único registro, então salve-o em um local seguro.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 2. FLUXO ─────────────────── -->
+  <section id="fluxo">
+    <h2><span class="section-num">2</span> Fluxo do Módulo</h2>
+    <p class="section-lead">
+      O fluxo é o mesmo para os dois tipos de relatório — só muda a terminologia (Seção vs. Local) e o
+      campo de Disciplina.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Escolher o tipo de relatório</div>
+          <div class="step-desc">No menu lateral, acesse <strong>Relatório 5S</strong> ou <strong>Comunicação Visual</strong> e clique em "Novo Relatório".</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Etapa 1 — Identificação</div>
+          <div class="step-desc">Selecione a obra, opcionalmente o TST, semana de envio, período e o logo do cliente que aparecerá na capa.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Etapa 2 — Seções/Locais e Fotos</div>
+          <div class="step-desc">Adicione quantas seções (5S) ou locais (Comunicação Visual) forem necessários, cada um com suas próprias fotos.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Etapa 3 — Gerar e baixar o PDF</div>
+          <div class="step-desc">Confira o resumo (nº de seções/locais, total de fotos, páginas estimadas) e clique em "Gerar e Baixar PDF". O arquivo é montado no seu navegador e baixado automaticamente.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 3. 5S ETAPA 1 ─────────────────── -->
+  <section id="5s-etapa1">
+    <h2><span class="section-num">3</span> Relatório 5S — Etapa 1: Identificação</h2>
+    <p class="section-lead">
+      Primeira etapa do wizard (<code>/relatorios/5s/novo</code>): identificação da obra e configuração da capa do PDF.
+    </p>
+
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Obra</td><td><span class="req">Sim</span></td><td>Lista somente obras ativas. Ao trocar a obra, o campo TST é resetado.</td></tr>
+        <tr><td>TST</td><td><span class="opt">Opcional</span></td><td>Filtrado pela obra selecionada; fica desabilitado até uma obra ser escolhida.</td></tr>
+        <tr><td>Semana de Envio</td><td><span class="opt">Opcional</span></td><td>Número da semana (1 a 53), ex: 23</td></tr>
+        <tr><td>Data Início / Data Fim</td><td><span class="opt">Opcional</span></td><td>Período coberto pelo relatório. Não há validação de início ≤ fim.</td></tr>
+        <tr><td>Logo do Cliente</td><td><span class="opt">Opcional</span></td><td>Botões: Sem logo, Porto de Itapoá, CNPEM, Novo Nordisk, Hitachi. Aparece na capa ao lado da marca MSE.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">🏢</div>
+      <div class="callout-body">
+        <div class="callout-title">Dados da obra preenchidos automaticamente</div>
+        <div class="callout-text">Assim que a obra é selecionada, um cartão exibe Código, Empresa, Responsável (TST escolhido) e Cidade/Estado — apenas para conferência, esses dados não são editáveis nesta tela.</div>
+      </div>
+    </div>
+
+    <p>O botão "Próximo" só é habilitado depois que uma obra é selecionada — todos os demais campos desta etapa são opcionais.</p>
+  </section>
+
+  <!-- ─────────────────── 4. 5S ETAPA 2 ─────────────────── -->
+  <section id="5s-etapa2">
+    <h2><span class="section-num">4</span> Relatório 5S — Etapa 2: Seções e Fotos</h2>
+    <p class="section-lead">
+      Cada relatório 5S é organizado em <strong>Seções</strong>. Uma seção representa um local do canteiro
+      avaliado sob uma disciplina 5S específica.
+    </p>
+
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Local</td><td><span class="opt">Opcional</span></td><td>Texto livre, ex: "Almoxarifado"</td></tr>
+        <tr><td>Disciplina</td><td><span class="opt">Opcional</span></td><td>Texto livre com sugestões automáticas: Limpeza e Organização, Organização, Limpeza, Descarte, Padronização, Disciplina</td></tr>
+        <tr><td>Fotos</td><td><span class="opt">Opcional</span></td><td>Upload múltiplo (arrastar, clicar ou tirar foto pela câmera do celular). Aceita JPG, PNG e WEBP.</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">➕</span> Adicionando seções</h3>
+    <p>Clique em <strong>"Adicionar Seção"</strong> para criar uma nova seção. Cada seção pode ser removida individualmente pelo X no cabeçalho do card. Um contador mostra o total de seções e de fotos em tempo real.</p>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">É preciso ao menos 1 seção — mas não precisa ter fotos</div>
+        <div class="callout-text">O botão "Próximo" só habilita com pelo menos uma seção criada. Porém, uma seção sem fotos é permitida — ela simplesmente não aparecerá no PDF final (seções sem foto são ignoradas na geração).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 5. 5S PDF ─────────────────── -->
+  <section id="5s-pdf">
+    <h2><span class="section-num">5</span> Relatório 5S — Gerar PDF</h2>
+    <p class="section-lead">
+      A etapa final mostra um resumo e o botão para gerar o arquivo.
+    </p>
+
+    <h3><span class="icon">📋</span> Resumo antes de gerar</h3>
+    <ul class="feature-list">
+      <li>Obra, semana, TST e logo do cliente selecionados</li>
+      <li>Número de seções e total de fotos</li>
+      <li>Estimativa de número de páginas do PDF final</li>
+      <li>Lista de cada seção com sua contagem de fotos</li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-icon">📄</div>
+      <div class="callout-body">
+        <div class="callout-title">Nenhuma foto adicionada</div>
+        <div class="callout-text">Se nenhuma seção tiver fotos, um aviso amarelo informa que o PDF será gerado apenas com a capa e a página de encerramento.</div>
+      </div>
+    </div>
+
+    <h3><span class="icon">🖨️</span> O que o PDF contém</h3>
+    <ul class="feature-list">
+      <li><strong>Capa</strong>: painel navy com "RELATÓRIO 5S", nome da obra, cidade/estado e os 5 blocos coloridos (Seiri, Seiton, Seiso, Seiketsu, Shitsuke). Painel direito com a marca mse, o logo do cliente (se escolhido), a semana de envio e o nome do TST.</li>
+      <li><strong>Página divisória</strong> por seção com fotos, mostrando a Disciplina em destaque e o Local abaixo</li>
+      <li><strong>Páginas de fotos</strong> — 2 fotos por página (1 se a seção só tiver uma foto), com tags de Local e Disciplina e rodapé com a marca MSE</li>
+      <li><strong>Encerramento</strong> — página final com a marca mse e a tagline "MSE Engenharia · Gestão HSE"</li>
+    </ul>
+
+    <p>O botão <strong>"Gerar e Baixar PDF"</strong> muda de estado durante o processo: "Gerando PDF..." (com spinner) → "PDF gerado com sucesso!". O arquivo é nomeado automaticamente como <code>Relatório 5S - {Nome da Obra} - Semana {nº ou "S"}.pdf</code>.</p>
+
+    <div class="callout tip">
+      <div class="callout-icon">🖼️</div>
+      <div class="callout-body">
+        <div class="callout-title">Compressão automática de fotos</div>
+        <div class="callout-text">As fotos são comprimidas automaticamente (largura máxima de 1400px) antes de entrar no PDF, para manter o arquivo leve. Fotos em formato HEIC/HEIF/AVIF (comuns em iPhone) não passam por essa compressão e são usadas como estão.</div>
+      </div>
+    </div>
+
+    <div class="callout danger">
+      <div class="callout-icon">🚫</div>
+      <div class="callout-body">
+        <div class="callout-title">Não é possível gerar de novo sem recomeçar</div>
+        <div class="callout-text">Depois que o PDF é gerado com sucesso, o botão fica desabilitado. Para gerar outro PDF (ex: corrigir algo), é preciso voltar às etapas anteriores ou recarregar a página e preencher tudo novamente — nada fica salvo.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 6. COMUNICAÇÃO VISUAL ─────────────────── -->
+  <section id="cv-diferencas">
+    <h2><span class="section-num">6</span> Comunicação Visual — Diferenças do 5S</h2>
+    <p class="section-lead">
+      O Relatório de Comunicação Visual (<code>/relatorios/comunicacao-visual/novo</code>) usa exatamente o mesmo
+      wizard de 3 etapas do 5S. A única diferença funcional está na Etapa 2: aqui as seções chamam-se
+      <strong>Locais</strong> e não têm campo de Disciplina.
+    </p>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title">📍 Somente Local</div>
+        <p style="font-size:13px;color:var(--text2)">Cada item tem apenas um campo de texto livre "Local" — ex: "Canteiro MSE", "Sinalização FFEX (Onsite)", "Banners (Off Site)".</p>
+      </div>
+      <div class="card">
+        <div class="card-title">🖼️ Capa própria</div>
+        <p style="font-size:13px;color:var(--text2)">A capa do PDF mostra "RELATÓRIO / COMUNICAÇÃO VISUAL" com tags de Sinalização, Banners, Placas e Identificação, no lugar dos blocos 5S.</p>
+      </div>
+    </div>
+
+    <p>A Etapa 1 (Obra, TST, Semana, Datas, Logo do cliente) e a Etapa 3 (resumo e geração do PDF) são idênticas às do Relatório 5S.</p>
+  </section>
+
+  <!-- ─────────────────── 7. COMPARATIVO ─────────────────── -->
+  <section id="comparativo">
+    <h2><span class="section-num">7</span> Comparativo 5S × Comunicação Visual</h2>
+    <p class="section-lead">Referência rápida das diferenças entre os dois relatórios.</p>
+
+    <table class="field-table">
+      <thead><tr><th>Aspecto</th><th>Relatório 5S</th><th>Comunicação Visual</th></tr></thead>
+      <tbody>
+        <tr><td>Campo por item</td><td>Local + Disciplina</td><td>Somente Local</td></tr>
+        <tr><td>Rótulo do item</td><td>"Seção"</td><td>"Local"</td></tr>
+        <tr><td>Botão de adicionar</td><td>"Adicionar Seção"</td><td>"Adicionar Local"</td></tr>
+        <tr><td>Título da capa</td><td>RELATÓRIO 5S + blocos Seiri/Seiton/Seiso/Seiketsu/Shitsuke</td><td>RELATÓRIO / COMUNICAÇÃO VISUAL + tags Sinalização/Banners/Placas/Identificação</td></tr>
+        <tr><td>Página divisória</td><td>Disciplina em destaque + Local abaixo</td><td>Somente o Local em destaque</td></tr>
+        <tr><td>Nome do arquivo</td><td><code>Relatório 5S - {Obra} - Semana {n}.pdf</code></td><td><code>Relatório Comunicação Visual - {Obra} - Semana {n}.pdf</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─────────────────── 8. LIMITAÇÕES ─────────────────── -->
+  <section id="limitacoes">
+    <h2><span class="section-num">8</span> Limitações Importantes</h2>
+    <p class="section-lead">Pontos que costumam gerar dúvida ao usar este módulo.</p>
+
+    <ul class="feature-list">
+      <li>Não há histórico nem lista de relatórios já gerados — a tela "hub" de cada tipo sempre mostra "Nenhum relatório criado ainda"</li>
+      <li>Não há geração em Excel ou PowerPoint neste módulo — apenas PDF</li>
+      <li>Nada é salvo no banco de dados: se fechar a aba antes de baixar o PDF, todo o trabalho é perdido</li>
+      <li>Não há edição de um relatório depois de gerado — é preciso recomeçar o wizard do zero</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Dica</div>
+        <div class="callout-text">Como não há salvamento automático, prefira preencher o relatório com calma e revisar o resumo da Etapa 3 antes de clicar em "Gerar e Baixar PDF".</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+  <p style="font-size:12px;color:var(--text4);text-align:center">
+    MSE Engenharia · Manual de Relatórios HSE · Sistema HSE
+  </p>
+
+</main>
+</div>
+
+<!-- ── Mobile FAB nav ── -->
+<button class="mob-fab" id="mobFab" aria-label="Navegar seções">☰</button>
+<div class="mob-panel" id="mobPanel">
+  <div class="mob-panel-title">Seções do Manual</div>
+  <a href="#visao-geral"   onclick="closeMobNav()"><span>1</span> Visão Geral</a>
+  <a href="#fluxo"         onclick="closeMobNav()"><span>2</span> Fluxo do Módulo</a>
+  <a href="#5s-etapa1"     onclick="closeMobNav()"><span>3</span> Etapa 1 — Identificação</a>
+  <a href="#5s-etapa2"     onclick="closeMobNav()"><span>4</span> Etapa 2 — Seções e Fotos</a>
+  <a href="#5s-pdf"        onclick="closeMobNav()"><span>5</span> Gerar PDF</a>
+  <a href="#cv-diferencas" onclick="closeMobNav()"><span>6</span> Comunicação Visual</a>
+  <a href="#comparativo"   onclick="closeMobNav()"><span>7</span> Comparativo 5S × CV</a>
+  <a href="#limitacoes"    onclick="closeMobNav()"><span>8</span> Limitações Importantes</a>
+</div>
+
+<script>
+const mobFab   = document.getElementById('mobFab')
+const mobPanel = document.getElementById('mobPanel')
+
+function closeMobNav() {
+  mobPanel.classList.remove('open')
+  mobFab.textContent = '☰'
+}
+
+mobFab.addEventListener('click', () => {
+  const isOpen = mobPanel.classList.toggle('open')
+  mobFab.textContent = isOpen ? '✕' : '☰'
+})
+
+document.addEventListener('click', e => {
+  if (!mobFab.contains(e.target) && !mobPanel.contains(e.target)) closeMobNav()
+})
+
+const items = document.querySelectorAll('.nav-item')
+const sections = document.querySelectorAll('section, .cover')
+const main = document.querySelector('.main')
+
+main.addEventListener('scroll', () => {
+  let current = ''
+  sections.forEach(s => {
+    if (main.scrollTop >= s.offsetTop - 60) current = s.id
+  })
+  items.forEach(a => {
+    const href = a.getAttribute('href')?.slice(1)
+    a.classList.toggle('active', href === current)
+  })
+})
+
+items.forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault()
+    const id = a.getAttribute('href')?.slice(1)
+    const el = document.getElementById(id)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+})
+</script>
+</body>
+</html>

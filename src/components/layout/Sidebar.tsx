@@ -132,10 +132,12 @@ const MENUS: Array<{
     corHover:   '#7C3AED',
     homeHref:   '/tutorial',
     subnav: [
-      { href: '/tutorial/desvios',     icon: FileText, label: 'Manual Desvios'     },
-      { href: '/tutorial/inspecoes',   icon: FileText, label: 'Manual Inspeções'   },
-      { href: '/tutorial/indicadores', icon: FileText, label: 'Manual Indicadores' },
-      { href: '/tutorial/residuos',    icon: FileText, label: 'Manual Resíduos'    },
+      { href: '/tutorial/obras',           icon: FileText, label: 'Manual Obras'           },
+      { href: '/tutorial/desvios',         icon: FileText, label: 'Manual Desvios'         },
+      { href: '/tutorial/inspecoes',       icon: FileText, label: 'Manual Inspeções'       },
+      { href: '/tutorial/indicadores',     icon: FileText, label: 'Manual Indicadores'     },
+      { href: '/tutorial/relatorios-hse',  icon: FileText, label: 'Manual Relatórios HSE'  },
+      { href: '/tutorial/residuos',        icon: FileText, label: 'Manual Resíduos'        },
     ],
   },
 ]
