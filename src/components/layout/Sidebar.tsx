@@ -152,6 +152,7 @@ const MENUS: Array<{
       { href: '/tutorial/inspecoes',       icon: FileText, label: 'Manual Inspeções'       },
       { href: '/tutorial/indicadores',     icon: FileText, label: 'Manual Indicadores'     },
       { href: '/tutorial/relatorios-hse',  icon: FileText, label: 'Manual Relatórios HSE'  },
+      { href: '/tutorial/alojamentos',     icon: FileText, label: 'Manual Alojamentos'     },
       { href: '/tutorial/residuos',        icon: FileText, label: 'Manual Resíduos'        },
     ],
   },

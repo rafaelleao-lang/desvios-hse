@@ -50,6 +50,15 @@ const MANUAIS = [
     secoes:  '8 seções',
   },
   {
+    href:    '/tutorial/alojamentos',
+    label:   'Manual de Alojamentos',
+    desc:    'Vistorie alojamentos com o checklist de 11 itens (NR-18/NR-24), registre fotos e observações, salve o relatório, filtre por Obra/Data e acompanhe o Dashboard de conformidade.',
+    cor:     '#6366F1',
+    corDim:  'rgba(99,102,241,0.1)',
+    border:  'rgba(99,102,241,0.25)',
+    secoes:  '7 seções',
+  },
+  {
     href:    '/tutorial/residuos',
     label:   'Manual de Gestão de Resíduos',
     desc:    'Aprenda a registrar entradas e retiradas, acompanhar o saldo por obra, configurar fornecedores, gerar relatórios PDF e configurar alertas por e-mail.',

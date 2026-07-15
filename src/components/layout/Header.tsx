@@ -23,8 +23,8 @@ const MODULE_ACTIONS: ModuleAction[] = [
   { key: 'indicadores', label: 'Lançar',        href: '/indicadores',            color: '#3B82F6', Icon: BarChart2,     module: 'Indicadores' },
 ]
 
-function getAction(pathname: string): ModuleAction {
-  return MODULE_ACTIONS.find(a => pathname.startsWith(`/${a.key}`)) ?? MODULE_ACTIONS[0]
+function getAction(pathname: string): ModuleAction | undefined {
+  return MODULE_ACTIONS.find(a => pathname.startsWith(`/${a.key}`))
 }
 
 // ── Search config per module ──────────────────────────────────────────────────
@@ -66,8 +66,8 @@ export function Header({ onMenuClick }: HeaderProps) {
   const actionsRef = useRef<HTMLDivElement>(null)
 
   const action     = getAction(pathname)
-  const searchConf = SEARCH_CONF[action.key] ?? SEARCH_CONF.desvios
-  const bellConf   = BELL_CONF[action.key]   ?? BELL_CONF.desvios
+  const searchConf = action ? SEARCH_CONF[action.key] : undefined
+  const bellConf   = action ? BELL_CONF[action.key]   : undefined
 
   // ── Per-module notification data ──────────────────────────────────────────
   const urgentes = desviosComputados.filter(d =>
@@ -82,17 +82,17 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   // Fetch residuos violations whenever the module becomes active
   useEffect(() => {
-    if (action.key !== 'residuos') return
+    if (action?.key !== 'residuos') return
     fetch('/api/residuos/check-alertas')
       .then(r => r.json())
       .then(d => { if (d.ok) setResViolacoes(d.violacoes ?? []) })
       .catch(() => {})
-  }, [action.key])
+  }, [action?.key])
 
   const notifCount =
-    action.key === 'desvios'   ? urgentes.length          :
-    action.key === 'inspecoes' ? inspecoesAbertas.length  :
-    action.key === 'residuos'  ? resViolacoes.length       : 0
+    action?.key === 'desvios'   ? urgentes.length          :
+    action?.key === 'inspecoes' ? inspecoesAbertas.length  :
+    action?.key === 'residuos'  ? resViolacoes.length       : 0
 
   // ── Outside click ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -105,6 +105,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   }, [])
 
   function doSearch(q: string) {
+    if (!searchConf) return
     router.push(searchConf.route(encodeURIComponent(q)))
     setSearchOpen(false); setSearch('')
   }
@@ -122,6 +123,8 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       <div className="flex-1" />
 
+      {action && searchConf && bellConf && (
+      <>
       {/* ── Search ────────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         {searchOpen ? (
@@ -287,6 +290,8 @@ export function Header({ onMenuClick }: HeaderProps) {
           )}
         </AnimatePresence>
       </div>
+      </>
+      )}
 
     </header>
   )

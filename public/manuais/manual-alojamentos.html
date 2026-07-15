@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual · Alojamentos · MSE Engenharia</title>
+<style>
+:root{
+  --accent:#6366F1;
+  --accent-light:#818CF8;
+  --accent-dim:rgba(99,102,241,0.12);
+  --accent-mid:rgba(99,102,241,0.25);
+  --bg:#09090b;--bg2:#111113;--bg3:#18181b;--bg4:#27272a;
+  --border:#3f3f46;--border-soft:#27272a;
+  --text:#f4f4f5;--text2:#a1a1aa;--text3:#71717a;--text4:#52525b;
+  --green:#22C55E;--amber:#F59E0B;--red:#E8291C;--blue:#3b82f6;
+  --sidebar-w:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+code{background:var(--bg4);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;font-size:12px;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--accent-light)}
+
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--accent-dim);border-radius:10px}
+.main{flex:1;overflow-y:auto;padding:40px 48px 80px;max-width:860px}
+.main::-webkit-scrollbar{width:6px}
+.main::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:10px}
+
+.sidebar-brand{padding:20px 16px 16px;border-bottom:1px solid var(--border-soft)}
+.brand-mark{width:36px;height:36px;background:#E8291C;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;letter-spacing:-1px;box-shadow:0 4px 12px rgba(232,41,28,0.4);margin-bottom:10px}
+.brand-title{font-size:15px;font-weight:800;color:var(--text);line-height:1.2}
+.brand-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.brand-badge{margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:var(--accent-dim);border:1px solid var(--accent-mid);border-radius:20px;font-size:10px;font-weight:700;color:var(--accent)}
+.brand-badge::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;display:inline-block}
+
+.nav-section{padding:16px 16px 4px;font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.08em}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 16px;cursor:pointer;transition:all .15s;color:var(--text3);font-size:13px;border-left:2px solid transparent}
+.nav-item:hover{background:var(--bg4);color:var(--text);border-left-color:var(--border)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent)}
+.nav-num{width:20px;height:20px;border-radius:6px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;transition:all .15s}
+.nav-item.active .nav-num{background:var(--accent-mid);color:var(--accent)}
+.sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid var(--border-soft);font-size:11px;color:var(--text4)}
+.sidebar-footer strong{color:var(--text3);font-weight:700;display:block}
+
+.cover{background:linear-gradient(135deg,rgba(99,102,241,0.08) 0%,rgba(99,102,241,0.03) 60%,transparent 100%);border:1px solid rgba(99,102,241,0.2);border-radius:20px;padding:36px 40px;margin-bottom:56px;position:relative;overflow:hidden}
+.cover::after{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%);pointer-events:none}
+.cover-kicker{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cover-kicker::before{content:'';width:20px;height:2px;background:var(--accent);border-radius:2px}
+.cover-title{font-size:32px;font-weight:900;color:var(--text);line-height:1.15;margin-bottom:14px}
+.cover-title span{color:var(--accent)}
+.cover-desc{font-size:15px;color:var(--text2);line-height:1.7;max-width:540px;margin-bottom:28px}
+.stats{display:flex;gap:32px;flex-wrap:wrap}
+.stat-val{font-size:26px;font-weight:900;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+section{margin-bottom:64px;scroll-margin-top:24px}
+h2{font-size:22px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.section-num{width:30px;height:30px;border-radius:8px;background:var(--accent-dim);color:var(--accent);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.section-lead{font-size:15px;color:var(--text2);border-left:3px solid var(--accent);padding-left:14px;margin:16px 0 24px;line-height:1.7}
+h3{font-size:16px;font-weight:700;color:var(--text);margin:28px 0 10px;display:flex;align-items:center;gap:8px}
+h3 .icon{font-size:14px}
+p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+
+.card{background:var(--bg3);border:1px solid var(--border-soft);border-radius:16px;padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.card-accent{border-left:3px solid var(--accent)}
+
+.steps{display:flex;flex-direction:column;gap:0;margin:24px 0}
+.step{display:flex;gap:16px;padding-bottom:28px;position:relative}
+.step:not(:last-child)::before{content:'';position:absolute;left:17px;top:38px;bottom:0;width:2px;background:var(--border-soft)}
+.step-num{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);border:2px solid var(--accent);color:var(--accent);font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-body{flex:1;padding-top:6px}
+.step-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px}
+.step-desc{font-size:13px;color:var(--text2);line-height:1.65}
+
+.callout{border-radius:12px;padding:14px 16px;margin:16px 0;display:flex;gap:12px;align-items:flex-start}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{flex:1}
+.callout-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout-text{font-size:13px;line-height:1.6}
+.callout.tip{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2)}
+.callout.tip .callout-title{color:var(--blue)}
+.callout.tip .callout-text{color:#93c5fd}
+.callout.warn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)}
+.callout.warn .callout-title{color:var(--amber)}
+.callout.warn .callout-text{color:#fcd34d}
+.callout.danger{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)}
+.callout.danger .callout-title{color:#ef4444}
+.callout.danger .callout-text{color:#fca5a5}
+.callout.success{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2)}
+.callout.success .callout-title{color:var(--green)}
+.callout.success .callout-text{color:#86efac}
+
+.field-table{width:100%;border-collapse:collapse;margin:12px 0 20px}
+.field-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.06em;background:var(--bg4);border-bottom:1px solid var(--border-soft)}
+.field-table td{padding:10px 12px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border-soft);vertical-align:top}
+.field-table td:first-child{color:var(--text);font-weight:600}
+.field-table .req{color:var(--red);font-weight:700}
+.field-table .opt{color:var(--text4);font-style:italic}
+
+ul.feature-list{list-style:none;padding:0;margin:12px 0;display:flex;flex-direction:column;gap:8px}
+ul.feature-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text2);line-height:1.5}
+ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;flex-shrink:0;margin-top:1px}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+.badge.verde{background:rgba(34,197,94,0.1);color:#4ade80;border-color:rgba(34,197,94,0.3)}
+.badge.vermelho{background:rgba(239,68,68,0.1);color:#f87171;border-color:rgba(239,68,68,0.3)}
+
+.clause-box{background:rgba(39,39,42,0.4);border-left:3px solid var(--red);border-radius:0 10px 10px 0;padding:10px 14px;margin:10px 0}
+.clause-box p{font-size:12.5px;color:var(--text3);margin-bottom:6px}
+.clause-box p:last-child{margin-bottom:0}
+.clause-box .ref{color:#f87171;font-weight:700}
+
+.divider{height:1px;background:var(--border-soft);margin:40px 0}
+
+.mob-fab{
+  display:none;position:fixed;bottom:20px;right:20px;z-index:100;
+  width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;
+  border:none;cursor:pointer;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(99,102,241,0.45);font-size:18px;transition:transform .2s;
+}
+.mob-fab:active{transform:scale(.93)}
+.mob-panel{
+  display:none;position:fixed;bottom:76px;right:20px;z-index:99;
+  background:var(--bg2);border:1px solid var(--border-soft);border-radius:16px;
+  padding:8px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,.55);
+  max-height:60vh;overflow-y:auto;
+}
+.mob-panel.open{display:block}
+.mob-panel-title{
+  font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;
+  letter-spacing:.08em;padding:6px 10px 4px;
+}
+.mob-panel a{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;
+  font-size:13px;color:var(--text2);transition:all .12s;text-decoration:none;
+}
+.mob-panel a:hover{background:var(--bg4);color:var(--text)}
+.mob-panel a span{
+  width:20px;height:20px;border-radius:6px;background:var(--bg4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:var(--text3);flex-shrink:0;
+}
+
+@media(max-width:768px){
+  .sidebar{display:none}
+  .main{padding:20px 16px 80px;max-width:100%;overflow-x:hidden}
+  .card-grid,.card-grid-3{grid-template-columns:1fr}
+  .cover{padding:20px 16px}
+  .cover-title{font-size:22px}
+  .cover-desc{font-size:14px}
+  h2{font-size:18px}
+  h3{font-size:15px}
+  .section-lead{font-size:14px}
+  .stats{gap:16px}
+  .stat-val{font-size:22px}
+  .field-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  .field-table th,.field-table td{white-space:normal;min-width:80px}
+  .field-table td:last-child{min-width:160px}
+  .mob-fab{display:flex}
+  .step{gap:12px}
+  .callout{gap:10px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-mark">mse</div>
+    <div class="brand-title">Alojamentos</div>
+    <div class="brand-sub">Manual do Módulo</div>
+    <div class="brand-badge">MSE Engenharia</div>
+  </div>
+
+  <div class="nav-section">Introdução</div>
+  <a href="#visao-geral" class="nav-item active">
+    <span class="nav-num">1</span> Visão Geral
+  </a>
+
+  <div class="nav-section">Criação</div>
+  <a href="#novo-relatorio" class="nav-item">
+    <span class="nav-num">2</span> Novo Relatório
+  </a>
+  <a href="#itens-vistoria" class="nav-item">
+    <span class="nav-num">3</span> Itens de Vistoria
+  </a>
+
+  <div class="nav-section">Relatórios Salvos</div>
+  <a href="#lista" class="nav-item">
+    <span class="nav-num">4</span> Lista e Filtros
+  </a>
+  <a href="#detalhe" class="nav-item">
+    <span class="nav-num">5</span> Detalhe do Relatório
+  </a>
+  <a href="#pdf" class="nav-item">
+    <span class="nav-num">6</span> Gerar PDF
+  </a>
+
+  <div class="nav-section">Análise</div>
+  <a href="#dashboard" class="nav-item">
+    <span class="nav-num">7</span> Dashboard
+  </a>
+
+  <div class="sidebar-footer">
+    <strong>MSE Engenharia</strong>
+    Sistema de Gestão HSE
+  </div>
+</aside>
+
+<main class="main">
+
+  <div class="cover">
+    <div class="cover-kicker">Manual Completo</div>
+    <h1 class="cover-title">Relatório de <span>Alojamento</span></h1>
+    <p class="cover-desc">
+      Vistorie alojamentos de obra com um checklist de 11 itens baseado nas NR-18/NR-24, registre fotos e
+      observações, salve o relatório no sistema e gere um PDF pronto — tudo acompanhado de um dashboard com
+      indicadores de conformidade.
+    </p>
+    <div class="stats">
+      <div><div class="stat-val">11</div><div class="stat-label">Itens de vistoria</div></div>
+      <div><div class="stat-val">2</div><div class="stat-label">Classificações por item</div></div>
+      <div><div class="stat-val">PDF</div><div class="stat-label">Exportação</div></div>
+      <div><div class="stat-val">3</div><div class="stat-label">Submenus</div></div>
+    </div>
+  </div>
+
+  <!-- ─────────────────── 1. VISÃO GERAL ─────────────────── -->
+  <section id="visao-geral">
+    <h2><span class="section-num">1</span> Visão Geral</h2>
+    <p class="section-lead">
+      O módulo <strong>Alojamentos</strong> permite vistoriar os alojamentos usados pelos trabalhadores de cada
+      obra, avaliando 11 itens fixos com base nas Normas Regulamentadoras (NR-18/NR-24), com fotos e observações
+      por item. Diferente do relatório original em papel, tudo fica salvo no sistema — com histórico, filtros e
+      dashboard de indicadores.
+    </p>
+
+    <h3>Submenus do módulo</h3>
+    <div class="card-grid-3">
+      <div class="card card-accent">
+        <div class="card-title">📊 Dashboard</div>
+        <p style="font-size:13px;color:var(--text2)">KPIs de conformidade, ranking de itens mais recorrentes em não conformidade e evolução dos relatórios.</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">🛏️ Relatório de Alojamento</div>
+        <p style="font-size:13px;color:var(--text2)">Formulário de criação: dados do alojamento + os 11 itens de vistoria.</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">📋 Relatórios Salvos</div>
+        <p style="font-size:13px;color:var(--text2)">Lista de tudo que já foi salvo, com filtro por Obra e Data, visualização e PDF.</p>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Sem veredito geral automático</div>
+        <div class="callout-text">O relatório não calcula uma "nota" ou aprovação/reprovação consolidada — cada um dos 11 itens é avaliado individualmente como Conforme ou Não Conforme, exatamente como no formulário original.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 2. NOVO RELATÓRIO ─────────────────── -->
+  <section id="novo-relatorio">
+    <h2><span class="section-num">2</span> Novo Relatório</h2>
+    <p class="section-lead">
+      Acesse <strong>Alojamentos → Relatório de Alojamento</strong> (ou o botão "Novo Relatório") para abrir o formulário.
+    </p>
+
+    <h3><span class="icon">🏢</span> Dados do Alojamento</h3>
+    <table class="field-table">
+      <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>Obra</td><td><span class="req">Sim</span></td><td>Lista apenas obras ativas, vinda do cadastro de Obras</td></tr>
+        <tr><td>Endereço do Alojamento</td><td><span class="req">Sim</span></td><td>Endereço completo onde fica o alojamento</td></tr>
+        <tr><td>Empresa Responsável</td><td><span class="req">Sim</span></td><td>Empresa que administra/loca o alojamento</td></tr>
+        <tr><td>Nº Quartos / Banheiros / Alojados</td><td><span class="opt">Opcional</span></td><td>Números inteiros, só para referência</td></tr>
+        <tr><td>Capacidade Máxima</td><td><span class="opt">Opcional</span></td><td>Limite de pessoas suportado pelo alojamento</td></tr>
+        <tr><td>Responsável pela Compra dos Itens Faltantes</td><td><span class="opt">Opcional</span></td><td>Quem deve providenciar o que estiver faltando</td></tr>
+        <tr><td>Responsável pelo Alojamento</td><td><span class="opt">Opcional</span></td><td>Pessoa responsável pelo dia a dia do alojamento</td></tr>
+        <tr><td>Responsável pelo Relatório</td><td><span class="req">Sim</span></td><td>Quem está realizando esta vistoria (ex: o TST)</td></tr>
+        <tr><td>Data</td><td><span class="req">Sim</span></td><td>Data da vistoria — vem preenchida com a data de hoje</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">✅</span> Preenchendo os itens</h3>
+    <p>Cada um dos 11 itens vem como um card colapsável. Ao abrir um item, você encontra:</p>
+    <ul class="feature-list">
+      <li>A lista de cláusulas normativas daquele item (o que precisa ser verificado)</li>
+      <li>Botões <strong>Conforme</strong> / <strong>Não Conforme</strong> — o padrão inicial é sempre <strong>Não Conforme</strong>, você precisa confirmar ativamente que está tudo certo</li>
+      <li>Upload de fotos pela câmera do celular ou pela galeria (sem limite de quantidade)</li>
+      <li>Campo de observações (até 255 caracteres)</li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Padrão é "Não Conforme"</div>
+        <div class="callout-text">Isso é proposital — evita que um item passe despercebido como conforme só porque ninguém mexeu nele. Confira item por item antes de salvar.</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">🖼️</div>
+      <div class="callout-body">
+        <div class="callout-title">Clique na foto para ampliar</div>
+        <div class="callout-text">Tanto no formulário quanto na tela de detalhe do relatório salvo, clicar em uma miniatura abre a foto em tamanho grande. A foto aparece no PDF sem cortes, preservando a proporção original.</div>
+      </div>
+    </div>
+
+    <p>Ao final, clique em <strong>"Salvar Relatório"</strong>. Você será levado direto para a tela de detalhe do relatório recém-criado, de onde já pode gerar o PDF.</p>
+  </section>
+
+  <!-- ─────────────────── 3. ITENS DE VISTORIA ─────────────────── -->
+  <section id="itens-vistoria">
+    <h2><span class="section-num">3</span> Itens de Vistoria</h2>
+    <p class="section-lead">
+      Os 11 itens são fixos no sistema, baseados na NR-18 e na NR-24. Cada item traz uma ou mais cláusulas
+      normativas específicas.
+    </p>
+
+    <h3>1. Estrutura</h3>
+    <div class="clause-box"><p><span class="ref">18.4.2.10.1</span> — Paredes de alvenaria, madeira ou material equivalente; piso de concreto, cimentado, madeira ou equivalente; cobertura que proteja das intempéries; ventilação mínima de 1/10 da área do piso; iluminação natural e/ou artificial; não pode estar no subsolo ou em porões.</p></div>
+
+    <h3>2. Sanitários</h3>
+    <div class="clause-box">
+      <p><span class="ref">24.3.6</span> — Chuveiros individuais e higiênicos, com portas, água quente/fria, piso impermeável, suporte para sabonete e toalha — dimensões mínimas de 0,80m x 0,80m.</p>
+      <p><span class="ref">4.1.2</span> — Bacia sanitária com assento (1 para cada 10 alojados), lavatório, produtos de higiene e papel para enxugo.</p>
+      <p><span class="ref">24.2.3</span> — Instalações limpas, conservadas, impermeáveis, com peças íntegras, ventilação, água canalizada e esgoto adequado.</p>
+      <p><span class="ref">24.7.2</span> — Proporção de 1 chuveiro para cada 10 trabalhadores.</p>
+      <p><span class="ref">24.7.9</span> — Higienização diária, sem fogão nos quartos e com controle de vetores.</p>
+    </div>
+
+    <h3>3. Dormitórios</h3>
+    <div class="clause-box">
+      <p><span class="ref">24.7.3</span> — Camas correspondentes ao número de alojados (vedado 3+ camas na mesma vertical), espaçamento seguro; colchões certificados pelo INMETRO; roupas de cama limpas e adequadas ao clima; ventilação natural e artificial; capacidade máxima de 8 trabalhadores por quarto; armários; mínimo de 3,00 m² por cama simples ou 4,50 m² por beliche; conforto acústico conforme NR-17.</p>
+      <p><span class="ref">24.7.3.1.1</span> — Camas superiores dos beliches devem ter proteção lateral e escada fixas à estrutura.</p>
+      <p><span class="ref">24.7.3.2</span> — Armários com sistema de trancamento e dimensões compatíveis para roupas, pertences pessoais e enxoval de cama.</p>
+      <p><span class="ref">24.7.4</span> — Trabalhadores do mesmo quarto devem pertencer, preferencialmente, ao mesmo turno.</p>
+      <p><span class="ref">24.7.5.2</span> — É vedado o preparo de qualquer tipo de alimento dentro dos quartos.</p>
+      <p><span class="ref">4.3.3</span> — Tomadas na proporção mínima de 1 para cada 2 camas.</p>
+      <p><span class="ref">4.3.2.4</span> — Distância mínima entre camas de 0,80m.</p>
+    </div>
+
+    <h3>4. Instalações Elétricas</h3>
+    <div class="clause-box">
+      <p><span class="ref">24.9.7.2</span> — Instalações protegidas contra choques elétricos.</p>
+      <p><span class="ref">4.3.4</span> — Fiações protegidas, sem improvisos ou uso de benjamim.</p>
+    </div>
+
+    <h3>5. Limpeza e Organização</h3>
+    <div class="clause-box"><p><span class="ref">24.7.2</span> — Alojamento mantido em condições adequadas de conservação, higiene e limpeza.</p></div>
+
+    <h3>6. Lazer</h3>
+    <div class="clause-box"><p><span class="ref">4.7.2</span> — Disponibilidade de televisores ou acesso à internet (Wi-Fi).</p></div>
+
+    <h3>7. Extintor</h3>
+    <div class="clause-box"><p><span class="ref">4.8.6</span> — Existência de aparelhos extintores disponíveis no local.</p></div>
+
+    <h3>8. Norma Interna</h3>
+    <div class="clause-box"><p><span class="ref">Sinalização</span> — Placas de sinalização com regras gerais do alojamento e aviso de Proibido Fumar.</p></div>
+
+    <h3>9. Cozinha</h3>
+    <div class="clause-box">
+      <p><span class="ref">18.5.6</span> — Fornecimento obrigatório de água potável, filtrada e fresca — proporção de 1 unidade para cada 25 trabalhadores.</p>
+      <p><span class="ref">24.5.2.1</span> — Meios para conservação e aquecimento de refeições, local para lavagem de utensílios, água potável e recipientes com tampa para descarte.</p>
+      <p><span class="ref">24.5.2</span> — Locais arejados, conservados, limpos e higiênicos, com assentos e mesas/balcões suficientes.</p>
+    </div>
+
+    <h3>10. Lavanderia</h3>
+    <div class="clause-box"><p><span class="ref">24.7.6</span> — Locais e infraestrutura para lavagem e secagem de roupas pessoais, ou serviço de lavanderia fornecido.</p></div>
+
+    <h3>11. Dedetização</h3>
+    <div class="clause-box"><p><span class="ref">24.7.9.c</span> — Controle de vetores conforme legislação local.</p></div>
+
+    <div class="callout warn">
+      <div class="callout-icon">🔒</div>
+      <div class="callout-body">
+        <div class="callout-title">Itens fixos no sistema</div>
+        <div class="callout-text">Esses 11 itens e suas cláusulas são fixos no código do sistema — não há tela de configuração para adicionar, remover ou editar itens. Qualquer mudança na lista de itens depende de uma atualização do sistema.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 4. LISTA E FILTROS ─────────────────── -->
+  <section id="lista">
+    <h2><span class="section-num">4</span> Relatórios Salvos — Lista e Filtros</h2>
+    <p class="section-lead">
+      Acesse <strong>Alojamentos → Relatórios Salvos</strong> para ver todos os relatórios já criados.
+    </p>
+
+    <table class="field-table">
+      <thead><tr><th>Filtro</th><th>Efeito</th></tr></thead>
+      <tbody>
+        <tr><td>Busca por texto</td><td>Pesquisa por código (ALJ-0001), obra, empresa responsável ou responsável pelo relatório</td></tr>
+        <tr><td>Obra</td><td>Mostra apenas relatórios da obra selecionada</td></tr>
+        <tr><td>Data início / Data fim</td><td>Filtra pela data da vistoria</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">👁️</span> Ações por linha</h3>
+    <p>Cada relatório na lista tem dois botões: o ícone de <strong>olho</strong> abre a tela de detalhe, e o botão <strong>PDF</strong> gera o arquivo direto da lista, sem precisar abrir o relatório.</p>
+  </section>
+
+  <!-- ─────────────────── 5. DETALHE ─────────────────── -->
+  <section id="detalhe">
+    <h2><span class="section-num">5</span> Detalhe do Relatório</h2>
+    <p class="section-lead">
+      Mostra todos os dados do alojamento e os 11 itens com sua classificação, cláusulas normativas, observações e fotos.
+    </p>
+    <ul class="feature-list">
+      <li>Cabeçalho vermelho com o código do relatório (ex: <code>ALJ-0002</code>) e a data da vistoria</li>
+      <li>Bloco com todos os dados cadastrais do alojamento</li>
+      <li>Um card por item, com badge <span class="badge verde">Conforme</span> ou <span class="badge vermelho">Não Conforme</span></li>
+      <li>Botão <strong>"Gerar PDF"</strong> no topo da tela</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────── 6. PDF ─────────────────── -->
+  <section id="pdf">
+    <h2><span class="section-num">6</span> Gerar PDF</h2>
+    <p class="section-lead">
+      O PDF é montado no navegador (não fica salvo no servidor) a partir dos dados do relatório já salvo.
+    </p>
+    <ul class="feature-list">
+      <li>Capa com dados do alojamento e KPIs (total de itens, conformes, não conformes)</li>
+      <li>Tabela-resumo com os 11 itens e o status de cada um</li>
+      <li>Uma página por item, com as cláusulas normativas, observação e fotos em tamanho real (sem cortes, respeitando a proporção da foto)</li>
+      <li>Nome do arquivo: <code>Relatorio-Alojamento-ALJ-000X-AAAA-MM-DD.pdf</code></li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Duas formas de gerar</div>
+        <div class="callout-text">Você pode gerar o PDF direto na lista de Relatórios Salvos (botão PDF na linha) ou de dentro da tela de detalhe do relatório.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 7. DASHBOARD ─────────────────── -->
+  <section id="dashboard">
+    <h2><span class="section-num">7</span> Dashboard</h2>
+    <p class="section-lead">
+      Visão consolidada de todos os relatórios já salvos, com filtro por Obra e por período.
+    </p>
+
+    <h3><span class="icon">📊</span> KPIs</h3>
+    <div class="card-grid">
+      <div class="card"><div class="card-title">Relatórios</div><p style="font-size:13px;color:var(--text2)">Total de relatórios no filtro atual</p></div>
+      <div class="card"><div class="card-title">Itens Conformes</div><p style="font-size:13px;color:var(--text2)">Soma de itens conformes em todos os relatórios, com % de conformidade geral</p></div>
+      <div class="card"><div class="card-title">Itens Não Conformes</div><p style="font-size:13px;color:var(--text2)">Soma de itens não conformes em todos os relatórios</p></div>
+      <div class="card"><div class="card-title">Itens Avaliados</div><p style="font-size:13px;color:var(--text2)">Total de itens avaliados (conformes + não conformes)</p></div>
+    </div>
+
+    <h3><span class="icon">📈</span> Gráficos</h3>
+    <ul class="feature-list">
+      <li>Donut de Itens Conformes × Não Conformes, com % de conformidade no centro</li>
+      <li>Evolução mensal da quantidade de relatórios e de itens não conformes</li>
+      <li>Ranking dos itens mais recorrentes em não conformidade (ex: se "Cozinha" costuma reprovar mais que os outros)</li>
+      <li>Relatórios por Obra, com total de relatórios e itens não conformes de cada uma</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Sem "nota" por relatório</div>
+        <div class="callout-text">O dashboard soma dados de itens (conforme/não conforme) de todos os relatórios — mas nenhum relatório individual recebe uma nota ou aprovação/reprovação automática. Isso continua sendo avaliado item a item.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+  <p style="font-size:12px;color:var(--text4);text-align:center">
+    MSE Engenharia · Manual de Alojamentos · Sistema HSE
+  </p>
+
+</main>
+</div>
+
+<button class="mob-fab" id="mobFab" aria-label="Navegar seções">☰</button>
+<div class="mob-panel" id="mobPanel">
+  <div class="mob-panel-title">Seções do Manual</div>
+  <a href="#visao-geral"     onclick="closeMobNav()"><span>1</span> Visão Geral</a>
+  <a href="#novo-relatorio"  onclick="closeMobNav()"><span>2</span> Novo Relatório</a>
+  <a href="#itens-vistoria"  onclick="closeMobNav()"><span>3</span> Itens de Vistoria</a>
+  <a href="#lista"           onclick="closeMobNav()"><span>4</span> Lista e Filtros</a>
+  <a href="#detalhe"         onclick="closeMobNav()"><span>5</span> Detalhe do Relatório</a>
+  <a href="#pdf"             onclick="closeMobNav()"><span>6</span> Gerar PDF</a>
+  <a href="#dashboard"       onclick="closeMobNav()"><span>7</span> Dashboard</a>
+</div>
+
+<script>
+const mobFab   = document.getElementById('mobFab')
+const mobPanel = document.getElementById('mobPanel')
+
+function closeMobNav() {
+  mobPanel.classList.remove('open')
+  mobFab.textContent = '☰'
+}
+
+mobFab.addEventListener('click', () => {
+  const isOpen = mobPanel.classList.toggle('open')
+  mobFab.textContent = isOpen ? '✕' : '☰'
+})
+
+document.addEventListener('click', e => {
+  if (!mobFab.contains(e.target) && !mobPanel.contains(e.target)) closeMobNav()
+})
+
+const items = document.querySelectorAll('.nav-item')
+const sections = document.querySelectorAll('section, .cover')
+const main = document.querySelector('.main')
+
+main.addEventListener('scroll', () => {
+  let current = ''
+  sections.forEach(s => {
+    if (main.scrollTop >= s.offsetTop - 60) current = s.id
+  })
+  items.forEach(a => {
+    const href = a.getAttribute('href')?.slice(1)
+    a.classList.toggle('active', href === current)
+  })
+})
+
+items.forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault()
+    const id = a.getAttribute('href')?.slice(1)
+    const el = document.getElementById(id)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+})
+</script>
+</body>
+</html>
