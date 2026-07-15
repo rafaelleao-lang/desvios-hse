@@ -1,7 +1,6 @@
 import 'server-only'
 import type { ResultSetHeader, RowDataPacket } from 'mysql2'
 import { query } from '@/lib/mysql'
-import { normalizeText } from '@/lib/utils'
 import type { Alojamento, AlojamentoItem, AlojamentoItemKey, AlojamentoItemStats, FotoAlojamento } from '@/types/alojamentos'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -120,15 +119,15 @@ const alojamentosRepo = {
       numero: num,
       obra_id: data.obra_id,
       obra_nome: data.obra_nome,
-      endereco: normalizeText(data.endereco),
-      empresa_responsavel: normalizeText(data.empresa_responsavel),
+      endereco: data.endereco.trim(),
+      empresa_responsavel: data.empresa_responsavel.trim(),
       num_quartos: data.num_quartos,
       num_banheiros: data.num_banheiros,
       num_alojados: data.num_alojados,
       capacidade_maxima: data.capacidade_maxima,
-      responsavel_compra: data.responsavel_compra ? normalizeText(data.responsavel_compra) : undefined,
-      responsavel_alojamento: data.responsavel_alojamento ? normalizeText(data.responsavel_alojamento) : undefined,
-      responsavel_relatorio: normalizeText(data.responsavel_relatorio),
+      responsavel_compra: data.responsavel_compra?.trim() || undefined,
+      responsavel_alojamento: data.responsavel_alojamento?.trim() || undefined,
+      responsavel_relatorio: data.responsavel_relatorio.trim(),
       data_vistoria: data.data_vistoria,
       total_itens: itens.length,
       total_conformes: itens.filter(it => it.conforme).length,
