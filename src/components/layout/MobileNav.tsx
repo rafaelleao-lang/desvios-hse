@@ -6,6 +6,7 @@ import {
   LayoutDashboard, AlertTriangle, Building2, BarChart3,
   TrendingUp, Plus, History, ClipboardList, AlertCircle, ClipboardCheck,
   BookOpen, FileText, List, Recycle, ArrowDownUp, ClipboardSignature, Bell,
+  BedDouble, ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -39,6 +40,7 @@ function getSistema(pathname: string) {
   if (pathname.startsWith('/inspecoes'))   return 'inspecoes'
   if (pathname.startsWith('/indicadores')) return 'indicadores'
   if (pathname.startsWith('/obras'))       return 'obras'
+  if (pathname.startsWith('/alojamentos')) return 'alojamentos'
   return 'desvios'
 }
 
@@ -322,6 +324,77 @@ function ResiduosNav({ pathname }: { pathname: string }) {
   )
 }
 
+// ── Nav Alojamentos (Dashboard | Cadastro | FAB | Relatórios | Controle) ─────
+
+function AlojamentosNav({ pathname }: { pathname: string }) {
+  const router = useRouter()
+  const cor = '#6366F1'
+
+  const tabs = [
+    { href: '/alojamentos/dashboard', icon: LayoutDashboard, label: 'Dashboard',  exact: true  },
+    { href: '/alojamentos/cadastro',  icon: ClipboardList,   label: 'Cadastro',   exact: false },
+    { href: '/alojamentos',           icon: FileText,        label: 'Relatórios', exact: true  },
+    { href: '/alojamentos/controle',  icon: ShieldCheck,     label: 'Controle',   exact: false },
+  ]
+
+  function isTabActive(tab: typeof tabs[number]) {
+    return tab.exact ? pathname === tab.href : pathname.startsWith(tab.href)
+  }
+
+  return (
+    <div className="flex items-center h-16">
+      {tabs.slice(0, 2).map(tab => {
+        const isActive = isTabActive(tab)
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+            {isActive && (
+              <motion.div layoutId="mob-aloj-indicator"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                style={{ background: cor }}
+                transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+            )}
+            <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}} />
+            <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}}>
+              {tab.label}
+            </span>
+          </Link>
+        )
+      })}
+
+      {/* FAB — Relatório de Alojamento (novo) */}
+      <div className="flex-shrink-0 px-2">
+        <button onClick={() => router.push('/alojamentos/novo')}
+          className="w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95"
+          style={{ background: cor }}>
+          <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+        </button>
+      </div>
+
+      {tabs.slice(2).map(tab => {
+        const isActive = isTabActive(tab)
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
+            {isActive && (
+              <motion.div layoutId="mob-aloj-indicator"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
+                style={{ background: cor }}
+                transition={{ type: 'spring', stiffness: 500, damping: 40 }} />
+            )}
+            <tab.icon className={cn('w-5 h-5 transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}} />
+            <span className={cn('text-[10px] font-medium transition-colors', isActive ? '' : 'text-zinc-600')}
+              style={isActive ? { color: cor } : {}}>
+              {tab.label}
+            </span>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Nav Tutoriais (4 tabs sem FAB) ───────────────────────────────────────────
 
 const TABS_TUTORIAL = [
@@ -385,7 +458,9 @@ export function MobileNav() {
                   ? <InspecoesNav pathname={pathname} />
                   : sistema === 'indicadores'
                     ? <IndicadoresNav pathname={pathname} />
-                    : <DesviosNav pathname={pathname} />
+                    : sistema === 'alojamentos'
+                      ? <AlojamentosNav pathname={pathname} />
+                      : <DesviosNav pathname={pathname} />
           }
         </motion.div>
       </AnimatePresence>

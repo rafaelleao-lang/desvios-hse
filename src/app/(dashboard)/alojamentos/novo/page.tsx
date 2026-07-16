@@ -76,6 +76,7 @@ export default function NovoAlojamentoPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [dragKey, setDragKey] = useState<string | null>(null)
 
   const cameraRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const fotoRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -165,7 +166,19 @@ export default function NovoAlojamentoPage() {
           type="file" accept="image/*" multiple className="hidden"
           onChange={e => onFiles(e.target.files)}
         />
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+        <div
+          onDragOver={e => { e.preventDefault(); setDragKey(fotoKey) }}
+          onDragLeave={() => setDragKey(k => (k === fotoKey ? null : k))}
+          onDrop={e => {
+            e.preventDefault()
+            setDragKey(k => (k === fotoKey ? null : k))
+            onFiles(e.dataTransfer.files)
+          }}
+          className={cn(
+            'grid grid-cols-3 sm:grid-cols-4 gap-2.5 rounded-xl transition-colors',
+            dragKey === fotoKey && 'ring-2 ring-indigo-500/60 bg-indigo-500/5',
+          )}
+        >
           {fotos.map(foto => (
             <div key={foto.id} className="relative aspect-square bg-zinc-800 rounded-xl overflow-hidden group border border-zinc-700">
               <img
@@ -199,6 +212,9 @@ export default function NovoAlojamentoPage() {
             <span className="text-[10px] text-zinc-500">Galeria</span>
           </button>
         </div>
+        {fotos.length === 0 && (
+          <p className="text-[10px] text-zinc-600 mt-1.5">Arraste uma foto aqui ou use os botões abaixo.</p>
+        )}
         {fotos.length > 0 && (
           <p className="text-[10px] text-zinc-600 mt-1.5">Clique em uma foto para ampliar. A foto aparece no PDF sem cortes, preservando a proporção.</p>
         )}
