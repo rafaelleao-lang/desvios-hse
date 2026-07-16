@@ -6,12 +6,12 @@ import Link from 'next/link'
 import { useApp } from '@/contexts/AppContext'
 import { alojamentosDB, alojamentoLocaisDB } from '@/lib/db-alojamentos'
 import { uploadFotoToStorage } from '@/lib/db'
-import { compressImage, cn } from '@/lib/utils'
+import { compressImage, rotateImage, cn } from '@/lib/utils'
 import { ALOJAMENTO_ITENS_CONFIG, SUB_UNIDADE_LABELS } from '@/types/alojamentos'
 import type { AlojamentoItemKey, AlojamentoLocal, FotoAlojamento } from '@/types/alojamentos'
 import {
   ArrowLeft, Camera, Image as ImageIcon, X, Loader2, CheckCircle2,
-  ThumbsUp, ThumbsDown, ChevronDown, AlertTriangle,
+  ThumbsUp, ThumbsDown, ChevronDown, AlertTriangle, RotateCw,
 } from 'lucide-react'
 
 const ALOJ_COLOR = '#6366F1'
@@ -77,6 +77,7 @@ export default function NovoAlojamentoPage() {
   const [error, setError] = useState('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [dragKey, setDragKey] = useState<string | null>(null)
+  const [rotatingIds, setRotatingIds] = useState<Set<string>>(new Set())
 
   const cameraRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const fotoRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -147,9 +148,42 @@ export default function NovoAlojamentoPage() {
     }
   }
 
+  async function rotateFoto(key: AlojamentoItemKey, fotoId: string, subNumero?: number) {
+    const item = itens.find(it => it.item_key === key)
+    const foto = subNumero !== undefined
+      ? item?.subUnidades?.find(su => su.numero === subNumero)?.fotos.find(f => f.id === fotoId)
+      : item?.fotos.find(f => f.id === fotoId)
+    if (!foto) return
+
+    setRotatingIds(prev => new Set(prev).add(fotoId))
+    try {
+      const res = await fetch(foto.data_url)
+      const blob = await res.blob()
+      const arquivo = new File([blob], foto.nome, { type: blob.type || 'image/jpeg' })
+      const rotacionado = await rotateImage(arquivo, 90)
+      const url = await uploadFotoToStorage(rotacionado)
+
+      const patch = (f: FotoAlojamento) => (f.id === fotoId ? { ...f, data_url: url } : f)
+      if (subNumero !== undefined) {
+        setItens(list => list.map(it => it.item_key === key
+          ? { ...it, subUnidades: (it.subUnidades ?? []).map(su => su.numero === subNumero ? { ...su, fotos: su.fotos.map(patch) } : su) }
+          : it))
+      } else {
+        setItens(list => list.map(it => it.item_key === key
+          ? { ...it, fotos: it.fotos.map(patch) }
+          : it))
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao rotacionar foto')
+    } finally {
+      setRotatingIds(prev => { const next = new Set(prev); next.delete(fotoId); return next })
+    }
+  }
+
   function renderFotos(
     fotoKey: string, fotos: FotoAlojamento[], uploading: boolean,
     onFiles: (files: FileList | null) => void, onRemove: (fotoId: string) => void,
+    onRotate: (fotoId: string) => void,
   ) {
     return (
       <div>
@@ -179,22 +213,39 @@ export default function NovoAlojamentoPage() {
             dragKey === fotoKey && 'ring-2 ring-indigo-500/60 bg-indigo-500/5',
           )}
         >
-          {fotos.map(foto => (
-            <div key={foto.id} className="relative aspect-square bg-zinc-800 rounded-xl overflow-hidden group border border-zinc-700">
-              <img
-                src={foto.data_url}
-                alt=""
-                className="w-full h-full object-contain cursor-zoom-in"
-                onClick={() => setPreviewUrl(foto.data_url)}
-              />
-              <button
-                onClick={() => onRemove(foto.id)}
-                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="w-3.5 h-3.5 text-white" />
-              </button>
-            </div>
-          ))}
+          {fotos.map(foto => {
+            const rotating = rotatingIds.has(foto.id)
+            return (
+              <div key={foto.id} className="relative aspect-square bg-zinc-800 rounded-xl overflow-hidden group border border-zinc-700">
+                <img
+                  src={foto.data_url}
+                  alt=""
+                  className="w-full h-full object-contain cursor-zoom-in"
+                  onClick={() => setPreviewUrl(foto.data_url)}
+                />
+                {rotating && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  </div>
+                )}
+                <button
+                  onClick={() => onRotate(foto.id)}
+                  disabled={rotating}
+                  className="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                  title="Rotacionar foto"
+                >
+                  <RotateCw className="w-3.5 h-3.5 text-white" />
+                </button>
+                <button
+                  onClick={() => onRemove(foto.id)}
+                  disabled={rotating}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                >
+                  <X className="w-3.5 h-3.5 text-white" />
+                </button>
+              </div>
+            )
+          })}
           <button
             onClick={() => cameraRefs.current[fotoKey]?.click()}
             disabled={uploading}
@@ -454,6 +505,7 @@ export default function NovoAlojamentoPage() {
                             `${it.item_key}:${su.numero}`, su.fotos, su.uploading,
                             files => addFoto(it.item_key, files, su.numero),
                             fotoId => updateSubUnidade(it.item_key, su.numero, { fotos: su.fotos.filter(f => f.id !== fotoId) }),
+                            fotoId => rotateFoto(it.item_key, fotoId, su.numero),
                           )}
 
                           <div>
@@ -477,6 +529,7 @@ export default function NovoAlojamentoPage() {
                         it.item_key, it.fotos, it.uploading,
                         files => addFoto(it.item_key, files),
                         fotoId => updateItem(it.item_key, { fotos: it.fotos.filter(f => f.id !== fotoId) }),
+                        fotoId => rotateFoto(it.item_key, fotoId),
                       )}
 
                       <div>

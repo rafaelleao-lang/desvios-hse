@@ -214,6 +214,53 @@ export async function compressImage(file: File, maxWidth = 1280, quality = 0.82)
   })
 }
 
+export async function rotateImage(file: File, degrees: 90 | 180 | 270 = 90, quality = 0.9): Promise<File> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) { resolve(file); return }
+
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+
+    const timer = setTimeout(() => {
+      URL.revokeObjectURL(url)
+      resolve(file)
+    }, 12_000)
+
+    const finish = (result: File) => {
+      clearTimeout(timer)
+      resolve(result)
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      finish(file)
+    }
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const swap = degrees % 180 !== 0
+      canvas.width = swap ? img.naturalHeight : img.naturalWidth
+      canvas.height = swap ? img.naturalWidth : img.naturalHeight
+      ctx.translate(canvas.width / 2, canvas.height / 2)
+      ctx.rotate((degrees * Math.PI) / 180)
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { finish(file); return }
+          const safeName = file.name.replace(/\.[^.]+$/, '.jpg')
+          finish(new File([blob], safeName, { type: 'image/jpeg' }))
+        },
+        'image/jpeg',
+        quality,
+      )
+    }
+
+    img.src = url
+  })
+}
+
 export function generateDesvioId(numero: number): string {
   return `DEV-${String(numero).padStart(5, '0')}`
 }
