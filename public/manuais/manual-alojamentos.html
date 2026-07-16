@@ -184,28 +184,36 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     <span class="nav-num">1</span> Visão Geral
   </a>
 
+  <div class="nav-section">Configuração</div>
+  <a href="#cadastro" class="nav-item">
+    <span class="nav-num">2</span> Cadastro de Alojamentos
+  </a>
+
   <div class="nav-section">Criação</div>
   <a href="#novo-relatorio" class="nav-item">
-    <span class="nav-num">2</span> Novo Relatório
+    <span class="nav-num">3</span> Novo Relatório
   </a>
   <a href="#itens-vistoria" class="nav-item">
-    <span class="nav-num">3</span> Itens de Vistoria
+    <span class="nav-num">4</span> Itens de Vistoria
   </a>
 
   <div class="nav-section">Relatórios Salvos</div>
   <a href="#lista" class="nav-item">
-    <span class="nav-num">4</span> Lista e Filtros
+    <span class="nav-num">5</span> Lista e Filtros
   </a>
   <a href="#detalhe" class="nav-item">
-    <span class="nav-num">5</span> Detalhe do Relatório
+    <span class="nav-num">6</span> Detalhe do Relatório
   </a>
   <a href="#pdf" class="nav-item">
-    <span class="nav-num">6</span> Gerar PDF
+    <span class="nav-num">7</span> Gerar PDF
   </a>
 
-  <div class="nav-section">Análise</div>
+  <div class="nav-section">Controle &amp; Análise</div>
+  <a href="#controle" class="nav-item">
+    <span class="nav-num">8</span> Controle
+  </a>
   <a href="#dashboard" class="nav-item">
-    <span class="nav-num">7</span> Dashboard
+    <span class="nav-num">9</span> Dashboard
   </a>
 
   <div class="sidebar-footer">
@@ -228,7 +236,7 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
       <div><div class="stat-val">11</div><div class="stat-label">Itens de vistoria</div></div>
       <div><div class="stat-val">2</div><div class="stat-label">Classificações por item</div></div>
       <div><div class="stat-val">PDF</div><div class="stat-label">Exportação</div></div>
-      <div><div class="stat-val">3</div><div class="stat-label">Submenus</div></div>
+      <div><div class="stat-val">5</div><div class="stat-label">Submenus</div></div>
     </div>
   </div>
 
@@ -246,7 +254,11 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     <div class="card-grid-3">
       <div class="card card-accent">
         <div class="card-title">📊 Dashboard</div>
-        <p style="font-size:13px;color:var(--text2)">KPIs de conformidade, ranking de itens mais recorrentes em não conformidade e evolução dos relatórios.</p>
+        <p style="font-size:13px;color:var(--text2)">KPIs de conformidade, status de vigência dos alojamentos cadastrados, ranking de itens mais recorrentes em não conformidade e evolução dos relatórios.</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">🏘️ Cadastro de Alojamentos</div>
+        <p style="font-size:13px;color:var(--text2)">Cadastro dos locais físicos (Obra + Endereço) que alimentam a seleção de alojamento no novo relatório.</p>
       </div>
       <div class="card card-accent">
         <div class="card-title">🛏️ Relatório de Alojamento</div>
@@ -255,6 +267,10 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
       <div class="card card-accent">
         <div class="card-title">📋 Relatórios Salvos</div>
         <p style="font-size:13px;color:var(--text2)">Lista de tudo que já foi salvo, com filtro por Obra e Data, visualização e PDF.</p>
+      </div>
+      <div class="card card-accent">
+        <div class="card-title">🛡️ Controle</div>
+        <p style="font-size:13px;color:var(--text2)">Painel com o status de vigência de cada alojamento cadastrado: vigente, com prazo, prazo vencido ou nunca vistoriado.</p>
       </div>
     </div>
 
@@ -267,9 +283,41 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     </div>
   </section>
 
-  <!-- ─────────────────── 2. NOVO RELATÓRIO ─────────────────── -->
+  <!-- ─────────────────── 2. CADASTRO DE ALOJAMENTOS ─────────────────── -->
+  <section id="cadastro">
+    <h2><span class="section-num">2</span> Cadastro de Alojamentos</h2>
+    <p class="section-lead">
+      Acesse <strong>Alojamentos → Cadastro de Alojamentos</strong>. Aqui você cadastra os locais físicos (Obra +
+      Endereço) que depois aparecem para escolha na hora de criar um novo relatório de vistoria.
+    </p>
+
+    <ul class="feature-list">
+      <li>Locais listados agrupados por Obra</li>
+      <li>Formulário "Novo Alojamento": <strong>Obra</strong> e <strong>Endereço</strong>, ambos obrigatórios</li>
+      <li>Cada local pode ser <strong>editado</strong> (trocar obra ou endereço) diretamente na lista</li>
+      <li>Cada local pode ser <strong>excluído</strong>, com confirmação de segurança</li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Pré-requisito para o relatório</div>
+        <div class="callout-text">Não é possível criar um novo relatório de vistoria sem que a Obra tenha ao menos um alojamento cadastrado aqui. Se faltar, o formulário de Novo Relatório mostra um aviso com atalho direto para esta tela.</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Excluir um alojamento não apaga o histórico</div>
+        <div class="callout-text">Relatórios de vistoria já salvos para aquele endereço continuam existindo e acessíveis normalmente, mesmo que o cadastro do local seja excluído depois.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 3. NOVO RELATÓRIO ─────────────────── -->
   <section id="novo-relatorio">
-    <h2><span class="section-num">2</span> Novo Relatório</h2>
+    <h2><span class="section-num">3</span> Novo Relatório</h2>
     <p class="section-lead">
       Acesse <strong>Alojamentos → Relatório de Alojamento</strong> (ou o botão "Novo Relatório") para abrir o formulário.
     </p>
@@ -279,23 +327,46 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
       <thead><tr><th>Campo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
       <tbody>
         <tr><td>Obra</td><td><span class="req">Sim</span></td><td>Lista apenas obras ativas, vinda do cadastro de Obras</td></tr>
-        <tr><td>Endereço do Alojamento</td><td><span class="req">Sim</span></td><td>Endereço completo onde fica o alojamento</td></tr>
+        <tr><td>Alojamento (Endereço)</td><td><span class="req">Sim</span></td><td>Selecionado a partir dos locais já cadastrados em "Cadastro de Alojamentos" para a obra escolhida</td></tr>
         <tr><td>Empresa Responsável</td><td><span class="req">Sim</span></td><td>Empresa que administra/loca o alojamento</td></tr>
-        <tr><td>Nº Quartos / Banheiros / Alojados</td><td><span class="opt">Opcional</span></td><td>Números inteiros, só para referência</td></tr>
-        <tr><td>Capacidade Máxima</td><td><span class="opt">Opcional</span></td><td>Limite de pessoas suportado pelo alojamento</td></tr>
+        <tr><td>Nº de Quartos</td><td><span class="req">Sim</span></td><td>Gera automaticamente um bloco "Dormitório 1, 2, 3…" para cada quarto informado</td></tr>
+        <tr><td>Nº de Banheiros</td><td><span class="req">Sim</span></td><td>Gera automaticamente um bloco "Sanitário 1, 2…" para cada banheiro informado</td></tr>
+        <tr><td>Nº de Alojados</td><td><span class="req">Sim</span></td><td>Total de trabalhadores alojados no local</td></tr>
+        <tr><td>Capacidade Máxima</td><td><span class="req">Sim</span></td><td>Limite de pessoas suportado pelo alojamento</td></tr>
         <tr><td>Responsável pela Compra dos Itens Faltantes</td><td><span class="opt">Opcional</span></td><td>Quem deve providenciar o que estiver faltando</td></tr>
         <tr><td>Responsável pelo Alojamento</td><td><span class="opt">Opcional</span></td><td>Pessoa responsável pelo dia a dia do alojamento</td></tr>
         <tr><td>Responsável pelo Relatório</td><td><span class="req">Sim</span></td><td>Quem está realizando esta vistoria (ex: o TST)</td></tr>
         <tr><td>Data</td><td><span class="req">Sim</span></td><td>Data da vistoria — vem preenchida com a data de hoje</td></tr>
+        <tr><td>Prazo para Resolução</td><td><span class="req">Condicional</span></td><td>Obrigatório apenas se algum item ficar Não Conforme — define até quando a pendência deve ser resolvida</td></tr>
       </tbody>
     </table>
+
+    <div class="callout warn">
+      <div class="callout-icon">🔗</div>
+      <div class="callout-body">
+        <div class="callout-title">Obra → Alojamento em cascata</div>
+        <div class="callout-text">Primeiro escolha a Obra, depois o Alojamento (endereço) daquela obra. Se a obra ainda não tiver nenhum alojamento cadastrado, aparece um aviso com link direto para o Cadastro de Alojamentos.</div>
+      </div>
+    </div>
+
+    <h3><span class="icon">🛏️</span> Dormitórios e Sanitários por unidade</h3>
+    <p>
+      Diferente dos demais itens, <strong>Dormitórios</strong> e <strong>Sanitários</strong> não têm um único bloco de
+      fotos/observação — o sistema gera uma sub-unidade para cada quarto e cada banheiro informado nos campos
+      "Nº de Quartos" / "Nº de Banheiros" (ex: Dormitório 1, Dormitório 2, Dormitório 3…). Cada sub-unidade tem sua
+      própria área de fotos e seu próprio campo de observação (até 255 caracteres).
+    </p>
+    <p>
+      Se você alterar a quantidade de quartos ou banheiros depois de já ter preenchido fotos/observações, os dados
+      das sub-unidades que continuam existindo são preservados.
+    </p>
 
     <h3><span class="icon">✅</span> Preenchendo os itens</h3>
     <p>Cada um dos 11 itens vem como um card colapsável. Ao abrir um item, você encontra:</p>
     <ul class="feature-list">
       <li>A lista de cláusulas normativas daquele item (o que precisa ser verificado)</li>
       <li>Botões <strong>Conforme</strong> / <strong>Não Conforme</strong> — o padrão inicial é sempre <strong>Não Conforme</strong>, você precisa confirmar ativamente que está tudo certo</li>
-      <li>Upload de fotos pela câmera do celular ou pela galeria (sem limite de quantidade)</li>
+      <li>Upload de fotos pela câmera do celular, pela galeria, ou <strong>arrastando e soltando</strong> os arquivos diretamente na área de fotos (no computador) — sem limite de quantidade</li>
       <li>Campo de observações (até 255 caracteres)</li>
     </ul>
 
@@ -308,6 +379,14 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     </div>
 
     <div class="callout tip">
+      <div class="callout-icon">🖱️</div>
+      <div class="callout-body">
+        <div class="callout-title">Arraste e solte no computador</div>
+        <div class="callout-text">Além dos botões Câmera e Galeria, a área de fotos de cada item aceita arrastar arquivos diretamente do explorador de arquivos — a borda fica destacada em roxo enquanto o arquivo está sendo arrastado sobre a área.</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
       <div class="callout-icon">🖼️</div>
       <div class="callout-body">
         <div class="callout-title">Clique na foto para ampliar</div>
@@ -315,12 +394,20 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
       </div>
     </div>
 
+    <div class="callout danger">
+      <div class="callout-icon">⏰</div>
+      <div class="callout-body">
+        <div class="callout-title">Prazo de Resolução</div>
+        <div class="callout-text">Se qualquer item ficar Não Conforme, o campo "Prazo para Resolução das Não Conformidades" se torna obrigatório. O alojamento passa a aparecer na tela de <strong>Controle</strong> com esse prazo até que uma nova vistoria saia 100% conforme.</div>
+      </div>
+    </div>
+
     <p>Ao final, clique em <strong>"Salvar Relatório"</strong>. Você será levado direto para a tela de detalhe do relatório recém-criado, de onde já pode gerar o PDF.</p>
   </section>
 
-  <!-- ─────────────────── 3. ITENS DE VISTORIA ─────────────────── -->
+  <!-- ─────────────────── 4. ITENS DE VISTORIA ─────────────────── -->
   <section id="itens-vistoria">
-    <h2><span class="section-num">3</span> Itens de Vistoria</h2>
+    <h2><span class="section-num">4</span> Itens de Vistoria</h2>
     <p class="section-lead">
       Os 11 itens são fixos no sistema, baseados na NR-18 e na NR-24. Cada item traz uma ou mais cláusulas
       normativas específicas.
@@ -389,9 +476,9 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     </div>
   </section>
 
-  <!-- ─────────────────── 4. LISTA E FILTROS ─────────────────── -->
+  <!-- ─────────────────── 5. LISTA E FILTROS ─────────────────── -->
   <section id="lista">
-    <h2><span class="section-num">4</span> Relatórios Salvos — Lista e Filtros</h2>
+    <h2><span class="section-num">5</span> Relatórios Salvos — Lista e Filtros</h2>
     <p class="section-lead">
       Acesse <strong>Alojamentos → Relatórios Salvos</strong> para ver todos os relatórios já criados.
     </p>
@@ -409,23 +496,25 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     <p>Cada relatório na lista tem dois botões: o ícone de <strong>olho</strong> abre a tela de detalhe, e o botão <strong>PDF</strong> gera o arquivo direto da lista, sem precisar abrir o relatório.</p>
   </section>
 
-  <!-- ─────────────────── 5. DETALHE ─────────────────── -->
+  <!-- ─────────────────── 6. DETALHE ─────────────────── -->
   <section id="detalhe">
-    <h2><span class="section-num">5</span> Detalhe do Relatório</h2>
+    <h2><span class="section-num">6</span> Detalhe do Relatório</h2>
     <p class="section-lead">
       Mostra todos os dados do alojamento e os 11 itens com sua classificação, cláusulas normativas, observações e fotos.
     </p>
     <ul class="feature-list">
       <li>Cabeçalho vermelho com o código do relatório (ex: <code>ALJ-0002</code>) e a data da vistoria</li>
+      <li>Se houver Prazo de Resolução, uma faixa de aviso aparece no topo (âmbar dentro do prazo, vermelha se o prazo já venceu)</li>
       <li>Bloco com todos os dados cadastrais do alojamento</li>
       <li>Um card por item, com badge <span class="badge verde">Conforme</span> ou <span class="badge vermelho">Não Conforme</span></li>
+      <li>Dormitórios e Sanitários aparecem divididos por sub-unidade (Dormitório 1, 2… / Sanitário 1, 2…), cada uma com sua própria observação e fotos</li>
       <li>Botão <strong>"Gerar PDF"</strong> no topo da tela</li>
     </ul>
   </section>
 
-  <!-- ─────────────────── 6. PDF ─────────────────── -->
+  <!-- ─────────────────── 7. PDF ─────────────────── -->
   <section id="pdf">
-    <h2><span class="section-num">6</span> Gerar PDF</h2>
+    <h2><span class="section-num">7</span> Gerar PDF</h2>
     <p class="section-lead">
       O PDF é montado no navegador (não fica salvo no servidor) a partir dos dados do relatório já salvo.
     </p>
@@ -445,14 +534,55 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     </div>
   </section>
 
-  <!-- ─────────────────── 7. DASHBOARD ─────────────────── -->
+  <!-- ─────────────────── 8. CONTROLE ─────────────────── -->
+  <section id="controle">
+    <h2><span class="section-num">8</span> Controle</h2>
+    <p class="section-lead">
+      Acesse <strong>Alojamentos → Controle</strong>. A tela agrupa por Obra todos os <strong>locais cadastrados</strong>
+      (não os relatórios) e mostra o status de vigência de cada um, calculado a partir da última vistoria feita.
+    </p>
+
+    <h3><span class="icon">🏷️</span> Status possíveis</h3>
+    <table class="field-table">
+      <thead><tr><th>Status</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge verde">Vigente até DD/MM/AAAA</span></td><td>Última vistoria saiu 100% conforme. Fica válida até o 1º dia do mês seguinte ao da vistoria</td></tr>
+        <tr><td><span class="badge" style="background:rgba(245,158,11,0.1);color:#fbbf24;border-color:rgba(245,158,11,0.3)">Prazo DD/MM/AAAA</span></td><td>Há item(ns) Não Conforme e o prazo de resolução definido ainda não venceu</td></tr>
+        <tr><td><span class="badge vermelho">Prazo Vencido (DD/MM/AAAA)</span></td><td>Há item(ns) Não Conforme e o prazo de resolução já passou</td></tr>
+        <tr><td><span class="badge" style="background:rgba(161,161,170,0.1);color:#a1a1aa;border-color:rgba(161,161,170,0.3)">Pendente / Nunca vistoriado</span></td><td>Local cadastrado sem nenhum relatório ainda, ou cuja vigência já expirou</td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">👁️</span> Ações por linha</h3>
+    <p>O ícone de <strong>olho</strong> abre o último relatório feito para aquele local (fica desabilitado se o local nunca foi vistoriado). O botão <strong>PDF</strong> gera o PDF do último relatório (também desabilitado se não houver relatório algum).</p>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Não há filtro nesta tela</div>
+        <div class="callout-text">Diferente da lista de Relatórios Salvos, o Controle mostra sempre todos os locais cadastrados, agrupados por Obra — sem busca ou filtro adicional.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 9. DASHBOARD ─────────────────── -->
   <section id="dashboard">
-    <h2><span class="section-num">7</span> Dashboard</h2>
+    <h2><span class="section-num">9</span> Dashboard</h2>
     <p class="section-lead">
       Visão consolidada de todos os relatórios já salvos, com filtro por Obra e por período.
     </p>
 
-    <h3><span class="icon">📊</span> KPIs</h3>
+    <h3><span class="icon">🏘️</span> Alojamentos Cadastrados</h3>
+    <p>Bloco com o status de vigência dos locais cadastrados (o mesmo cálculo usado na tela de Controle), com filtro próprio de período (De/Até):</p>
+    <div class="card-grid-3">
+      <div class="card"><div class="card-title">Total Cadastrado</div><p style="font-size:13px;color:var(--text2)">Quantidade de alojamentos cadastrados no filtro atual</p></div>
+      <div class="card"><div class="card-title">Conformes (Vigentes)</div><p style="font-size:13px;color:var(--text2)">Alojamentos com última vistoria 100% conforme e ainda dentro da vigência</p></div>
+      <div class="card"><div class="card-title">Não Conformes</div><p style="font-size:13px;color:var(--text2)">Alojamentos com prazo de resolução em aberto, destacando quantos já estão com o prazo vencido</p></div>
+      <div class="card"><div class="card-title">Pendentes</div><p style="font-size:13px;color:var(--text2)">Nunca vistoriados ou com vigência expirada</p></div>
+    </div>
+    <p>Um gráfico combinado (barras + linha de tendência) mostra a evolução mensal de Conforme × Não Conforme × Pendente no intervalo De/Até escolhido.</p>
+
+    <h3><span class="icon">📊</span> Itens Avaliados nos Relatórios</h3>
     <div class="card-grid">
       <div class="card"><div class="card-title">Relatórios</div><p style="font-size:13px;color:var(--text2)">Total de relatórios no filtro atual</p></div>
       <div class="card"><div class="card-title">Itens Conformes</div><p style="font-size:13px;color:var(--text2)">Soma de itens conformes em todos os relatórios, com % de conformidade geral</p></div>
@@ -489,12 +619,14 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
 <div class="mob-panel" id="mobPanel">
   <div class="mob-panel-title">Seções do Manual</div>
   <a href="#visao-geral"     onclick="closeMobNav()"><span>1</span> Visão Geral</a>
-  <a href="#novo-relatorio"  onclick="closeMobNav()"><span>2</span> Novo Relatório</a>
-  <a href="#itens-vistoria"  onclick="closeMobNav()"><span>3</span> Itens de Vistoria</a>
-  <a href="#lista"           onclick="closeMobNav()"><span>4</span> Lista e Filtros</a>
-  <a href="#detalhe"         onclick="closeMobNav()"><span>5</span> Detalhe do Relatório</a>
-  <a href="#pdf"             onclick="closeMobNav()"><span>6</span> Gerar PDF</a>
-  <a href="#dashboard"       onclick="closeMobNav()"><span>7</span> Dashboard</a>
+  <a href="#cadastro"        onclick="closeMobNav()"><span>2</span> Cadastro de Alojamentos</a>
+  <a href="#novo-relatorio"  onclick="closeMobNav()"><span>3</span> Novo Relatório</a>
+  <a href="#itens-vistoria"  onclick="closeMobNav()"><span>4</span> Itens de Vistoria</a>
+  <a href="#lista"           onclick="closeMobNav()"><span>5</span> Lista e Filtros</a>
+  <a href="#detalhe"         onclick="closeMobNav()"><span>6</span> Detalhe do Relatório</a>
+  <a href="#pdf"             onclick="closeMobNav()"><span>7</span> Gerar PDF</a>
+  <a href="#controle"        onclick="closeMobNav()"><span>8</span> Controle</a>
+  <a href="#dashboard"       onclick="closeMobNav()"><span>9</span> Dashboard</a>
 </div>
 
 <script>
