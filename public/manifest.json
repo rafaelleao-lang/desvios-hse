@@ -1,0 +1,12 @@
+{
+  "name": "Desvios HSE | Gestão de Segurança",
+  "short_name": "Desvios HSE",
+  "description": "Plataforma corporativa de gestão de desvios de segurança HSE/SST",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090B",
+  "theme_color": "#09090B",
+  "icons": [
+    { "src": "/logos/mse.png", "sizes": "340x350", "type": "image/png" }
+  ]
+}
