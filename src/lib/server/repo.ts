@@ -642,12 +642,15 @@ const INSP_LIST_SQL = `
     COALESCE(ev.tr, 0)  AS total_reconhecimentos,
     COALESCE(cl.df, 0)  AS desvios_fechados,
     CASE
+      WHEN COALESCE(ev.td, 0) = 0 AND COALESCE(ev.tr, 0) > 0 THEN 'concluida'
       WHEN COALESCE(ev.td, 0) > 0
        AND COALESCE(cl.df, 0) >= COALESCE(ev.td, 0) THEN 'concluida'
       WHEN COALESCE(ev.td, 0) > 0                   THEN 'em_aberto'
       ELSE i.status
     END AS status,
     CASE
+      WHEN COALESCE(ev.td, 0) = 0 AND COALESCE(ev.tr, 0) > 0
+        THEN COALESCE(i.fechado_em, NOW())
       WHEN COALESCE(ev.td, 0) > 0 AND COALESCE(cl.df, 0) >= COALESCE(ev.td, 0)
         THEN COALESCE(i.fechado_em, cl.last_closed)
       ELSE NULL
@@ -815,7 +818,7 @@ export const inspecoesRepo = {
     const td = Number((counts as RowDataPacket).td ?? 0)
     const tr = Number((counts as RowDataPacket).tr ?? 0)
     const df = Number((closed as RowDataPacket).df ?? 0)
-    const isConcluida = td > 0 && df >= td
+    const isConcluida = (td === 0 && tr > 0) || (td > 0 && df >= td)
     const inspRow = await query<RowDataPacket[]>('SELECT fechado_em FROM inspecoes WHERE id = ? LIMIT 1', [inspecaoId])
     const existingFechadoEm = inspRow[0]?.fechado_em ?? null
     await query(
