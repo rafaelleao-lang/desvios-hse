@@ -259,6 +259,69 @@ export async function gerarPDFAlojamento(reg: Alojamento & { itens: AlojamentoIt
     }
   }
 
+  // ── Página final: Lista de Pendências (todas as observações do relatório) ──
+  type Pendencia = { numero: number; titulo: string; sub?: string; conforme: boolean; texto: string }
+  const pendencias: Pendencia[] = []
+  for (const it of reg.itens) {
+    const cfg = ALOJAMENTO_ITENS_CONFIG.find(c => c.key === it.item_key)
+    const titulo = cfg?.titulo ?? it.item_key
+    const numero = cfg?.numero ?? 0
+    if (it.sub_unidades && it.sub_unidades.length > 0) {
+      const label = SUB_UNIDADE_LABELS[it.item_key] ?? 'Unidade'
+      for (const su of it.sub_unidades) {
+        if (su.observacao?.trim()) {
+          pendencias.push({ numero, titulo, sub: `${label} ${su.numero}`, conforme: it.conforme, texto: su.observacao.trim() })
+        }
+      }
+    } else if (it.observacao?.trim()) {
+      pendencias.push({ numero, titulo, conforme: it.conforme, texto: it.observacao.trim() })
+    }
+  }
+
+  doc.addPage(); drawHeader(); y = 26
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(20, 20, 20)
+  doc.text('Lista de Pendências', ML, y + 1); y += 10
+  doc.setDrawColor(...RED); doc.setLineWidth(0.8)
+  doc.line(ML, y, PW - MR, y); y += 6
+
+  if (pendencias.length === 0) {
+    ensureSpace(20)
+    doc.setFillColor(240, 253, 244); doc.setDrawColor(200, 230, 205); doc.setLineWidth(0.3)
+    doc.roundedRect(ML, y, CW, 18, 2, 2, 'FD')
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(22, 163, 74)
+    doc.text('Nenhuma observação registrada neste relatório.', ML + CW / 2, y + 11, { align: 'center' })
+    y += 22
+  } else {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(120, 120, 120)
+    doc.text(`${pendencias.length} observação(ões) registrada(s) ao longo do relatório`, ML, y); y += 7
+
+    pendencias.forEach((p, idx) => {
+      const lines = doc.splitTextToSize(p.texto, CW - 16)
+      const boxH = Math.max(14, lines.length * 4 + 9)
+      ensureSpace(boxH + 5)
+
+      const badgeColor: [number, number, number] = p.conforme ? GREEN : RED
+      doc.setFillColor(...badgeColor); doc.roundedRect(ML, y, 9, boxH, 2, 2, 'F')
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255)
+      doc.text(String(idx + 1), ML + 4.5, y + boxH / 2 + 1.2, { align: 'center' })
+
+      doc.setFillColor(250, 250, 250); doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.3)
+      doc.roundedRect(ML + 11, y, CW - 11, boxH, 2, 2, 'FD')
+
+      const titulo = p.sub ? `${p.titulo} — ${p.sub}` : p.titulo
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
+      doc.text(titulo, ML + 15, y + 5)
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...badgeColor)
+      doc.text(p.conforme ? 'CONFORME' : 'NÃO CONFORME', ML + CW - 4, y + 5, { align: 'right' })
+
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(70, 70, 70)
+      doc.text(lines, ML + 15, y + 9.5)
+
+      y += boxH + 5
+    })
+  }
+
   drawFooter()
 
   const dd = String(hoje.getDate()).padStart(2, '0')

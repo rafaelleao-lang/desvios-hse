@@ -8,7 +8,7 @@ import { ALOJAMENTO_ITENS_CONFIG, SUB_UNIDADE_LABELS, generateAlojamentoId } fro
 import type { Alojamento, AlojamentoItem } from '@/types/alojamentos'
 import {
   ArrowLeft, Building2, MapPin, User, Calendar, FileText, Loader2,
-  ThumbsUp, ThumbsDown, Image as ImageIcon, X, Clock,
+  ThumbsUp, ThumbsDown, Image as ImageIcon, X, Clock, ListChecks,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -168,6 +168,21 @@ export default function AlojamentoDetalhePage() {
     )
   }
 
+  const pendencias = reg.itens.flatMap(item => {
+    const cfg = ALOJAMENTO_ITENS_CONFIG.find(c => c.key === item.item_key)
+    const titulo = cfg?.titulo ?? item.item_key
+    if (item.sub_unidades && item.sub_unidades.length > 0) {
+      const label = SUB_UNIDADE_LABELS[item.item_key] ?? 'Unidade'
+      return item.sub_unidades
+        .filter(su => su.observacao?.trim())
+        .map(su => ({ titulo, sub: `${label} ${su.numero}`, conforme: item.conforme, texto: su.observacao!.trim() }))
+    }
+    if (item.observacao?.trim()) {
+      return [{ titulo, sub: undefined as string | undefined, conforme: item.conforme, texto: item.observacao.trim() }]
+    }
+    return []
+  })
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-10">
       <div className="flex items-center justify-between">
@@ -238,6 +253,43 @@ export default function AlojamentoDetalhePage() {
       <div className="space-y-3">
         <h2 className="text-sm font-bold text-zinc-200 px-1">Itens de Inspeção ({reg.itens.length})</h2>
         {reg.itens.map(item => <ItemCard key={item.id} item={item} onPreview={setPreviewUrl} />)}
+      </div>
+
+      {/* Lista de Pendências */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-bold text-zinc-200 px-1 flex items-center gap-2">
+          <ListChecks className="w-4 h-4" style={{ color: ALOJ_COLOR }} /> Lista de Pendências
+        </h2>
+        {pendencias.length === 0 ? (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
+            <p className="text-sm text-emerald-400 font-medium">Nenhuma observação registrada neste relatório.</p>
+          </div>
+        ) : (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl divide-y divide-zinc-800">
+            {pendencias.map((p, idx) => (
+              <div key={idx} className="flex gap-3 p-4">
+                <div className={cn(
+                  'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0',
+                  p.conforme ? 'bg-emerald-500' : 'bg-red-500',
+                )}>
+                  {idx + 1}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-zinc-200">{p.titulo}{p.sub ? ` — ${p.sub}` : ''}</p>
+                    <span className={cn(
+                      'text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0',
+                      p.conforme ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400',
+                    )}>
+                      {p.conforme ? 'CONFORME' : 'NÃO CONFORME'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-zinc-400">{p.texto}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Preview ampliado da foto */}
