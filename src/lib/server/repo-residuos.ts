@@ -259,23 +259,49 @@ const saldosRepo = {
     await query('DELETE FROM res_saldos WHERE id=?', [id])
   },
   async saldosPorObra(): Promise<SaldoObra[]> {
+    // Cada movimentação (entrada/retirada) tem sua própria `unidade_medida`
+    // de texto livre (ex.: "Caçamba 5m³" vs "Peso (kg)"), escolhida no
+    // formulário a cada lançamento. Agrupar por obra+tipo+unidade (como era
+    // antes) fragmentava o saldo de um mesmo resíduo em várias linhas sempre
+    // que a unidade variava entre lançamentos — e como a subquery de
+    // retiradas não filtra por unidade, o total de retiradas era subtraído
+    // por completo de CADA fragmento, deixando o saldo incorreto (geralmente
+    // negativo) mesmo com os valores certos no banco. O agrupamento correto
+    // é só por obra+tipo; a unidade exibida é a do lançamento mais recente.
+    // Também usamos UNION para não esconder obra+tipo que só têm retirada
+    // (sem nenhuma entrada correspondente).
     const rows = await query<RowDataPacket[]>(`
       SELECT
-        s.obra_id,
+        combo.obra_id,
         o.nome AS obra_nome,
-        s.tipo_id,
+        combo.tipo_id,
         t.nome AS tipo_nome,
-        s.unidade_medida,
-        COALESCE(SUM(s.quantidade), 0) AS total_entrada,
-        COALESCE((
-          SELECT SUM(r.quantidade)
-          FROM res_retiradas r
-          WHERE r.obra_id = s.obra_id AND r.tipo_id = s.tipo_id
-        ), 0) AS total_retirada
-      FROM res_saldos s
-      INNER JOIN obras o ON o.id = s.obra_id
-      INNER JOIN res_tipos t ON t.id = s.tipo_id
-      GROUP BY s.obra_id, o.nome, s.tipo_id, t.nome, s.unidade_medida
+        COALESCE(
+          (SELECT s2.unidade_medida FROM res_saldos s2
+           WHERE s2.obra_id = combo.obra_id AND s2.tipo_id = combo.tipo_id
+           ORDER BY s2.data DESC, s2.criado_em DESC LIMIT 1),
+          (SELECT r2.unidade_medida FROM res_retiradas r2
+           WHERE r2.obra_id = combo.obra_id AND r2.tipo_id = combo.tipo_id
+           ORDER BY r2.data DESC, r2.criado_em DESC LIMIT 1),
+          t.unidade_medida
+        ) AS unidade_medida,
+        COALESCE(e.total_entrada, 0) AS total_entrada,
+        COALESCE(r.total_retirada, 0) AS total_retirada
+      FROM (
+        SELECT obra_id, tipo_id FROM res_saldos
+        UNION
+        SELECT obra_id, tipo_id FROM res_retiradas
+      ) combo
+      INNER JOIN obras o ON o.id = combo.obra_id
+      INNER JOIN res_tipos t ON t.id = combo.tipo_id
+      LEFT JOIN (
+        SELECT obra_id, tipo_id, SUM(quantidade) AS total_entrada
+        FROM res_saldos GROUP BY obra_id, tipo_id
+      ) e ON e.obra_id = combo.obra_id AND e.tipo_id = combo.tipo_id
+      LEFT JOIN (
+        SELECT obra_id, tipo_id, SUM(quantidade) AS total_retirada
+        FROM res_retiradas GROUP BY obra_id, tipo_id
+      ) r ON r.obra_id = combo.obra_id AND r.tipo_id = combo.tipo_id
       ORDER BY o.nome ASC, t.nome ASC
     `)
     return rows.map(r => ({
