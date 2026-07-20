@@ -34,6 +34,8 @@ export const alojamentosDB = {
     rpc('alojamentos', 'find', id),
   create: (data: CreateAlojamentoInput, itens: CreateAlojamentoItemInput[]): Promise<Alojamento & { itens: AlojamentoItem[] }> =>
     rpc('alojamentos', 'create', data, itens),
+  update: (id: string, data: CreateAlojamentoInput, itens: CreateAlojamentoItemInput[]): Promise<(Alojamento & { itens: AlojamentoItem[] }) | undefined> =>
+    rpc('alojamentos', 'update', id, data, itens),
   delete: (id: string): Promise<void> => rpc('alojamentos', 'delete', id),
   statsPorItem: (): Promise<AlojamentoItemStats[]> => rpc('alojamentos', 'statsPorItem'),
 }

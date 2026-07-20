@@ -105,6 +105,38 @@ type CreateAlojamentoInput = {
   prazo_resolucao?: string
 }
 
+async function insertItens(alojamentoId: string, itens: CreateItemInput[]): Promise<AlojamentoItem[]> {
+  const itemRecords: AlojamentoItem[] = itens.map(it => ({
+    id: uid(),
+    alojamento_id: alojamentoId,
+    item_key: it.item_key,
+    ordem: it.ordem,
+    conforme: it.conforme,
+    observacao: it.observacao,
+    fotos: it.fotos ?? [],
+    sub_unidades: it.sub_unidades ?? [],
+  }))
+
+  if (itemRecords.length > 0) {
+    const placeholders = itemRecords.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
+    const flat: unknown[] = []
+    for (const it of itemRecords) {
+      flat.push(
+        it.id, it.alojamento_id, it.item_key, it.ordem,
+        it.conforme ? 1 : 0, it.observacao ?? null,
+        JSON.stringify(it.fotos ?? []), JSON.stringify(it.sub_unidades ?? []), now(),
+      )
+    }
+    await query<ResultSetHeader>(
+      `INSERT INTO alojamento_itens (id, alojamento_id, item_key, ordem, conforme, observacao, fotos, sub_unidades, criado_em)
+       VALUES ${placeholders}`,
+      flat,
+    )
+  }
+
+  return itemRecords
+}
+
 // ── Repositório ──────────────────────────────────────────────────────────────
 const alojamentosRepo = {
   async list(filters?: { obra_id?: string; data_inicio?: string; data_fim?: string }): Promise<Alojamento[]> {
@@ -173,33 +205,54 @@ const alojamentosRepo = {
       ],
     )
 
-    const itemRecords: AlojamentoItem[] = itens.map(it => ({
-      id: uid(),
-      alojamento_id: aloj.id,
-      item_key: it.item_key,
-      ordem: it.ordem,
-      conforme: it.conforme,
-      observacao: it.observacao,
-      fotos: it.fotos ?? [],
-      sub_unidades: it.sub_unidades ?? [],
-    }))
+    const itemRecords = await insertItens(aloj.id, itens)
 
-    if (itemRecords.length > 0) {
-      const placeholders = itemRecords.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ')
-      const flat: unknown[] = []
-      for (const it of itemRecords) {
-        flat.push(
-          it.id, it.alojamento_id, it.item_key, it.ordem,
-          it.conforme ? 1 : 0, it.observacao ?? null,
-          JSON.stringify(it.fotos ?? []), JSON.stringify(it.sub_unidades ?? []), now(),
-        )
-      }
-      await query<ResultSetHeader>(
-        `INSERT INTO alojamento_itens (id, alojamento_id, item_key, ordem, conforme, observacao, fotos, sub_unidades, criado_em)
-         VALUES ${placeholders}`,
-        flat,
-      )
+    return { ...aloj, itens: itemRecords }
+  },
+
+  async update(id: string, data: CreateAlojamentoInput, itens: CreateItemInput[]): Promise<(Alojamento & { itens: AlojamentoItem[] }) | undefined> {
+    const atual = await alojamentosRepo.find(id)
+    if (!atual) return undefined
+
+    const aloj: Alojamento = {
+      ...atual,
+      obra_id: data.obra_id,
+      obra_nome: data.obra_nome,
+      alojamento_local_id: data.alojamento_local_id,
+      endereco: data.endereco.trim(),
+      empresa_responsavel: data.empresa_responsavel.trim(),
+      num_quartos: data.num_quartos,
+      num_banheiros: data.num_banheiros,
+      num_alojados: data.num_alojados,
+      capacidade_maxima: data.capacidade_maxima,
+      responsavel_compra: data.responsavel_compra?.trim() || undefined,
+      responsavel_alojamento: data.responsavel_alojamento?.trim() || undefined,
+      responsavel_relatorio: data.responsavel_relatorio.trim(),
+      data_vistoria: data.data_vistoria,
+      prazo_resolucao: data.prazo_resolucao || undefined,
+      total_itens: itens.length,
+      total_conformes: itens.filter(it => it.conforme).length,
+      atualizado_em: now(),
     }
+
+    await query(
+      `UPDATE alojamentos SET
+        obra_id = ?, obra_nome = ?, alojamento_local_id = ?, endereco = ?, empresa_responsavel = ?,
+        num_quartos = ?, num_banheiros = ?, num_alojados = ?, capacidade_maxima = ?,
+        responsavel_compra = ?, responsavel_alojamento = ?, responsavel_relatorio = ?,
+        data_vistoria = ?, prazo_resolucao = ?, total_itens = ?, total_conformes = ?, atualizado_em = ?
+       WHERE id = ?`,
+      [
+        aloj.obra_id, aloj.obra_nome ?? null, aloj.alojamento_local_id ?? null, aloj.endereco, aloj.empresa_responsavel,
+        aloj.num_quartos ?? null, aloj.num_banheiros ?? null, aloj.num_alojados ?? null, aloj.capacidade_maxima ?? null,
+        aloj.responsavel_compra ?? null, aloj.responsavel_alojamento ?? null, aloj.responsavel_relatorio,
+        aloj.data_vistoria, aloj.prazo_resolucao ?? null, aloj.total_itens, aloj.total_conformes, aloj.atualizado_em,
+        id,
+      ],
+    )
+
+    await query('DELETE FROM alojamento_itens WHERE alojamento_id = ?', [id])
+    const itemRecords = await insertItens(id, itens)
 
     return { ...aloj, itens: itemRecords }
   },
@@ -278,6 +331,11 @@ export async function dispatchAlojamentos(resource: string, action: string, args
       if (action === 'create') return alojamentosRepo.create(
         args[0] as Parameters<typeof alojamentosRepo.create>[0],
         args[1] as Parameters<typeof alojamentosRepo.create>[1],
+      )
+      if (action === 'update') return alojamentosRepo.update(
+        args[0] as string,
+        args[1] as Parameters<typeof alojamentosRepo.update>[1],
+        args[2] as Parameters<typeof alojamentosRepo.update>[2],
       )
       if (action === 'delete') return alojamentosRepo.delete(args[0] as string)
       if (action === 'statsPorItem') return alojamentosRepo.statsPorItem()

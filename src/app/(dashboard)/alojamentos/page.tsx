@@ -7,7 +7,7 @@ import { alojamentosDB } from '@/lib/db-alojamentos'
 import { gerarPDFAlojamento } from '@/lib/pdf-alojamento'
 import { generateAlojamentoId } from '@/types/alojamentos'
 import type { Alojamento } from '@/types/alojamentos'
-import { Eye, Search, Filter, X, BedDouble, Calendar, FileText, Loader2 } from 'lucide-react'
+import { Eye, Pencil, Search, Filter, X, BedDouble, Calendar, FileText, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -209,6 +209,11 @@ export default function AlojamentosPage() {
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-indigo-400 hover:bg-indigo-500/10 border border-zinc-800 hover:border-indigo-500/20 transition-all"
                           >
                             <Eye className="w-3.5 h-3.5" />
+                          </Link>
+                          <Link href={`/alojamentos/${a.id}/editar`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 border border-zinc-800 hover:border-amber-500/20 transition-all"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
                           </Link>
                           <button
                             onClick={() => handlePDF(a.id)}
