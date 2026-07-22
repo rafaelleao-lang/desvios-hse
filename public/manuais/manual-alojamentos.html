@@ -366,8 +366,8 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
     <ul class="feature-list">
       <li>A lista de cláusulas normativas daquele item (o que precisa ser verificado)</li>
       <li>Botões <strong>Conforme</strong> / <strong>Não Conforme</strong> — o padrão inicial é sempre <strong>Não Conforme</strong>, você precisa confirmar ativamente que está tudo certo</li>
-      <li>Upload de fotos pela câmera do celular, pela galeria, ou <strong>arrastando e soltando</strong> os arquivos diretamente na área de fotos (no computador) — sem limite de quantidade</li>
-      <li>Campo de observações (até 255 caracteres)</li>
+      <li>Upload de fotos pela câmera do celular, pela galeria, ou <strong>arrastando e soltando</strong> os arquivos diretamente na área de fotos (no computador) — sem limite de quantidade, mas <strong>ao menos 1 foto é obrigatória</strong> em cada item (e em cada Dormitório/Sanitário individualmente)</li>
+      <li>Campo de observações (até 255 caracteres) — <strong>obrigatório sempre que o item estiver marcado como Não Conforme</strong></li>
     </ul>
 
     <div class="callout warn">
@@ -375,6 +375,22 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
       <div class="callout-body">
         <div class="callout-title">Padrão é "Não Conforme"</div>
         <div class="callout-text">Isso é proposital — evita que um item passe despercebido como conforme só porque ninguém mexeu nele. Confira item por item antes de salvar.</div>
+      </div>
+    </div>
+
+    <div class="callout danger">
+      <div class="callout-icon">📸</div>
+      <div class="callout-body">
+        <div class="callout-title">Foto obrigatória em todos os itens</div>
+        <div class="callout-text">O botão "Salvar Relatório" só fica habilitado quando todos os itens têm ao menos uma foto anexada. Um ícone de alerta (⚠️) aparece no cabeçalho de qualquer item que ainda esteja com foto ou observação pendente, mesmo com o card fechado.</div>
+      </div>
+    </div>
+
+    <div class="callout danger">
+      <div class="callout-icon">📝</div>
+      <div class="callout-body">
+        <div class="callout-title">Observação obrigatória para "Não Conforme"</div>
+        <div class="callout-text">Sempre que um item (ou uma sub-unidade de Dormitório/Sanitário) for marcado como Não Conforme, o campo de observação passa a ser obrigatório — precisa descrever o que foi encontrado antes de conseguir salvar o relatório.</div>
       </div>
     </div>
 
@@ -492,8 +508,11 @@ ul.feature-list li::before{content:'→';color:var(--accent);font-weight:700;fle
       </tbody>
     </table>
 
+    <h3><span class="icon">📋</span> Colunas da tabela</h3>
+    <p>A lista traz uma coluna <strong>Endereço</strong>, entre Obra e Empresa Responsável, mostrando o endereço do alojamento vistoriado em cada relatório — útil para diferenciar rapidamente relatórios da mesma obra que tenham mais de um alojamento cadastrado.</p>
+
     <h3><span class="icon">👁️</span> Ações por linha</h3>
-    <p>Cada relatório na lista tem dois botões: o ícone de <strong>olho</strong> abre a tela de detalhe, e o botão <strong>PDF</strong> gera o arquivo direto da lista, sem precisar abrir o relatório.</p>
+    <p>Cada relatório na lista tem três ações: o ícone de <strong>olho</strong> abre a tela de detalhe, o ícone de <strong>lápis</strong> abre o relatório para edição, e o botão <strong>PDF</strong> gera o arquivo direto da lista, sem precisar abrir o relatório.</p>
   </section>
 
   <!-- ─────────────────── 6. DETALHE ─────────────────── -->

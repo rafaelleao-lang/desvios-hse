@@ -240,7 +240,7 @@ export default function AlojamentoForm({ alojamentoId }: AlojamentoFormProps) {
     return (
       <div>
         <label className="text-xs font-semibold text-zinc-400 mb-1.5 block flex items-center gap-1.5">
-          <Camera className="w-3 h-3" /> Fotos
+          <Camera className="w-3 h-3" /> Fotos *
         </label>
         <input
           ref={el => { cameraRefs.current[fotoKey] = el }}
@@ -316,7 +316,7 @@ export default function AlojamentoForm({ alojamentoId }: AlojamentoFormProps) {
           </button>
         </div>
         {fotos.length === 0 && (
-          <p className="text-[10px] text-zinc-600 mt-1.5">Arraste uma foto aqui ou use os botões abaixo.</p>
+          <p className="text-[10px] text-red-400 mt-1.5">Obrigatório enviar ao menos uma foto. Arraste uma foto aqui ou use os botões abaixo.</p>
         )}
         {fotos.length > 0 && (
           <p className="text-[10px] text-zinc-600 mt-1.5">Clique em uma foto para ampliar. A foto aparece no PDF sem cortes, preservando a proporção.</p>
@@ -325,11 +325,25 @@ export default function AlojamentoForm({ alojamentoId }: AlojamentoFormProps) {
     )
   }
 
+  function itemFotosOk(it: ItemFormState): boolean {
+    if (it.subUnidades) return it.subUnidades.every(su => su.fotos.length > 0)
+    return it.fotos.length > 0
+  }
+
+  function itemObservacaoOk(it: ItemFormState): boolean {
+    if (it.conforme) return true
+    if (it.subUnidades) return it.subUnidades.every(su => su.observacao.trim().length > 0)
+    return it.observacao.trim().length > 0
+  }
+
+  const itensOk = itens.every(it => itemFotosOk(it) && itemObservacaoOk(it))
+
   const canSave = Boolean(
     obraId && alojamentoLocalId && empresaResponsavel.trim() &&
     numQuartos.trim() && numBanheiros.trim() && numAlojados.trim() && capacidadeMaxima.trim() &&
     responsavelRelatorio.trim() && dataVistoria &&
-    (!hasNaoConforme || prazoResolucao),
+    (!hasNaoConforme || prazoResolucao) &&
+    itensOk,
   )
 
   async function handleSave() {
@@ -514,6 +528,9 @@ export default function AlojamentoForm({ alojamentoId }: AlojamentoFormProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-zinc-200">{cfg.titulo}</p>
                 </div>
+                {!(itemFotosOk(it) && itemObservacaoOk(it)) && (
+                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                )}
                 <span className={cn(
                   'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0',
                   it.conforme ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400',
@@ -571,16 +588,23 @@ export default function AlojamentoForm({ alojamentoId }: AlojamentoFormProps) {
                           )}
 
                           <div>
-                            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Observações</label>
+                            <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">
+                              Observações{!it.conforme && ' *'}
+                            </label>
                             <textarea
                               className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 resize-none"
                               rows={2}
                               maxLength={255}
-                              placeholder={`Observações sobre ${SUB_UNIDADE_LABELS[it.item_key]?.toLowerCase()} ${su.numero} (opcional)`}
+                              placeholder={`Observações sobre ${SUB_UNIDADE_LABELS[it.item_key]?.toLowerCase()} ${su.numero}${it.conforme ? ' (opcional)' : ''}`}
                               value={su.observacao}
                               onChange={e => updateSubUnidade(it.item_key, su.numero, { observacao: e.target.value })}
                             />
-                            <p className="text-[10px] text-zinc-600 text-right mt-1">{su.observacao.length}/255</p>
+                            <div className="flex items-center justify-between mt-1">
+                              {!it.conforme && su.observacao.trim().length === 0 && (
+                                <p className="text-[10px] text-red-400">Observação obrigatória para item Não Conforme.</p>
+                              )}
+                              <p className="text-[10px] text-zinc-600 ml-auto">{su.observacao.length}/255</p>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -595,16 +619,23 @@ export default function AlojamentoForm({ alojamentoId }: AlojamentoFormProps) {
                       )}
 
                       <div>
-                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Observações</label>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">
+                          Observações{!it.conforme && ' *'}
+                        </label>
                         <textarea
                           className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 resize-none"
                           rows={2}
                           maxLength={255}
-                          placeholder="Observações sobre este item (opcional)"
+                          placeholder={`Observações sobre este item${it.conforme ? ' (opcional)' : ''}`}
                           value={it.observacao}
                           onChange={e => updateItem(it.item_key, { observacao: e.target.value })}
                         />
-                        <p className="text-[10px] text-zinc-600 text-right mt-1">{it.observacao.length}/255</p>
+                        <div className="flex items-center justify-between mt-1">
+                          {!it.conforme && it.observacao.trim().length === 0 && (
+                            <p className="text-[10px] text-red-400">Observação obrigatória para item Não Conforme.</p>
+                          )}
+                          <p className="text-[10px] text-zinc-600 ml-auto">{it.observacao.length}/255</p>
+                        </div>
                       </div>
                     </>
                   )}

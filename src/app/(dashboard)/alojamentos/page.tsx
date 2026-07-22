@@ -181,6 +181,7 @@ export default function AlojamentosPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">#</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Data</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Obra</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Endereço</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Empresa Responsável</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">Resp. Relatório</th>
                   <th className="px-4 py-3 text-xs font-semibold text-zinc-500">Ações</th>
@@ -201,6 +202,7 @@ export default function AlojamentosPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-zinc-200 text-xs font-medium max-w-[140px] truncate">{a.obra_nome || '—'}</td>
+                      <td className="px-4 py-3 text-zinc-400 text-xs max-w-[160px] truncate">{a.endereco || '—'}</td>
                       <td className="px-4 py-3 text-zinc-400 text-xs max-w-[150px] truncate">{a.empresa_responsavel}</td>
                       <td className="px-4 py-3 text-zinc-400 text-xs max-w-[130px] truncate">{a.responsavel_relatorio}</td>
                       <td className="px-4 py-3">
