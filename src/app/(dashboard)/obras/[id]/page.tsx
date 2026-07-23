@@ -73,6 +73,12 @@ export default function ObraDetailPage() {
     await refresh()
     setEditingObra(false)
   }
+  async function toggleObraAtiva() {
+    const acao = obra!.ativa ? 'inativar' : 'reativar'
+    if (!confirm(`Deseja ${acao} a obra "${obra!.nome}"?`)) return
+    await obrasDB.update(id, { ativa: !obra!.ativa })
+    await refresh()
+  }
 
   // ── TST ──
   async function addTST() {
@@ -566,10 +572,18 @@ export default function ObraDetailPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-zinc-300">Dados da Obra</p>
             {!editingObra && (
-              <button onClick={startEditObra}
-                className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition-colors">
-                <Edit className="w-3.5 h-3.5" />Editar
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={startEditObra}
+                  className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                  <Edit className="w-3.5 h-3.5" />Editar
+                </button>
+                <button onClick={toggleObraAtiva}
+                  className={cn('flex items-center gap-1.5 text-xs transition-colors',
+                    obra.ativa ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300')}>
+                  {obra.ativa ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                  {obra.ativa ? 'Inativar' : 'Reativar'}
+                </button>
+              </div>
             )}
           </div>
 

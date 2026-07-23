@@ -141,7 +141,8 @@ export default function SaldoPage() {
       .sort((a, b) => a.nome.localeCompare(b.nome))
   }, [saldos])
 
-  const obras = useMemo<ObraCard[]>(() => {
+  // Todas as obras que batem o filtro, incluindo as zeradas (usado nos KPIs).
+  const obrasTodas = useMemo<ObraCard[]>(() => {
     const map = new Map<string, ObraCard>()
     for (const s of saldos) {
       if (!map.has(s.obra_id))
@@ -156,6 +157,9 @@ export default function SaldoPage() {
       .filter(o => !obraFiltro || o.obra_id === obraFiltro)
       .sort((a, b) => a.obra_nome.localeCompare(b.obra_nome))
   }, [saldos, obraFiltro])
+
+  // Cards exibidos na grade — obras zeradas ficam fora (contabilizadas só no KPI "Zeradas").
+  const obras = useMemo(() => obrasTodas.filter(o => o.itens.length > 0), [obrasTodas])
 
   // ── Gerador de PDF ────────────────────────────────────────────────────────────
   function gerarPDF() {
@@ -324,9 +328,9 @@ export default function SaldoPage() {
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
-  const totalObras   = obras.length
+  const totalObras   = obrasTodas.length
   const totalSaldo   = obras.reduce((s, o) => s + o.itens.reduce((ss, i) => ss + i.saldo, 0), 0)
-  const obrasZeradas = obras.filter(o => o.itens.length === 0).length
+  const obrasZeradas = obrasTodas.filter(o => o.itens.length === 0).length
 
   return (
     <div className="space-y-5">
