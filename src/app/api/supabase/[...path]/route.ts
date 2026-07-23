@@ -26,8 +26,7 @@ export const dynamic = 'force-dynamic'
  */
 
 // Tabelas expostas (mesmos nomes do Supabase).
-const TABLES = new Set(['obras', 'tsts', 'encarregados', 'coordenadores', 'desvios', 'indicadores_semanais'])
-
+const TABLES = new Set(['obras', 'tsts', 'encarregados', 'coordenadores', 'desvios', 'indicadores_semanais', 'res_saldos', 'res_retiradas', 'res_tipos'])
 // Colunas que precisam de coerção para reproduzir o JSON do Supabase.
 const BOOL_COLS: Record<string, Set<string>> = {
   obras: new Set(['ativa']),
