@@ -290,7 +290,7 @@ type CreateInspecaoData = {
   data_inspecao: string; hora_inspecao?: string
 }
 
-type AddEvidenciaData = Omit<InspecaoEvidencia, 'id' | 'criado_em' | 'inspecao_id'>
+type AddEvidenciaData = Omit<InspecaoEvidencia, 'id' | 'criado_em' | 'inspecao_id' | 'forms_status'>
 
 export const inspecoesDB = {
   list: (): Promise<Inspecao[]> => rpc('inspecoes', 'list'),

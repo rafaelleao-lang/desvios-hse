@@ -199,6 +199,63 @@ export interface IndicadorSemanal {
 
 export type StatusInspecao = 'em_aberto' | 'concluida'
 export type TipoEvidencia = 'desvio' | 'reconhecimento'
+// 'nao_aplicavel' = evidência anterior à integração com o forms SAR (backfill), nunca sincronizada
+export type StatusEnvioForms = 'pendente' | 'enviado' | 'erro' | 'nao_aplicavel'
+export type OrigemSar = 'comportamento' | 'boas_praticas' | 'condicao'
+
+// Obras do cliente Novo Nordisk — únicas onde o forms SAR se aplica hoje
+export const OBRAS_NN_IDS = ['mpgtfln4velildphgw', 'mpgti8oi0eaqvgbclzfd'] as const
+
+// Zonas do site Novo Nordisk — dropdown "Local" do forms SAR (See-Act-Report)
+export const LOCAIS_SAR_PADRAO = [
+  'ADM I', 'ADM II', 'ALMOXARIFADO', 'AMBULATÓRIO', 'AP I', 'AP II',
+  'ÁREAS EXTERNAS', 'CANTEIRO PRÓXIMO AO REFEITÓRIO', 'CENTRAL', 'DATACENTER',
+  'DATACENTER D21', 'ELEVATÓRIA', 'ESTACIONAMENTO I/II', 'ESTACIONAMENTO III',
+  'LAVA RODAS', 'LOB', 'PORTARIA', 'QC', 'REFEITÓRIO ADM', 'RESERVATÓRIO',
+  'SALA DE TREINAMENTO', 'SANTO AGOSTINHO', 'SPINE', 'UB',
+  'VESTIÁRIO FEMININO', 'VESTIÁRIO MASCULINO', 'WAREHOUSE',
+] as const
+
+export const ORIGENS_SAR_PADRAO: { value: OrigemSar; label: string }[] = [
+  { value: 'comportamento', label: 'Comportamento' },
+  { value: 'boas_praticas', label: 'Boas Práticas' },
+  { value: 'condicao', label: 'Condição' },
+]
+
+export const DISCIPLINAS_SAR_PADRAO = ['Saúde', 'Segurança', 'Meio Ambiente'] as const
+
+export const RISCOS_ASSOCIADOS_SAR_PADRAO = [
+  'Documento/requisito',
+  'Organização e limpeza',
+  'Biológico - Material biológico',
+  'Ergonômico - Empurrar e puxar',
+  'Ergonômico - Iluminação',
+  'Ergonômico - Levantamento',
+  'Ergonômico - Postura e posição de trabalho',
+  'Ergonômico - Qualidade do ar',
+  'Ergonômico - Trabalho repetitivo',
+  'Físico - Ausência de oxigênio',
+  'Físico - Temperaturas extremas/condição climática',
+  'Físico - Corte',
+  'Físico - Radiação',
+  'Físico - Ruído',
+  'Físico - Vibração',
+  'Químico - Exposição a produto químico',
+  'Químico - Gases tóxicos',
+  'Segurança - Colisão, prensamento e esmagamento',
+  'Segurança - Escorregões, tropeços e quedas',
+  'Segurança - Trabalho em altura',
+  'Segurança - Corrente elétrica',
+  'Segurança - Içamento/movimentação de cargas',
+  'Segurança - Projeção/queda de material',
+  'Segurança - Fogo/incêndio',
+  'Segurança - Trânsito',
+  'Meio Ambiente - Contaminação/poluição',
+  'Meio Ambiente - Segregação de resíduo',
+  'Meio Ambiente - Destinação de resíduo',
+  'Meio Ambiente - Umectação',
+  'Meio Ambiente - Desperdício',
+] as const
 
 export interface InspecaoEvidencia {
   id: string
@@ -215,6 +272,16 @@ export interface InspecaoEvidencia {
   quem_fechou?: string
   ordem: number
   criado_em: string
+  // Campos exigidos pelo forms SAR do cliente (Novo Nordisk — See/Act/Report)
+  subcategoria_local?: string
+  origem?: OrigemSar
+  disciplina?: string
+  risco_associado?: string
+  acoes_tomadas?: string
+  eliminou_risco?: boolean
+  forms_status: StatusEnvioForms
+  forms_enviado_em?: string
+  forms_erro?: string
 }
 
 export interface Inspecao {

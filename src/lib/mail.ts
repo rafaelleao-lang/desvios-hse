@@ -338,3 +338,39 @@ export async function enviarDesvioEmail(email: string, desvio: Desvio): Promise<
 </html>`.trim(),
   })
 }
+
+// Alerta ao responsável quando o bot de sincronização com o forms SAR (Novo Nordisk)
+// falha ao enviar uma evidência — para alguém acompanhar/reenviar manualmente.
+export async function enviarAlertaFormsSyncEmail(
+  evidenciaId: string,
+  erro: string,
+): Promise<void> {
+  const email = process.env.FORMS_SYNC_ALERT_EMAIL
+  if (!email) return
+
+  const { transporter, user } = makeTransporter()
+  await transporter.sendMail({
+    from:    `"MSE Engenharia" <${user}>`,
+    to:      email,
+    subject: '⚠️ Falha ao sincronizar evidência com o forms SAR (Novo Nordisk)',
+    html: `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.10);">
+  <div style="background:linear-gradient(135deg,#7F1D1D 0%,#DC2626 100%);padding:24px 32px;">
+    <p style="margin:0;color:#fff;font-size:20px;font-weight:700;">Falha na sincronização com o forms SAR</p>
+  </div>
+  <div style="padding:24px 32px;">
+    <p style="margin:0 0 12px;font-size:14px;color:#111827;">O bot não conseguiu enviar a evidência <strong>${evidenciaId}</strong> pro forms SAR (Novo Nordisk).</p>
+    <p style="margin:0;font-size:13px;color:#6B7280;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:12px;">${erro}</p>
+  </div>
+  <div style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:14px 32px;text-align:center;">
+    <p style="margin:0;font-size:11px;color:#9CA3AF;">MSE Engenharia · Sistema de Gestão HSE</p>
+  </div>
+</div>
+</body>
+</html>`.trim(),
+  })
+}

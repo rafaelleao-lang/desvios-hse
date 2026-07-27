@@ -4,8 +4,11 @@ import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/contexts/AppContext'
 import { inspecoesDB, desviosDB } from '@/lib/db'
-import { CATEGORIAS_PADRAO, serializeCategoria } from '@/types'
-import type { FotoDesvio, TST, Encarregado, Coordenador } from '@/types'
+import {
+  CATEGORIAS_PADRAO, serializeCategoria, OBRAS_NN_IDS,
+  LOCAIS_SAR_PADRAO, ORIGENS_SAR_PADRAO, DISCIPLINAS_SAR_PADRAO, RISCOS_ASSOCIADOS_SAR_PADRAO,
+} from '@/types'
+import type { FotoDesvio, TST, Encarregado, Coordenador, OrigemSar } from '@/types'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Trash2, Camera, Image, CheckSquare2, X, ChevronRight,
@@ -44,6 +47,13 @@ interface EvidenciaForm {
   descricao: string
   desvio_id: string | null
   desvio_numero: number | null
+  // Campos exigidos pelo forms SAR (cliente Novo Nordisk) — só se aplicam às obras NN
+  subcategoria_local: string
+  origem: OrigemSar | null
+  disciplina: string[]
+  risco_associado: string
+  acoes_tomadas: string
+  eliminou_risco: boolean | null
 }
 
 interface DesvioFormState {
@@ -382,10 +392,14 @@ export default function NovaInspecaoPage() {
   const coordOptions = coordenadores.filter(c => c.obra_id === obraId && c.ativo)
 
   const canStep0 = obraId && tstId && encarregadoId && coordenadorId
+  const isObraNN = OBRAS_NN_IDS.includes(obraId as typeof OBRAS_NN_IDS[number])
 
   function addEvidencia() {
     const id = uid()
-    setEvidencias(ev => [...ev, { id, local: '', fotos: [], tipo: null, descricao: '', desvio_id: null, desvio_numero: null }])
+    setEvidencias(ev => [...ev, {
+      id, local: '', fotos: [], tipo: null, descricao: '', desvio_id: null, desvio_numero: null,
+      subcategoria_local: '', origem: null, disciplina: [], risco_associado: '', acoes_tomadas: '', eliminou_risco: null,
+    }])
   }
 
   function removeEvidencia(id: string) {
@@ -394,6 +408,12 @@ export default function NovaInspecaoPage() {
 
   function updateEvidencia(id: string, patch: Partial<EvidenciaForm>) {
     setEvidencias(ev => ev.map(e => e.id === id ? { ...e, ...patch } : e))
+  }
+
+  function toggleDisciplina(evId: string, disc: string) {
+    setEvidencias(ev => ev.map(e => e.id === evId
+      ? { ...e, disciplina: e.disciplina.includes(disc) ? e.disciplina.filter(d => d !== disc) : [...e.disciplina, disc] }
+      : e))
   }
 
   async function addFotoToEvidencia(evId: string, files: FileList | null) {
@@ -411,8 +431,13 @@ export default function NovaInspecaoPage() {
   const canLancar = evidencias.length > 0 &&
     evidencias.every(e => {
       if (!e.tipo || !e.local.trim()) return false
-      if (e.tipo === 'desvio') return e.desvio_id !== null  // descrição vem do desvio
-      return e.descricao.trim().length > 0
+      if (e.tipo === 'desvio' && e.desvio_id === null) return false  // descrição vem do desvio
+      if (e.tipo === 'reconhecimento' && e.descricao.trim().length === 0) return false
+      if (isObraNN) {
+        if (!e.subcategoria_local.trim() || !e.origem || e.disciplina.length === 0) return false
+        if (!e.risco_associado || !e.acoes_tomadas.trim() || e.eliminou_risco === null) return false
+      }
+      return true
     })
 
   async function handleLancar() {
@@ -447,6 +472,12 @@ export default function NovaInspecaoPage() {
           tratativa_texto: undefined,
           quem_fechou: undefined,
           ordem: i,
+          subcategoria_local: isObraNN ? ev.subcategoria_local : undefined,
+          origem: isObraNN ? ev.origem ?? undefined : undefined,
+          disciplina: isObraNN ? serializeCategoria(ev.disciplina) : undefined,
+          risco_associado: isObraNN ? ev.risco_associado : undefined,
+          acoes_tomadas: isObraNN ? ev.acoes_tomadas : undefined,
+          eliminou_risco: isObraNN ? ev.eliminou_risco ?? undefined : undefined,
         })
       }
 
@@ -570,13 +601,136 @@ export default function NovaInspecaoPage() {
                     <label className="text-xs font-semibold text-zinc-400 mb-1.5 block flex items-center gap-1.5">
                       <MapPin className="w-3 h-3" /> Local *
                     </label>
-                    <input
-                      className="w-full h-10 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                      placeholder="Ex: Corredor bloco A, frente ao elevador"
-                      value={ev.local}
-                      onChange={e => updateEvidencia(ev.id, { local: e.target.value })}
-                    />
+                    {isObraNN ? (
+                      <select
+                        className="w-full h-10 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        value={ev.local}
+                        onChange={e => updateEvidencia(ev.id, { local: e.target.value })}
+                      >
+                        <option value="">Selecione o local</option>
+                        {LOCAIS_SAR_PADRAO.map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        className="w-full h-10 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        placeholder="Ex: Corredor bloco A, frente ao elevador"
+                        value={ev.local}
+                        onChange={e => updateEvidencia(ev.id, { local: e.target.value })}
+                      />
+                    )}
                   </div>
+
+                  {/* Campos do forms SAR (só obras Novo Nordisk) */}
+                  {isObraNN && (
+                    <div className="space-y-4 bg-zinc-800/40 border border-zinc-700/60 rounded-xl p-4">
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Forms SAR (cliente Novo Nordisk)</p>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Subcategoria de Local *</label>
+                        <input
+                          className="w-full h-10 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                          placeholder="Ex: Corredor próximo à entrada"
+                          value={ev.subcategoria_local}
+                          onChange={e => updateEvidencia(ev.id, { subcategoria_local: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Origem *</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {ORIGENS_SAR_PADRAO.map(o => (
+                            <button
+                              key={o.value}
+                              type="button"
+                              onClick={() => updateEvidencia(ev.id, { origem: o.value })}
+                              className={cn(
+                                'py-2 rounded-lg border text-xs font-medium transition-all',
+                                ev.origem === o.value
+                                  ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-400'
+                                  : 'border-zinc-700 text-zinc-500 hover:border-zinc-600',
+                              )}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Disciplina *</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {DISCIPLINAS_SAR_PADRAO.map(d => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => toggleDisciplina(ev.id, d)}
+                              className={cn(
+                                'py-2 rounded-lg border text-xs font-medium transition-all',
+                                ev.disciplina.includes(d)
+                                  ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-400'
+                                  : 'border-zinc-700 text-zinc-500 hover:border-zinc-600',
+                              )}
+                            >
+                              {d}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Risco Associado *</label>
+                        <select
+                          className="w-full h-10 px-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                          value={ev.risco_associado}
+                          onChange={e => updateEvidencia(ev.id, { risco_associado: e.target.value })}
+                        >
+                          <option value="">Selecione o risco associado</option>
+                          {RISCOS_ASSOCIADOS_SAR_PADRAO.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">Ações Tomadas *</label>
+                        <textarea
+                          className="w-full px-3 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none"
+                          rows={2}
+                          placeholder="Descreva as ações já tomadas"
+                          value={ev.acoes_tomadas}
+                          onChange={e => updateEvidencia(ev.id, { acoes_tomadas: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 mb-1.5 block">As ações adotadas eliminaram o risco? *</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateEvidencia(ev.id, { eliminou_risco: true })}
+                            className={cn(
+                              'py-2 rounded-lg border text-xs font-medium transition-all',
+                              ev.eliminou_risco === true
+                                ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-400'
+                                : 'border-zinc-700 text-zinc-500 hover:border-zinc-600',
+                            )}
+                          >
+                            Sim
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateEvidencia(ev.id, { eliminou_risco: false })}
+                            className={cn(
+                              'py-2 rounded-lg border text-xs font-medium transition-all',
+                              ev.eliminou_risco === false
+                                ? 'border-red-500/60 bg-red-500/15 text-red-400'
+                                : 'border-zinc-700 text-zinc-500 hover:border-zinc-600',
+                            )}
+                          >
+                            Não
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Photos */}
                   <div>

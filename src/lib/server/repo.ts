@@ -3,7 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2'
 import { query } from '@/lib/mysql'
 import type {
   Obra, TST, Encarregado, Coordenador, Desvio, StatusDesvio, Tratativa, IndicadorSemanal,
-  Inspecao, InspecaoEvidencia, FotoDesvio,
+  Inspecao, InspecaoEvidencia, FotoDesvio, StatusEnvioForms, OrigemSar,
 } from '@/types'
 import { enviarDesvioEmail } from '@/lib/mail'
 
@@ -621,6 +621,15 @@ function mapEvidencia(r: RowDataPacket): InspecaoEvidencia {
     quem_fechou: r.quem_fechou ?? undefined,
     ordem: Number(r.ordem ?? 0),
     criado_em: r.criado_em,
+    subcategoria_local: r.subcategoria_local ?? undefined,
+    origem: (r.origem ?? undefined) as OrigemSar | undefined,
+    disciplina: r.disciplina ?? undefined,
+    risco_associado: r.risco_associado ?? undefined,
+    acoes_tomadas: r.acoes_tomadas ?? undefined,
+    eliminou_risco: r.eliminou_risco == null ? undefined : toBool(r.eliminou_risco),
+    forms_status: (r.forms_status ?? 'pendente') as StatusEnvioForms,
+    forms_enviado_em: r.forms_enviado_em ?? undefined,
+    forms_erro: r.forms_erro ?? undefined,
   }
 }
 
@@ -758,14 +767,17 @@ export const inspecoesRepo = {
 
   async addEvidencia(
     inspecaoId: string,
-    ev: Omit<InspecaoEvidencia, 'id' | 'criado_em' | 'inspecao_id'>,
+    ev: Omit<InspecaoEvidencia, 'id' | 'criado_em' | 'inspecao_id' | 'forms_status'>,
   ): Promise<InspecaoEvidencia> {
-    const evRecord: InspecaoEvidencia = { ...ev, id: uid(), inspecao_id: inspecaoId, criado_em: now() }
+    const evRecord: InspecaoEvidencia = {
+      ...ev, id: uid(), inspecao_id: inspecaoId, criado_em: now(), forms_status: 'pendente',
+    }
     await query(
       `INSERT INTO inspecao_evidencias (
         id, inspecao_id, tipo, local, descricao, fotos_abertura, fotos_fechamento,
-        desvio_id, prazo_correcao, data_fechamento, tratativa_texto, quem_fechou, ordem, criado_em
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        desvio_id, prazo_correcao, data_fechamento, tratativa_texto, quem_fechou, ordem, criado_em,
+        subcategoria_local, origem, disciplina, risco_associado, acoes_tomadas, eliminou_risco, forms_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         evRecord.id, evRecord.inspecao_id, evRecord.tipo, evRecord.local,
         evRecord.descricao ?? null, JSON.stringify(evRecord.fotos_abertura ?? []),
@@ -773,6 +785,10 @@ export const inspecoesRepo = {
         evRecord.desvio_id ?? null, evRecord.prazo_correcao ?? null,
         evRecord.data_fechamento ?? null, evRecord.tratativa_texto ?? null,
         evRecord.quem_fechou ?? null, evRecord.ordem ?? 0, evRecord.criado_em,
+        evRecord.subcategoria_local ?? null, evRecord.origem ?? null,
+        evRecord.disciplina ?? null, evRecord.risco_associado ?? null,
+        evRecord.acoes_tomadas ?? null, evRecord.eliminou_risco == null ? null : (evRecord.eliminou_risco ? 1 : 0),
+        evRecord.forms_status,
       ],
     )
     if (evRecord.tipo === 'desvio') {
@@ -835,6 +851,17 @@ export const inspecoesRepo = {
 
   async delete(id: string): Promise<void> {
     await query('DELETE FROM inspecoes WHERE id = ?', [id])
+  },
+
+  // Usado pelo bot de sincronização com o forms SAR do cliente (Novo Nordisk)
+  async marcarEnvioForms(
+    evidenciaId: string,
+    dados: { status: StatusEnvioForms; erro?: string },
+  ): Promise<void> {
+    await query(
+      `UPDATE inspecao_evidencias SET forms_status = ?, forms_enviado_em = ?, forms_erro = ? WHERE id = ?`,
+      [dados.status, dados.status === 'enviado' ? now() : null, dados.erro ?? null, evidenciaId],
+    )
   },
 }
 
