@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useApp } from '@/contexts/AppContext'
-import { Eye, Search, Filter, X, ClipboardList, Calendar, CheckCircle2, FileText, Loader2 } from 'lucide-react'
+import { Eye, Search, Filter, X, ClipboardList, Calendar, CheckCircle2, FileText, Loader2, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { inspecoesDB } from '@/lib/db'
@@ -335,6 +335,42 @@ export default function InspecoesPage() {
   const [dataIni, setDataIni] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+
+  const [pendentesSar, setPendentesSar] = useState<number | null>(null)
+  const [enviandoRobo, setEnviandoRobo] = useState(false)
+
+  const carregarPendentesSar = useCallback(async () => {
+    try {
+      const res = await fetch('/api/forms-sync/robo')
+      const json = await res.json()
+      setPendentesSar(json.ok ? json.pendentes : 0)
+    } catch {
+      setPendentesSar(0)
+    }
+  }, [])
+
+  useEffect(() => { carregarPendentesSar() }, [carregarPendentesSar])
+
+  async function enviarRobo() {
+    if (!pendentesSar || enviandoRobo) return
+    if (!confirm(
+      `Isso vai enviar ${pendentesSar} evidência(s) pendente(s) de verdade pro forms SAR (Microsoft Forms) do cliente.\n\n` +
+      `Não dá pra desfazer depois de enviado. Continuar?`,
+    )) return
+
+    setEnviandoRobo(true)
+    try {
+      const res = await fetch('/api/forms-sync/robo', { method: 'POST' })
+      const json = await res.json()
+      if (!json.ok) throw new Error(json.error || 'Erro desconhecido')
+      alert(`Envio concluído: ${json.enviados} enviada(s), ${json.falhas} falha(s).`)
+    } catch (err) {
+      alert(`Erro ao rodar o robô: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setEnviandoRobo(false)
+      await carregarPendentesSar()
+    }
+  }
   const [pdfLoading, setPdfLoading] = useState<string | null>(null)
 
   async function handlePDF(id: string) {
@@ -407,6 +443,25 @@ export default function InspecoesPage() {
           <p className="text-xs text-zinc-500">{filtered.length} de {concluidas.length} concluídas</p>
         </div>
         <div className="ml-auto flex gap-2">
+          <button
+            onClick={enviarRobo}
+            disabled={enviandoRobo || !pendentesSar}
+            title="Envia manualmente as evidências pendentes para o forms SAR (Microsoft Forms) do cliente"
+            className={cn(
+              'flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all',
+              pendentesSar
+                ? 'border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
+                : 'border-zinc-700 text-zinc-600 cursor-not-allowed',
+            )}
+          >
+            {enviandoRobo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
+            ROBO
+            {!!pendentesSar && (
+              <span className="ml-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {pendentesSar}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setShowFilters(v => !v)}
             className={cn(
