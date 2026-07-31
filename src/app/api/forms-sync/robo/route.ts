@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
         ...process.env,
         API_BASE_URL: req.nextUrl.origin,
         FORMS_SYNC_TOKEN: process.env.FORMS_SYNC_TOKEN ?? 'forms-sync-mse-2026',
+        SAR_FORM_URL:
+          process.env.SAR_FORM_URL ??
+          'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=mWQZ5UWiOUSA7Ovoq8PsrHyayMJUjmdJisz419cHuwRUN0lTWE03VUVKSUZKSlg1U0tBRVBCSFlYNS4u&origin=QRCode',
         DRY_RUN: 'false',
       },
       timeout: 5 * 60 * 1000,
