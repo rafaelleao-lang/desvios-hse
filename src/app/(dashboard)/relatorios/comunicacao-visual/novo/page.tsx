@@ -48,6 +48,7 @@ const CLIENT_LOGOS = [
 
 const MSE_RED   = '#E8291C'
 const NAVY_DARK = '#0D1422'
+const MSE_LOGO_PATH = '/logos/mse-wordmark.png'
 
 // ── PDF Helpers ───────────────────────────────────────────────────────────────
 
@@ -94,6 +95,29 @@ async function urlToImgInfo(url: string): Promise<ImgInfo | null> {
   }
 }
 
+// Loads a PNG as-is, skipping compressImage's lossy JPEG re-encode
+// (which flattens transparency to black) — used for the fixed brand asset.
+async function loadPngLogo(url: string): Promise<ImgInfo | null> {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+    return await new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => resolve({ dataUrl, w: img.naturalWidth, h: img.naturalHeight, format: 'PNG' })
+      img.onerror = () => resolve(null)
+      img.src = dataUrl
+    })
+  } catch {
+    return null
+  }
+}
+
 function fitInBox(
   imgW: number, imgH: number,
   boxW: number, boxH: number,
@@ -104,12 +128,28 @@ function fitInBox(
   return { w, h, ox: (boxW - w) / 2, oy: (boxH - h) / 2 }
 }
 
+// Draws the official MSE wordmark image (never redraws it as text).
+function drawMseBrand(
+  doc: any,
+  logo: ImgInfo | null,
+  x: number, y: number, h: number,
+  align: 'left' | 'right' | 'center' = 'left',
+) {
+  if (!logo) return
+  const w = h * (logo.w / logo.h)
+  let lx = x
+  if (align === 'right') lx = x - w
+  else if (align === 'center') lx = x - w / 2
+  doc.addImage(logo.dataUrl, logo.format, lx, y, w, h)
+}
+
 // ── PDF Page Drawers ──────────────────────────────────────────────────────────
 
 function drawCover(
   doc: any,
   info: { obraName: string; cidade: string; estado: string; semana: string; dataInicio: string; dataFim: string; tst: string },
   logoImg: ImgInfo | null,
+  mseLogoImg: ImgInfo | null,
 ) {
   const W = 297, H = 210
   const split = 162
@@ -175,11 +215,8 @@ function drawCover(
     cursorX += blockW + 3
   })
 
-  // Right: MSE "mse" brand
-  doc.setFont('helvetica', 'black')
-  doc.setFontSize(36)
-  doc.setTextColor(...h2r(MSE_RED))
-  doc.text('mse', split + 7, 20)
+  // Right: MSE brand (official logo)
+  drawMseBrand(doc, mseLogoImg, split + 7, 11, 9, 'left')
 
   // Right: client logo
   const logoMaxH = 32, logoMaxW = 110
@@ -252,17 +289,13 @@ function drawDivisor(doc: any, local: string) {
   const lines = doc.splitTextToSize(local.toUpperCase(), W - 60)
   doc.text(lines, W / 2, H / 2 - (lines.length - 1) * 14, { align: 'center' })
 
-  // MSE brand bottom-right
-  doc.setFont('helvetica', 'black')
-  doc.setFontSize(22)
-  doc.setTextColor(255, 255, 255)
-  doc.text('mse', W - 14, H - 10, { align: 'right' })
 }
 
 function drawPhotoPage(
   doc: any,
   local: string,
   photos: ImgInfo[],
+  mseLogoImg: ImgInfo | null,
 ) {
   const W = 297, H = 210
   const headerH = 24
@@ -285,10 +318,7 @@ function drawPhotoPage(
   doc.text('Comunicação Visual', padX, 15)
 
   // Header: MSE brand right
-  doc.setFont('helvetica', 'black')
-  doc.setFontSize(14)
-  doc.setTextColor(...h2r(MSE_RED))
-  doc.text('mse', W - padX, 15, { align: 'right' })
+  drawMseBrand(doc, mseLogoImg, W - padX, 11.4, 3.6, 'right')
 
   // Separator line
   doc.setDrawColor(220, 220, 230)
@@ -331,7 +361,7 @@ function drawPhotoPage(
   doc.text('MSE Engenharia · Gestão HSE · Comunicação Visual', padX, H - 2.5)
 }
 
-function drawClosing(doc: any) {
+function drawClosing(doc: any, mseLogoImg: ImgInfo | null) {
   const W = 297, H = 210
 
   doc.setFillColor(255, 255, 255)
@@ -342,11 +372,8 @@ function drawClosing(doc: any) {
   doc.rect(0, 0, W, 6, 'F')
   doc.rect(0, H - 6, W, 6, 'F')
 
-  // Large "mse"
-  doc.setFont('helvetica', 'black')
-  doc.setFontSize(68)
-  doc.setTextColor(...h2r(MSE_RED))
-  doc.text('mse', W / 2, H / 2 + 8, { align: 'center' })
+  // Large MSE brand
+  drawMseBrand(doc, mseLogoImg, W / 2, 95.7, 17.3, 'center')
 
   // Tagline
   doc.setFont('helvetica', 'normal')
@@ -358,6 +385,9 @@ function drawClosing(doc: any) {
 // ── PDF Generator ─────────────────────────────────────────────────────────────
 
 async function gerarPDF(form: ReportFormState, obra: Obra | undefined, tst: TST | undefined) {
+  // Load MSE brand logo
+  const mseLogoImg = await loadPngLogo(MSE_LOGO_PATH)
+
   // Load client logo
   let logoImg: ImgInfo | null = null
   if (form.logoCliente) {
@@ -384,7 +414,7 @@ async function gerarPDF(form: ReportFormState, obra: Obra | undefined, tst: TST 
     dataInicio: form.dataInicio,
     dataFim:    form.dataFim,
     tst:       tst?.nome ?? '',
-  }, logoImg)
+  }, logoImg, mseLogoImg)
 
   // Sections
   for (const secao of secoesComImgs) {
@@ -397,13 +427,13 @@ async function gerarPDF(form: ReportFormState, obra: Obra | undefined, tst: TST 
     for (let i = 0; i < secao.imgs.length; i += 2) {
       const chunk = secao.imgs.slice(i, i + 2)
       doc.addPage()
-      drawPhotoPage(doc, secao.local, chunk)
+      drawPhotoPage(doc, secao.local, chunk, mseLogoImg)
     }
   }
 
   // Closing
   doc.addPage()
-  drawClosing(doc)
+  drawClosing(doc, mseLogoImg)
 
   const obraName = obra?.nome ?? 'Obra'
   doc.save(`Relatório Comunicação Visual - ${obraName} - Semana ${form.semana || 'S'}.pdf`)
