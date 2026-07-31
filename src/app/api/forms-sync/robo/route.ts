@@ -39,7 +39,11 @@ export async function POST(req: NextRequest) {
       cwd: BOT_DIR,
       env: {
         ...process.env,
-        API_BASE_URL: req.nextUrl.origin,
+        // Chama o próprio servidor via loopback HTTP, não pelo domínio público:
+        // o Nginx só termina TLS na borda, internamente a app roda em HTTP puro
+        // (ver ecosystem.config.js) — usar req.nextUrl.origin (https público)
+        // aqui falha com ERR_SSL_WRONG_VERSION_NUMBER.
+        API_BASE_URL: `http://127.0.0.1:${process.env.PORT ?? 3000}`,
         FORMS_SYNC_TOKEN: process.env.FORMS_SYNC_TOKEN ?? 'forms-sync-mse-2026',
         SAR_FORM_URL:
           process.env.SAR_FORM_URL ??
