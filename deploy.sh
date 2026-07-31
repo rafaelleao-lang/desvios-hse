@@ -26,28 +26,39 @@ git fetch origin "$TARGET_BRANCH"
 git checkout "$TARGET_BRANCH"
 git reset --hard "origin/${TARGET_BRANCH}"
 
-# Grava variáveis de e-mail se fornecidas pelo pipeline de deploy
-if [ -n "${SMTP_HOST:-}" ]; then
-  log "Atualizando configuração SMTP (.env.production.local)"
-  cat > "$APP_DIR/.env.production.local" <<EOF
+# Tudo abaixo roda dentro de uma função: o bash lê o corpo inteiro de um
+# bloco { } de uma vez antes de começar a executar, então o "git reset --hard"
+# acima não corrompe as linhas seguintes lendo o arquivo do disco no meio
+# da execução (bug clássico de script que reescreve a si mesmo via git
+# pull/reset — ver mesmo padrão em deploy/deploy.sh do projeto Controle PT).
+deploy_main() {
+  # Grava variáveis de e-mail se fornecidas pelo pipeline de deploy
+  if [ -n "${SMTP_HOST:-}" ]; then
+    log "Atualizando configuração SMTP (.env.production.local)"
+    cat > "$APP_DIR/.env.production.local" <<EOF
 SMTP_HOST=${SMTP_HOST}
 SMTP_PORT=${SMTP_PORT}
 SMTP_USER=${SMTP_USER}
 SMTP_PASS=${SMTP_PASS}
 EOF
-fi
+  fi
 
-log "Instalando dependências (npm ci)"
-npm ci
+  log "Instalando dependências (npm ci)"
+  npm ci
 
-log "Gerando build de produção"
-npm run build
+  log "Instalando dependências do robô SAR (bot-forms-sync)"
+  (cd "$APP_DIR/bot-forms-sync" && npm ci && npx playwright install --with-deps chromium)
 
-log "Reiniciando aplicação (PM2)"
-pm2 restart "$APP_NAME" --update-env
-pm2 save
+  log "Gerando build de produção"
+  npm run build
 
-log "Deploy concluído."
-pm2 status
-echo "--- healthcheck ---"
-curl -s -o /dev/null -w "local HTTP %{http_code}\n" http://127.0.0.1:3000/ || true
+  log "Reiniciando aplicação (PM2)"
+  pm2 restart "$APP_NAME" --update-env
+  pm2 save
+
+  log "Deploy concluído."
+  pm2 status
+  echo "--- healthcheck ---"
+  curl -s -o /dev/null -w "local HTTP %{http_code}\n" http://127.0.0.1:3000/ || true
+}
+deploy_main
